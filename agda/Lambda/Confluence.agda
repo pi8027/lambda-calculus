@@ -162,13 +162,11 @@ starLemma {tapp (tabs t1) t2} (→βPbeta {.t1} {t1'} {.t2} {t2'} p1 p2) =
 Diamond : ∀ {ℓ} {A : Set ℓ} (_R_ : Rel A ℓ) → Set ℓ
 Diamond _R_ = ∀ {t1 t2 t3} → t1 R t2 → t1 R t3 → ∃ (λ t → t2 R t × t3 R t)
 
-SemiConfluence : ∀ {ℓ} {A : Set ℓ} (_R_ : Rel A ℓ) → Set ℓ
-SemiConfluence _R_ =
-  ∀ {t1 t2 t3} → t1 R t2 → Star _R_ t1 t3 →
-  ∃ (λ t → Star _R_ t2 t × Star _R_ t3 t)
+SemiConfluence : ∀ {ℓ} {A : Set ℓ} → Rel A ℓ → Set ℓ
+SemiConfluence R = ∀ {t1 t2 t3} → R t1 t2 → Star R t1 t3 → ∃ (λ t → Star R t2 t × Star R t3 t)
 
-Confluence : ∀ {ℓ} {A : Set ℓ} (_R_ : Rel A ℓ) → Set ℓ
-Confluence _R_ = Diamond (Star _R_)
+Confluence : ∀ {ℓ} {A : Set ℓ} → Rel A ℓ → Set ℓ
+Confluence R = Diamond (Star R)
 
 Diamond⇒SemiConfluence : ∀ {ℓ} {A : Set ℓ} {R : Rel A ℓ} → Diamond R → SemiConfluence R
 Diamond⇒SemiConfluence diamond {t1} {t2} {.t1} r1 ε = t2 , ε , r1 ◅ ε
