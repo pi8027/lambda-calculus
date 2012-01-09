@@ -8,7 +8,7 @@ Inductive term : Type :=
   | app : term -> term -> term
   | abs : term -> term.
 
-Inductive shifted1 : nat -> nat -> term -> Prop :=
+Inductive shifted1 : nat -> nat -> term -> Type :=
   | svar1 : forall d c n, n < c -> shifted1 d c (var n)
   | svar2 : forall d c n, c + d <= n -> d <= n -> shifted1 d c (var n)
   | sapp : forall d c t1 t2, shifted1 d c t1 -> shifted1 d c t2 -> shifted1 d c (app t1 t2)
@@ -27,12 +27,14 @@ Fixpoint shift (d c : nat) (t : term) : term :=
 
 Functional Scheme shift_ind := Induction for shift Sort Prop.
 
-Definition shifted2 (d c : nat) (t : term) : Prop :=
-  exists t' : term, shift d c t' = t.
+Definition shifted2 (d c : nat) (t : term) : Type :=
+  { t' : term | shift d c t' = t }.
 
 Lemma shifted1_shift : forall d c t, shifted1 d c (shift d c t).
   intros.
-  functional induction (shift d c t).
+  revert d c.
+  induction t ; intros ; simpl.
+  case (le_dec c n) ; intros.
   apply svar2 ; omega.
   apply svar1 ; omega.
   apply sapp ; auto.
@@ -60,11 +62,12 @@ Qed.
 
 Theorem shifted2_is_shifted1 : forall d c t, shifted2 d c t -> shifted1 d c t.
   intros.
-  destruct H.
-  rewrite <- H.
+  destruct X.
+  rewrite <- e.
   exact (shifted1_shift d c x).
 Qed.
 
-(*
-Definition unshift (d c : nat) (t : term) (p : shifted2 d c t) : term :=
-*)
+Definition unshift (d c : nat) (t : term) (p : shifted2 d c t) : term := proj1_sig p.
+
+
+
