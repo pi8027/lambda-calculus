@@ -40,11 +40,9 @@ Theorem shifted1_is_shifted2 : forall d c t, shifted1 d c t -> shifted2 d c t.
   auto.
   exists (var (n - d)).
   simpl.
-  case (le_dec c (n - d)).
-  intros.
+  case (le_dec c (n - d)) ; intros.
   f_equal.
   omega.
-  intro.
   apply False_ind.
   omega.
   elim IHshifted1_1.
@@ -60,4 +58,15 @@ Theorem shifted1_is_shifted2 : forall d c t, shifted1 d c t -> shifted2 d c t.
   f_equal.
   auto.
 Qed.
+
+Theorem shifted2_is_shifted1 : forall d c t, shifted2 d c t -> shifted1 d c t.
+  intros.
+  destruct H.
+  induction x ; rewrite <- H ; simpl.
+  case (le_dec c n) ; intros.
+  apply svar2 ; omega.
+  apply svar1 ; omega.
+  apply sapp.
+
+  
 
