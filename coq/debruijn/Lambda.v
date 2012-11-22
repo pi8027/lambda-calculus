@@ -67,7 +67,15 @@ Theorem shifted2_is_shifted1 : forall d c t, shifted2 d c t -> shifted1 d c t.
   exact (shifted1_shift d c x).
 Qed.
 
-Definition unshift (d c : nat) (t : term) (p : shifted2 d c t) : term := proj1_sig p.
+Fixpoint unshift1 (d c : nat) (t : term) : term :=
+  match t with
+    | var n =>
+      match le_dec c n with
+        | left p => var (n - d)
+        | right p => var n
+      end
+    | app t1 t2 => app (unshift1 d c t1) (unshift1 d c t2)
+    | abs t1 => abs (unshift1 d (S c) t1)
+  end.
 
-
-
+Definition unshift2 (d c : nat) (t : term) (p : shifted2 d c t) : term := proj1_sig p.
