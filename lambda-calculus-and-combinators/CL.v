@@ -1,4 +1,6 @@
-Require Import ssreflect Common Arith List Relations Relation_Operators.
+Require Import
+  Arith.Arith Relations.Relations Relations.Relation_Operators Lists.List
+  Program.Syntax ssreflect Common.
 
 (* Definition 2.1: Combinatory logic terms, or CL-terms *)
 

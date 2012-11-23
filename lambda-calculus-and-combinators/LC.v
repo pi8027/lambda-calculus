@@ -1,4 +1,6 @@
-Require Import ssreflect Common Arith List Relations Relation_Operators.
+Require Import
+  Arith.Arith Relations.Relations Relations.Relation_Operators Lists.List
+  ssreflect Common.
 
 (* Definition 1.1: Lambda-terms *)
 

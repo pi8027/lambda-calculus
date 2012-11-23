@@ -1,7 +1,5 @@
-Require Import ssreflect List Relations Relation_Operators.
-
-Notation "[]" := nil : list_scope.
-Notation "[ a ; .. ; b ]" := (a :: .. (b :: []) ..) : list_scope.
+Require Import
+  Relations.Relations Relations.Relation_Operators Lists.List ssreflect.
 
 Definition confluent (A : Set) (R : relation A) : Prop :=
   forall (t1 t2 t3 : A), R t1 t2 -> R t1 t3 ->
