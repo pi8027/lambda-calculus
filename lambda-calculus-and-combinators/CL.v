@@ -76,7 +76,7 @@ Inductive cl_weakred : relation clterm :=
   | weakred_k     : forall (t1 t2 : clterm), cl_weakred (clatomk @ t1 @ t2) t1
   | weakred_i     : forall (t : clterm), cl_weakred (clatomi @ t) t.
 
-Definition cl_weakred_rtc : relation clterm := clos_refl_trans_1n _ cl_weakred.
+Notation cl_weakred_rtc := (clos_refl_trans_1n clterm cl_weakred).
 
 Infix "->1w" := cl_weakred (at level 50, no associativity).
 Infix "->w" := cl_weakred_rtc (at level 50, no associativity).
@@ -100,9 +100,9 @@ Qed.
 Lemma weakred_rtc_app : forall t1 t1' t2 t2',
   t1 ->w t1' -> t2 ->w t2' -> (t1 @ t2) ->w (t1' @ t2').
 Proof.
-  move=> t1 t1' t2 t2' H H0 ; eapply rt1n_trans'.
-  apply weakred_rtc_left ; eauto.
-  apply weakred_rtc_right ; auto.
+  move=> t1 t1' t2 t2' H H0 ; apply rt1n_trans' with (t1 @ t2').
+  by apply weakred_rtc_right.
+  by apply weakred_rtc_left.
 Qed.
 
 (* Definition 2.10: Weak normal form *)
@@ -117,7 +117,7 @@ Definition cl_comb_b : clterm := clatoms @ (clatomk @ clatoms) @ clatomk.
 Example example_2_11 : forall t1 t2 t3,
   cl_comb_b @ t1 @ t2 @ t3 ->w t1 @ (t2 @ t3).
 Proof.
-  intros.
+  move=> t1 t2 t3.
   rewrite /cl_comb_b.
   eapply rt1n_trans ; first apply weakred_left, weakred_left, weakred_s.
   eapply rt1n_trans ;
@@ -134,7 +134,7 @@ Definition cl_comb_c : clterm :=
 Example example_2_12 :
   forall t1 t2 t3, cl_comb_c @ t1 @ t2 @ t3 ->w t1 @ t3 @ t2.
 Proof.
-  intros.
+  move=> t1 t2 t3.
   rewrite /cl_comb_c.
   eapply rt1n_trans ; first apply weakred_left, weakred_left, weakred_s.
   eapply rt1n_trans' ; first (do 3 apply weakred_rtc_left ; apply example_2_11).
@@ -154,7 +154,7 @@ Qed.
 Lemma substlemma_a' : forall t1 t2 v,
   t1 ->1w t2 -> cl_occurs (clvar v) t2 -> cl_occurs (clvar v) t1.
 Proof.
-  intros.
+  move=> t1 t2 v H H0.
   induction H.
   inversion H0.
   apply cl_occurs_left, IHcl_weakred, H3.
