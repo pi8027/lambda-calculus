@@ -1,15 +1,13 @@
 Require Import
-  Arith.Arith Relations.Relations Relations.Relation_Operators Lists.List
-  Program.Syntax ssreflect Common.
+  Arith.Arith Relations.Relations Relations.Relation_Operators
+  ssreflect seq Common.
 
 (* Definition 2.1: Combinatory logic terms, or CL-terms *)
 
 Inductive clterm : Set :=
-  | clvar   : nat -> clterm
-  | clapp   : clterm -> clterm -> clterm
-  | clatoms : clterm
-  | clatomk : clterm
-  | clatomi : clterm.
+  | clvar of nat
+  | clapp of clterm & clterm
+  | clatoms | clatomk | clatomi.
 
 Lemma eq_clterm_dec : forall (t1 t2 : clterm), {t1 = t2}+{t1 <> t2}.
 Proof.
@@ -60,8 +58,8 @@ Fixpoint substitute (l : list (nat * clterm)) (t : clterm) : clterm :=
 (* Example 2.7 *)
 
 Eval compute in substitute
-  [ (1, clatoms @ clatomk) ] (clvar 0 @ clvar 1 @ clvar 1).
-Eval compute in substitute [ (1, clatoms @ clatomk) ; (0, clatomk @ clatomi) ]
+  [:: (1, clatoms @ clatomk) ] (clvar 0 @ clvar 1 @ clvar 1).
+Eval compute in substitute [:: (1, clatoms @ clatomk) ; (0, clatomk @ clatomi) ]
   (clvar 0 @ clvar 1 @ clvar 1).
 
 (* Definition 2.9: Weak reduction *)
@@ -180,7 +178,7 @@ Proof.
 Qed.
 
 Lemma substlemma_b : forall t1 t2 t3 v,
-  t1 ->w t2 -> substitute [(v, t1)] t3 ->w substitute [(v, t2)] t3.
+  t1 ->w t2 -> substitute [:: (v, t1)] t3 ->w substitute [:: (v, t2)] t3.
 Proof.
   move=> t1 t2 t3 v H ; elim t3 ; simpl ; try constructor.
   by move=> n ; elim (eq_nat_dec n v) ; try constructor.

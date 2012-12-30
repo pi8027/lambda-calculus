@@ -1,18 +1,18 @@
 Require Import
-  Arith.Arith Relations.Relations Relations.Relation_Operators Lists.List
+  Arith.Arith Relations.Relations
   ssreflect Common.
 
 (* Definition 1.1: Lambda-terms *)
 
 Inductive lcterm : Set :=
-  | lcbvar  : nat -> lcterm
-  | lcubvar : nat -> lcterm
-  | lclam   : lcterm -> lcterm
-  | lcapp   : lcterm -> lcterm -> lcterm.
+  | lcbvar of nat
+  | lcubvar of nat
+  | lclam of lcterm
+  | lcapp of lcterm & lcterm.
 
 Lemma eq_lcterm_dec : forall (t1 t2 : lcterm), {t1 = t2}+{t1 <> t2}.
 Proof.
-  do ?decide equality.
+  do !decide equality.
 Qed.
 
 Infix "@" := lcapp (at level 20, left associativity).

@@ -1,0 +1,15 @@
+#!/bin/bash
+
+export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
+
+for b in coq/debruijn lambda-calculus-and-combinators; do
+  pushd $b
+  for f in *.v; do
+    tail -c 1 $f | grep -q . && echo "$f: no newline at end of file" && exit -1
+    tail -n 1 $f | grep -qv . && echo "$f: trailing empty line" && exit -1
+    grep --color=auto -H -n " * $" $f && echo "$f: trailing whitespace" && exit -1
+  done
+  coq_makefile *.v > Makefile_coq
+  make -f Makefile_coq
+  popd
+done
