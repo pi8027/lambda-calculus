@@ -168,6 +168,19 @@ Proof.
   elim; by constructor.
 Qed.
 
+Lemma shift_shift_distr :
+  forall d c d' c' t,
+  c' <= c -> shift d' c' (shift d c t) = shift d (d' + c) (shift d' c' t).
+Proof.
+  move=> d c d' c' t; move: t c c'; elim.
+  - move=> n c c' ?; simpl; case le_dec, le_dec;
+      simpl; case le_dec, le_dec; f_equal; omega.
+  - move=> t1 ? t2 ? c c' ?; simpl; f_equal; auto.
+  - move=> t' IH c c' ?; simpl; f_equal.
+    replace (S (d' + c)) with (d' + S c) by omega.
+    apply IH; omega.
+Qed.
+
 Lemma shift_subst_distr :
   forall n t1 t2 d c,
   substitution3 n (shift d c t1) n (shift d (S (n + c)) t2) =
@@ -182,12 +195,12 @@ Proof.
       f_equal; omega.
     - case s=> ?; simpl; (case lt_eq_lt_dec; first case)=> ?; try omega.
       - case le_dec=> ?; f_equal; omega.
-      - admit.
+      - apply shift_shift_distr; omega.
       - (simpl; case lt_eq_lt_dec; first case)=> ?; try omega.
         case le_dec=> ?; f_equal; omega.
   - move=> t2l ? t2r ? n d c; simpl; f_equal; auto.
-  - move=> t IH n d c; simpl; f_equal; auto.
-Admitted.
+  - move=> t IH n d c; simpl; f_equal; apply IH.
+Qed.
 
 Lemma shift_lemma :
   forall t t' d c, parred t t' -> parred (shift d c t) (shift d c t').
