@@ -1,5 +1,6 @@
 Require Import
-  Coq.Arith.Compare_dec Coq.Relations.Relations Coq.Relations.Relation_Operators
+  Coq.Arith.Arith Coq.Arith.Compare_dec
+  Coq.Relations.Relations Coq.Relations.Relation_Operators
   Omega ssreflect.
 Require Import Relations_ext.
 
@@ -26,23 +27,23 @@ Fixpoint substitution1 t1 n t2 : term :=
     | abs t2' => abs (substitution1 (shift 1 0 t1) (S n) t2')
   end.
 
-Fixpoint substitution2 s t1 n t2 : term :=
+Fixpoint substitution2 t1 n t2 : term :=
   match t2 with
-    | var m => (if eq_nat_dec n m then shift s 0 t1 else var m)%GEN_IF
-    | app t2l t2r => app (substitution2 s t1 n t2l) (substitution2 s t1 n t2r)
-    | abs t2' => abs (substitution2 (S s) t1 (S n) t2')
+    | var m => (if eq_nat_dec n m then shift n 0 t1 else var m)%GEN_IF
+    | app t2l t2r => app (substitution2 t1 n t2l) (substitution2 t1 n t2r)
+    | abs t2' => abs (substitution2 t1 (S n) t2')
   end.
 
-Fixpoint substitution3 s t1 n t2 : term :=
+Fixpoint substitution3 t1 n t2 : term :=
   match t2 with
     | var m =>
       match lt_eq_lt_dec n m with
         | inleft (left p) => var (pred m)
-        | inleft (right p) => shift s 0 t1
+        | inleft (right p) => shift n 0 t1
         | inright p => var m
       end
-    | app t2l t2r => app (substitution3 s t1 n t2l) (substitution3 s t1 n t2r)
-    | abs t2' => abs (substitution3 (S s) t1 (S n) t2')
+    | app t2l t2r => app (substitution3 t1 n t2l) (substitution3 t1 n t2r)
+    | abs t2' => abs (substitution3 t1 (S n) t2')
   end.
 
 Lemma shift_add :
@@ -85,18 +86,18 @@ Proof.
 Qed.
 
 Lemma substitution_eq_1_2 :
-  forall s t1 n t2, substitution1 (shift s 0 t1) n t2 = substitution2 s t1 n t2.
+  forall t1 n t2, substitution1 (shift n 0 t1) n t2 = substitution2 t1 n t2.
 Proof.
-  move=> s t1 n t2; move: t2 s t1 n; elim.
-  - move=> m s t1 n; simpl; by case eq_nat_dec=> H.
-  - move=> t2l ? t2r ? s t1 n; simpl; f_equal; auto.
-  - move=> t2' ? s t1 n; simpl; f_equal; rewrite shift_add; last omega.
-    by replace (1 + s) with (S s) by omega.
+  move=> t1 n t2; move: t2 t1 n; elim.
+  - move=> m t1 n; simpl; by case eq_nat_dec=> H.
+  - move=> t2l ? t2r ? t1 n; simpl; f_equal; auto.
+  - move=> t2' ? t1 n; simpl; f_equal; rewrite shift_add; last omega.
+    by replace (1 + n) with (S n) by omega.
 Qed.
 
 Lemma substitution_eq_2_3 :
   forall t1 n t2,
-    unshift 1 n (substitution2 n (shift 1 0 t1) n t2) = substitution3 n t1 n t2.
+    unshift 1 n (substitution2 (shift 1 0 t1) n t2) = substitution3 t1 n t2.
 Proof.
   move=> t1 n t2; move: t2 t1 n; elim.
   - move=> m t1 n; simpl; case eq_nat_dec, lt_eq_lt_dec; try omega.
@@ -113,7 +114,7 @@ Qed.
 Lemma substitution_eq_1_3 :
   forall t1 n t2,
     unshift 1 n (substitution1 (shift (S n) 0 t1) n t2) =
-    substitution3 n t1 n t2.
+    substitution3 t1 n t2.
 Proof.
   move=> t1 n t2.
   replace (S n) with (n + 1) by omega.
@@ -134,7 +135,7 @@ Inductive betared1' : relation term :=
 
 Inductive betared1 : relation term :=
   | redbeta : forall t1 t2,
-              betared1 (app (abs t1) t2) (substitution3 0 t2 0 t1)
+              betared1 (app (abs t1) t2) (substitution3 t2 0 t1)
   | redappl : forall t1 t1' t2,
               betared1 t1 t1' -> betared1 (app t1 t2) (app t1' t2)
   | redappr : forall t1 t2 t2',
@@ -149,7 +150,7 @@ Inductive parred : relation term :=
   | parredabs  : forall t t', parred t t' -> parred (abs t) (abs t')
   | parredbeta : forall t1 t1' t2 t2',
                  parred t1 t1' -> parred t2 t2' ->
-                 parred (app (abs t1) t2) (substitution3 0 t2' 0 t1').
+                 parred (app (abs t1) t2) (substitution3 t2' 0 t1').
 
 Notation betared := (betared1 * ).
 Infix "->1b" := betared1 (at level 70, no associativity).
@@ -181,25 +182,71 @@ Proof.
     apply IH; omega.
 Qed.
 
-Lemma shift_subst_distr :
+Lemma subst_shift_distr :
   forall n t1 t2 d c,
-  substitution3 n (shift d c t1) n (shift d (S (n + c)) t2) =
-  shift d (n + c) (substitution3 n t1 n t2).
+  shift d (n + c) (substitution3 t1 n t2) =
+  substitution3 (shift d c t1) n (shift d (S (n + c)) t2).
 Proof.
   move=> n t1 t2;move: t2 n; elim.
   - move=> m n d c.
-    rewrite {2}/shift {2}/substitution3.
+    rewrite {3}/shift {1}/substitution3.
     case le_dec, lt_eq_lt_dec; try omega.
     - case s=> ?; try omega; simpl.
       case le_dec, lt_eq_lt_dec; try omega; case s0=> ?; try omega.
       f_equal; omega.
     - case s=> ?; simpl; (case lt_eq_lt_dec; first case)=> ?; try omega.
       - case le_dec=> ?; f_equal; omega.
-      - apply shift_shift_distr; omega.
+      - apply eq_sym, shift_shift_distr; omega.
       - (simpl; case lt_eq_lt_dec; first case)=> ?; try omega.
         case le_dec=> ?; f_equal; omega.
   - move=> t2l ? t2r ? n d c; simpl; f_equal; auto.
-  - move=> t IH n d c; simpl; f_equal; apply IH.
+  - move=> t IH n d c; simpl; f_equal; apply (IH (S n)).
+Qed.
+
+Lemma shift_subst_distr :
+  forall t1 t2 n d c, c <= n ->
+  shift d c (substitution3 t2 n t1) = substitution3 t2 (d + n) (shift d c t1).
+Proof.
+  move=> t1 t2; elim t1.
+  - move=> m n d c ?.
+    simpl; case lt_eq_lt_dec; first case; case le_dec=> ? ?; try omega;
+      simpl; (case lt_eq_lt_dec; first case)=> ?; try omega.
+    - case le_dec=> ?; f_equal; omega.
+    - apply shift_add; omega.
+    - case le_dec=> ?; f_equal; omega.
+    - case le_dec=> ?; f_equal; omega.
+  - move=> t1l ? t1r ? n d c ?; simpl; f_equal; auto.
+  - move=> t1' IH n d c ?; simpl; f_equal.
+    replace (S (d + n)) with (d + S n) by omega; apply IH; omega.
+Qed.
+
+Lemma shift_const_subst :
+  forall n t1 t2 d c, n < S d ->
+  shift d c t1 = substitution3 t2 (c + n) (shift (S d) c t1).
+Proof.
+  move=> n; elim.
+  - move=> m t2 d c ?; simpl; case le_dec=> ?;
+     simpl; (case lt_eq_lt_dec; first case)=> ?; f_equal; omega.
+  - move=> t1l ? t1r ? t2 d c ?; simpl; f_equal; auto.
+  - by move=> t1 IH t2 d c ?; simpl; f_equal; apply IH.
+Qed.
+
+Lemma subst_subst_distr :
+  forall n m t1 t2 t3,
+  substitution3 t3 (m + n) (substitution3 t2 m t1) =
+  substitution3 (substitution3 t3 n t2) m
+    (substitution3 t3 (S (m + n)) t1).
+Proof.
+  move=> n m t1; move: t1 m; elim.
+  - move=> v m t2 t3.
+    do !(rewrite !/(substitution3 _ _ (var _));
+      do !((case lt_eq_lt_dec; first case)=> ?); try omega); auto.
+    - replace m with (0 + m) by omega.
+      apply shift_const_subst; omega.
+    - apply eq_sym, shift_subst_distr; omega.
+  - by move=> t1l ? t1r ? m t2 t3; simpl; f_equal.
+  - move=> t1 IH m t2 t3; simpl; f_equal.
+    by replace (S (m + n)) with (S m + n) by omega.
 Qed.
 
 Lemma shift_lemma :
@@ -211,6 +258,24 @@ Proof.
   - by clear=> t t' ? ? d c; simpl; constructor.
   - clear=> t1 t1' t2 t2' ? ? ? ? d c; simpl.
     replace c with (0 + c) by omega.
-    rewrite -shift_subst_distr.
+    rewrite subst_shift_distr.
+    by constructor.
+Qed.
+
+Lemma subst_lemma :
+  forall n t1 t1' t2 t2', parred t1 t1' -> parred t2 t2' ->
+  parred (substitution3 t1 n t2) (substitution3 t1' n t2').
+Proof.
+  move=> n t1 t1' t2 t2' ? H; move: H n; elim; clear t2 t2'.
+  - move=> m n; simpl; case lt_eq_lt_dec; first case; move=> ?.
+    - apply parred_refl.
+    - apply shift_lemma.
+    - done.
+    - apply parred_refl.
+  - by move=> t2l t2l' t2r t2r' ? ? ? ? n; simpl; constructor.
+  - move=> t2 t2' ? IH n; simpl; constructor; apply IH.
+  - move=> t2 t2' t3 t3' ? H _ H0 n.
+    simpl.
+    rewrite (subst_subst_distr n 0).
     by constructor.
 Qed.
