@@ -1,7 +1,6 @@
 Require Import
   Coq.Arith.Arith Coq.Arith.Compare_dec
-  Coq.Relations.Relations Coq.Relations.Relation_Operators Coq.Program.Program
-  Omega ssreflect.
+  Coq.Relations.Relations Coq.Relations.Relation_Operators Omega ssreflect.
 Require Import Relations_ext.
 
 Inductive term : Set := var of nat | app of term & term | abs of term.
@@ -66,7 +65,7 @@ Proof.
   - move=> t H n; simpl; f_equal; apply H.
 Qed.
 
-Lemma unshift_shift_sub1 :
+Lemma unshift_shift_sub :
   forall d d' c c' t, c <= c' <= d + c -> d' <= d ->
   unshift d' c' (shift d c t) = shift (d - d') c t.
 Proof.
@@ -81,7 +80,7 @@ Lemma unshift_shift_eq :
   forall d c c' t, c <= c' <= d + c -> unshift d c' (shift d c t) = t.
 Proof.
   move=> d c c' t ?.
-  rewrite -{2}(shiftzero_eq c t) unshift_shift_sub1; auto.
+  rewrite -{2}(shiftzero_eq c t) unshift_shift_sub; auto.
   f_equal; omega.
 Qed.
 
@@ -104,7 +103,7 @@ Proof.
     - case s=> ?; try omega; clear.
       rewrite shift_add; last omega.
       replace (n + 1) with (S n) by omega.
-      rewrite unshift_shift_sub1; first f_equal; omega.
+      rewrite unshift_shift_sub; first f_equal; omega.
     - case s=> ?; try omega; simpl; case le_dec=> ?; f_equal; omega.
     - simpl; case le_dec=> ?; f_equal; omega.
   - by move=> t2l ? t2r ? t1 n; simpl; f_equal.
