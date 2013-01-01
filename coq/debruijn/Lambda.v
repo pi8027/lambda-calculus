@@ -1,6 +1,6 @@
 Require Import
   Coq.Arith.Arith Coq.Arith.Compare_dec
-  Coq.Relations.Relations Coq.Relations.Relation_Operators
+  Coq.Relations.Relations Coq.Relations.Relation_Operators Coq.Program.Program
   Omega ssreflect.
 Require Import Relations_ext.
 
@@ -124,23 +124,23 @@ Proof.
 Qed.
 
 Inductive betared1' : relation term :=
-  | redbeta' : forall t1 t2,
-               betared1' (app (abs t1) t2)
-                        (unshift 1 0 (substitution1 (shift 1 0 t2) 0 t1))
-  | redappl' : forall t1 t1' t2,
-               betared1' t1 t1' -> betared1' (app t1 t2) (app t1' t2)
-  | redappr' : forall t1 t2 t2',
-               betared1' t2 t2' -> betared1' (app t1 t2) (app t1 t2')
-  | redabs'  : forall t t', betared1' t t' -> betared1' (abs t) (abs t').
+  | betared1beta' : forall t1 t2,
+                    betared1' (app (abs t1) t2)
+                              (unshift 1 0 (substitution1 (shift 1 0 t2) 0 t1))
+  | betared1appl' : forall t1 t1' t2,
+                    betared1' t1 t1' -> betared1' (app t1 t2) (app t1' t2)
+  | betared1appr' : forall t1 t2 t2',
+                    betared1' t2 t2' -> betared1' (app t1 t2) (app t1 t2')
+  | betared1abs'  : forall t t', betared1' t t' -> betared1' (abs t) (abs t').
 
 Inductive betared1 : relation term :=
-  | redbeta : forall t1 t2,
-              betared1 (app (abs t1) t2) (substitution3 t2 0 t1)
-  | redappl : forall t1 t1' t2,
-              betared1 t1 t1' -> betared1 (app t1 t2) (app t1' t2)
-  | redappr : forall t1 t2 t2',
-              betared1 t2 t2' -> betared1 (app t1 t2) (app t1 t2')
-  | redabs  : forall t t', betared1 t t' -> betared1 (abs t) (abs t').
+  | betared1beta : forall t1 t2,
+                   betared1 (app (abs t1) t2) (substitution3 t2 0 t1)
+  | betared1appl : forall t1 t1' t2,
+                   betared1 t1 t1' -> betared1 (app t1 t2) (app t1' t2)
+  | betared1appr : forall t1 t2 t2',
+                   betared1 t2 t2' -> betared1 (app t1 t2) (app t1 t2')
+  | betared1abs  : forall t t', betared1 t t' -> betared1 (abs t) (abs t').
 
 Inductive parred : relation term :=
   | parredvar  : forall n, parred (var n) (var n)
@@ -151,6 +151,15 @@ Inductive parred : relation term :=
   | parredbeta : forall t1 t1' t2 t2',
                  parred t1 t1' -> parred t2 t2' ->
                  parred (app (abs t1) t2) (substitution3 t2' 0 t1').
+
+Fixpoint reduce_all_redex t : term :=
+  match t with
+    | var _ => t
+    | app (abs t1) t2 =>
+      substitution3 (reduce_all_redex t2) 0 (reduce_all_redex t1)
+    | app t1 t2 => app (reduce_all_redex t1) (reduce_all_redex t2)
+    | abs t' => abs (reduce_all_redex t')
+  end.
 
 Notation betared := (betared1 * ).
 Infix "->1b" := betared1 (at level 70, no associativity).
@@ -167,6 +176,55 @@ Qed.
 Lemma parred_refl : reflexive _ parred.
 Proof.
   elim; by constructor.
+Qed.
+
+Lemma betaredappl :
+  forall t1 t1' t2, betared t1 t1' -> betared (app t1 t2) (app t1' t2).
+Proof.
+  move=> t1 t1' t2; elim.
+  - constructor.
+  - clear=> t1 t1' t1'' ? ? ?.
+    by apply rt1n_trans with (app t1' t2); first constructor.
+Qed.
+
+Lemma betaredappr :
+  forall t1 t2 t2', betared t2 t2' -> betared (app t1 t2) (app t1 t2').
+Proof.
+  move=> t1 t2 t2'; elim.
+  - constructor.
+  - clear=> t2 t2' t2'' ? ? ?.
+    by apply rt1n_trans with (app t1 t2'); first constructor.
+Qed.
+
+Lemma betaredabs : forall t t', betared t t' -> betared (abs t) (abs t').
+Proof.
+  move=> t t'; elim.
+  - constructor.
+  - clear=> t t' t'' ? ? ?.
+    by apply rt1n_trans with (abs t'); first constructor.
+Qed.
+
+Hint Resolve parred_refl betaredappl betaredappr betaredabs.
+
+Lemma betared1_in_parred : inclusion betared1 parred.
+Proof.
+  move=> t t'; elim.
+  - clear=> t1 t2; constructor; auto.
+  - clear=> tl tl' tr ? ?; constructor; auto.
+  - clear=> tl tr tr' ? ?; constructor; auto.
+  - by clear=> t t' ? ?; constructor.
+Qed.
+
+Lemma parred_in_betared : inclusion parred betared.
+Proof.
+  move=> t t'; elim.
+  - constructor.
+  - clear=> t1 t1' t2 t2' ? ? ? ?; apply rt1n_trans' with (app t1' t2); auto.
+  - clear=> t t' ? ?; auto.
+  - clear=> t1 t1' t2 t2' ? ? ? ?.
+    apply rt1n_trans' with (app (abs t1') t2); auto.
+    apply rt1n_trans' with (app (abs t1') t2'); auto.
+    apply rt1n_trans with (substitution3 t2' 0 t1'); constructor.
 Qed.
 
 Lemma shift_shift_distr :
@@ -253,7 +311,7 @@ Lemma shift_lemma :
   forall t t' d c, parred t t' -> parred (shift d c t) (shift d c t').
 Proof.
   move=> t t' d c H; move: H d c; elim.
-  - move=> n d c; simpl; case le_dec=> _; apply parred_refl.
+  - move=> n d c; simpl; case le_dec=> _; auto.
   - by clear=> t1 t1' t2 t2' ? ? ? ? d c; simpl; constructor.
   - by clear=> t t' ? ? d c; simpl; constructor.
   - clear=> t1 t1' t2 t2' ? ? ? ? d c; simpl.
@@ -267,15 +325,43 @@ Lemma subst_lemma :
   parred (substitution3 t1 n t2) (substitution3 t1' n t2').
 Proof.
   move=> n t1 t1' t2 t2' ? H; move: H n; elim; clear t2 t2'.
-  - move=> m n; simpl; case lt_eq_lt_dec; first case; move=> ?.
-    - apply parred_refl.
-    - apply shift_lemma.
-    - done.
-    - apply parred_refl.
+  - move=> m n; simpl; case lt_eq_lt_dec; first case; move=> ?; auto.
+    by apply shift_lemma.
   - by move=> t2l t2l' t2r t2r' ? ? ? ? n; simpl; constructor.
   - move=> t2 t2' ? IH n; simpl; constructor; apply IH.
   - move=> t2 t2' t3 t3' ? H _ H0 n.
     simpl.
     rewrite (subst_subst_distr n 0).
     by constructor.
+Qed.
+
+Lemma parred_all_lemma :
+  forall t t', parred t t' -> parred t' (reduce_all_redex t).
+Proof.
+  move=> t t'; elim.
+  - constructor.
+  - case.
+    - move=> n t1' t2 t2' H ? ? ?.
+      simpl; inversion H; constructor; auto.
+    - move=> t1l t1r t1' t2 t2' ? ? ? ?.
+      simpl; constructor; auto.
+    - move=> t1 t1' t2 t2' H H0 ? ?.
+      simpl; inversion H; constructor.
+      - rewrite -H3 in H0.
+        by inversion H0.
+      - done.
+  - by simpl; constructor.
+  - by clear=> t1 t1' t2 t2' ? ? ? ?; apply subst_lemma.
+Qed.
+
+Lemma parred_confluent : confluent parred.
+Proof.
+  by move=> t1 t2 t3 ? ?;
+    exists (reduce_all_redex t1); split; apply parred_all_lemma.
+Qed.
+
+Lemma betared_confluent : confluent betared.
+Proof.
+  apply (rt1n_confluent' _ _ _
+    betared1_in_parred parred_in_betared parred_confluent).
 Qed.
