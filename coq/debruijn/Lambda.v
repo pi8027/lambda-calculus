@@ -1,4 +1,7 @@
-Require Import Coq.Arith.Compare_dec Omega ssreflect.
+Require Import
+  Coq.Arith.Compare_dec Coq.Relations.Relations Coq.Relations.Relation_Operators
+  Omega ssreflect.
+Require Import Relations_ext.
 
 Inductive term : Set := var of nat | app of term & term | abs of term.
 
@@ -46,11 +49,11 @@ Lemma shift_add :
   forall d d' c c' t, c <= c' <= d + c ->
   shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
-  move=> d d' c c' t; case; move: t c c'; elim.
-  - move=> n c c' H H0; simpl.
-    case le_dec => H1; simpl; case le_dec => H2; f_equal; omega.
-  - move=> t1 H t2 H0 c c' H1 H2; simpl; f_equal; auto.
-  - move=> t H c c' H0 H1; simpl; f_equal; apply H; omega.
+  move=> d d' c c' t; move: t c c'; elim.
+  - move=> n c c' ?; simpl.
+    case le_dec; simpl; case le_dec=> ? ?; f_equal; omega.
+  - move=> t1 ? t2 ? c c' ?; simpl; f_equal; auto.
+  - move=> t IH c c' ?; simpl; f_equal; apply IH; omega.
 Qed.
 
 Lemma shiftzero_eq : forall n t, shift 0 n t = t.
@@ -58,7 +61,7 @@ Proof.
   move=> n t; move: t n; elim.
   - move=> m n; simpl.
     case le_dec => H; f_equal; omega.
-  - by move=> t1 H t2 H0 n; simpl; f_equal.
+  - by move=> t1 ? t2 ? n; simpl; f_equal.
   - move=> t H n; simpl; f_equal; apply H.
 Qed.
 
@@ -66,22 +69,19 @@ Lemma unshift_shift_sub1 :
   forall d d' c c' t, c <= c' <= d + c -> d' <= d ->
   unshift d' c' (shift d c t) = shift (d - d') c t.
 Proof.
-  move=> d d' c c' t; case; move: t c c'; elim.
-  - move=> n c c' H H0 H1; simpl.
-    case le_dec=> H2; simpl; case le_dec=> H3; try omega; f_equal; omega.
-  - move=> t1 H t2 H0 c c' H1 H2 H3; simpl.
-    f_equal; auto.
-  - move=> t H c c' H0 H1 H2; simpl.
-    f_equal; apply H; omega.
+  move=> d d' c c' t; move: t c c'; elim.
+  - move=> n c c' ? ?; simpl.
+    case le_dec; simpl; case le_dec=> ? ?; try omega; f_equal; omega.
+  - move=> t1 ? t2 ? c c' ? ?; simpl; f_equal; auto.
+  - move=> t IH c c' ? ?; simpl; f_equal; apply IH; omega.
 Qed.
 
 Lemma unshift_shift_eq :
   forall d c c' t, c <= c' <= d + c -> unshift d c' (shift d c t) = t.
 Proof.
-  move=> d c c' t H.
-  rewrite unshift_shift_sub1; auto.
-  replace (d - d) with 0 by omega.
-  apply shiftzero_eq.
+  move=> d c c' t ?.
+  rewrite -{2}(shiftzero_eq c t) unshift_shift_sub1; auto.
+  f_equal; omega.
 Qed.
 
 Lemma substitution_eq_1_2 :
@@ -89,10 +89,9 @@ Lemma substitution_eq_1_2 :
 Proof.
   move=> s t1 n t2; move: t2 s t1 n; elim.
   - move=> m s t1 n; simpl; by case eq_nat_dec=> H.
-  - move=> t2l H t2r H0 s t1 n; simpl; f_equal; auto.
-  - move=> t2' H s t1 n; simpl; f_equal; rewrite shift_add.
+  - move=> t2l ? t2r ? s t1 n; simpl; f_equal; auto.
+  - move=> t2' ? s t1 n; simpl; f_equal; rewrite shift_add; last omega.
     by replace (1 + s) with (S s) by omega.
-    omega.
 Qed.
 
 Lemma substitution_eq_2_3 :
@@ -101,14 +100,14 @@ Lemma substitution_eq_2_3 :
 Proof.
   move=> t1 n t2; move: t2 t1 n; elim.
   - move=> m t1 n; simpl; case eq_nat_dec, lt_eq_lt_dec; try omega.
-    - case s=> H; try omega; clear.
+    - case s=> ?; try omega; clear.
       rewrite shift_add; last omega.
       replace (n + 1) with (S n) by omega.
       rewrite unshift_shift_sub1; first f_equal; omega.
-    - case s=> H; try omega; simpl; case le_dec=> H0; f_equal; omega.
-    - simpl; case le_dec=> H; f_equal; omega.
-  - by move=> ? ? ? ? ? ?; simpl; f_equal.
-  - by move=> ? ? ? ?; simpl; f_equal.
+    - case s=> ?; try omega; simpl; case le_dec=> ?; f_equal; omega.
+    - simpl; case le_dec=> ?; f_equal; omega.
+  - by move=> t2l ? t2r ? t1 n; simpl; f_equal.
+  - by move=> t2' ? t1 n; simpl; f_equal.
 Qed.
 
 Lemma substitution_eq_1_3 :
@@ -121,4 +120,50 @@ Proof.
   rewrite -(shift_add 1 n 0 0); last omega.
   rewrite substitution_eq_1_2.
   apply substitution_eq_2_3.
+Qed.
+
+Inductive betared1' : relation term :=
+  | redbeta' : forall t1 t2,
+               betared1' (app (abs t1) t2)
+                        (unshift 1 0 (substitution1 (shift 1 0 t2) 0 t1))
+  | redappl' : forall t1 t1' t2,
+               betared1' t1 t1' -> betared1' (app t1 t2) (app t1' t2)
+  | redappr' : forall t1 t2 t2',
+               betared1' t2 t2' -> betared1' (app t1 t2) (app t1 t2')
+  | redabs'  : forall t t', betared1' t t' -> betared1' (abs t) (abs t').
+
+Inductive betared1 : relation term :=
+  | redbeta : forall t1 t2,
+              betared1 (app (abs t1) t2) (substitution3 0 t2 0 t1)
+  | redappl : forall t1 t1' t2,
+              betared1 t1 t1' -> betared1 (app t1 t2) (app t1' t2)
+  | redappr : forall t1 t2 t2',
+              betared1 t2 t2' -> betared1 (app t1 t2) (app t1 t2')
+  | redabs  : forall t t', betared1 t t' -> betared1 (abs t) (abs t').
+
+Inductive parred : relation term :=
+  | parredvar  : forall n, parred (var n) (var n)
+  | parredapp  : forall t1 t1' t2 t2',
+                 parred t1 t1' -> parred t2 t2' ->
+                 parred (app t1 t2) (app t1' t2')
+  | parredabs  : forall t t', parred t t' -> parred (abs t) (abs t')
+  | parredbeta : forall t1 t1' t2 t2',
+                 parred t1 t1' -> parred t2 t2' ->
+                 parred (app (abs t1) t2) (substitution3 0 t2' 0 t1').
+
+Notation betared := (betared1 * ).
+Infix "->1b" := betared1 (at level 70, no associativity).
+Infix "->b"  := betared (at level 70, no associativity).
+Infix "->bp" := parred (at level 70, no associativity).
+
+Lemma betared1_eq : same_relation betared1' betared1.
+Proof.
+  move=> t1 t2; split; elim; (try by constructor)=> ? ?.
+  - rewrite substitution_eq_1_3; constructor.
+  - rewrite -substitution_eq_1_3; constructor.
+Qed.
+
+Lemma parred_refl : reflexive _ parred.
+Proof.
+  elim; by constructor.
 Qed.
