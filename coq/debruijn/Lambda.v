@@ -158,7 +158,7 @@ Infix "->bp" := parred (at level 70, no associativity).
 
 Lemma betared1_eq : same_relation betared1' betared1.
 Proof.
-  move=> t1 t2; split; elim; (try by constructor)=> ? ?.
+  split; elim; (try by constructor)=> ? ?.
   - rewrite substitution_eq_1_3; constructor.
   - rewrite -substitution_eq_1_3; constructor.
 Qed.
@@ -166,4 +166,38 @@ Qed.
 Lemma parred_refl : reflexive _ parred.
 Proof.
   elim; by constructor.
+Qed.
+
+Lemma shift_subst_distr :
+  forall n t1 t2 d c,
+  substitution3 n (shift d c t1) n (shift d (S (n + c)) t2) =
+  shift d (n + c) (substitution3 n t1 n t2).
+Proof.
+  move=> n t1 t2;move: t2 n; elim.
+  - move=> m n d c.
+    rewrite {2}/shift {2}/substitution3.
+    case le_dec, lt_eq_lt_dec; try omega.
+    - case s=> ?; try omega; simpl.
+      case le_dec, lt_eq_lt_dec; try omega; case s0=> ?; try omega.
+      f_equal; omega.
+    - case s=> ?; simpl; (case lt_eq_lt_dec; first case)=> ?; try omega.
+      - case le_dec=> ?; f_equal; omega.
+      - admit.
+      - (simpl; case lt_eq_lt_dec; first case)=> ?; try omega.
+        case le_dec=> ?; f_equal; omega.
+  - move=> t2l ? t2r ? n d c; simpl; f_equal; auto.
+  - move=> t IH n d c; simpl; f_equal; auto.
+Admitted.
+
+Lemma shift_lemma :
+  forall t t' d c, parred t t' -> parred (shift d c t) (shift d c t').
+Proof.
+  move=> t t' d c H; move: H d c; elim.
+  - move=> n d c; simpl; case le_dec=> _; apply parred_refl.
+  - by clear=> t1 t1' t2 t2' ? ? ? ? d c; simpl; constructor.
+  - by clear=> t t' ? ? d c; simpl; constructor.
+  - clear=> t1 t1' t2 t2' ? ? ? ? d c; simpl.
+    replace c with (0 + c) by omega.
+    rewrite -shift_subst_distr.
+    by constructor.
 Qed.
