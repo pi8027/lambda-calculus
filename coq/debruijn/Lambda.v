@@ -150,7 +150,7 @@ Inductive parred : relation term :=
                  parred t1 t1' -> parred t2 t2' ->
                  parred (app (abs t1) t2) (substitution3 0 t2' t1').
 
-Fixpoint reduce_all_redex t : term :=
+Function reduce_all_redex t : term :=
   match t with
     | var _ => t
     | app (abs t1) t2 =>
@@ -158,9 +158,6 @@ Fixpoint reduce_all_redex t : term :=
     | app t1 t2 => app (reduce_all_redex t1) (reduce_all_redex t2)
     | abs t' => abs (reduce_all_redex t')
   end.
-
-Functional Scheme reduce_all_redex_ind :=
-  Induction for reduce_all_redex Sort Prop.
 
 Notation betared := (betared1 * ).
 Infix "->1b" := betared1 (at level 70, no associativity).
@@ -344,16 +341,15 @@ Proof.
   - move=> t0 n H t' H0.
     rewrite H.
     by inversion H0.
-  - move=> ? t1 t2 ? n H.
-    rewrite H //= => ? ? t' H0.
-    inversion H0; constructor; auto.
-  - move=> ? t1 t2 ? t1l t1r H; rewrite H=> ? ? t' H0.
-    inversion H0; constructor; auto.
-  - move=> ? ? t2 _ t1 _ H H0 t' H1.
-    inversion H1.
-    - inversion H4; constructor; auto.
+  - move=> _ t1 t2 _ ? ? t' H.
+    inversion H.
+    - inversion H2; constructor; auto.
     - apply subst_lemma; auto.
-  - move=> _ t0 _ ? t1 H.
+  - move=> _ t1 t2 _ H ? ? t' H0.
+    inversion H0.
+    - constructor; auto.
+    - rewrite -H1 in H; case H.
+  - move=> _ t1 _ ? t2 H.
     inversion H; constructor; auto.
 Qed.
 
