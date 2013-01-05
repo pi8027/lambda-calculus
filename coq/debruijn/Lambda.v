@@ -19,21 +19,21 @@ Fixpoint unshift d c t : term :=
     | abs t1 => abs (unshift d (S c) t1)
   end.
 
-Fixpoint substitution1 t1 n t2 : term :=
+Fixpoint substitution1 n t1 t2 : term :=
   match t2 with
     | var m => (if eq_nat_dec n m then t1 else var m)%GEN_IF
-    | app t2l t2r => app (substitution1 t1 n t2l) (substitution1 t1 n t2r)
-    | abs t2' => abs (substitution1 (shift 1 0 t1) (S n) t2')
+    | app t2l t2r => app (substitution1 n t1 t2l) (substitution1 n t1 t2r)
+    | abs t2' => abs (substitution1 (S n) (shift 1 0 t1) t2')
   end.
 
-Fixpoint substitution2 t1 n t2 : term :=
+Fixpoint substitution2 n t1 t2 : term :=
   match t2 with
     | var m => (if eq_nat_dec n m then shift n 0 t1 else var m)%GEN_IF
-    | app t2l t2r => app (substitution2 t1 n t2l) (substitution2 t1 n t2r)
-    | abs t2' => abs (substitution2 t1 (S n) t2')
+    | app t2l t2r => app (substitution2 n t1 t2l) (substitution2 n t1 t2r)
+    | abs t2' => abs (substitution2 (S n) t1 t2')
   end.
 
-Fixpoint substitution3 t1 n t2 : term :=
+Fixpoint substitution3 n t1 t2 : term :=
   match t2 with
     | var m =>
       match lt_eq_lt_dec n m with
@@ -41,8 +41,8 @@ Fixpoint substitution3 t1 n t2 : term :=
         | inleft (right p) => shift n 0 t1
         | inright p => var m
       end
-    | app t2l t2r => app (substitution3 t1 n t2l) (substitution3 t1 n t2r)
-    | abs t2' => abs (substitution3 t1 (S n) t2')
+    | app t2l t2r => app (substitution3 n t1 t2l) (substitution3 n t1 t2r)
+    | abs t2' => abs (substitution3 (S n) t1 t2')
   end.
 
 Lemma shift_add :
@@ -85,7 +85,7 @@ Proof.
 Qed.
 
 Lemma substitution_eq_1_2 :
-  forall t1 n t2, substitution1 (shift n 0 t1) n t2 = substitution2 t1 n t2.
+  forall t1 n t2, substitution1 n (shift n 0 t1) t2 = substitution2 n t1 t2.
 Proof.
   move=> t1 n t2; move: t2 t1 n; elim.
   - move=> m t1 n; simpl; by case eq_nat_dec=> H.
@@ -96,7 +96,7 @@ Qed.
 
 Lemma substitution_eq_2_3 :
   forall t1 n t2,
-    unshift 1 n (substitution2 (shift 1 0 t1) n t2) = substitution3 t1 n t2.
+  unshift 1 n (substitution2 n (shift 1 0 t1) t2) = substitution3 n t1 t2.
 Proof.
   move=> t1 n t2; move: t2 t1 n; elim.
   - move=> m t1 n; simpl; case eq_nat_dec, lt_eq_lt_dec; try omega.
@@ -112,8 +112,7 @@ Qed.
 
 Lemma substitution_eq_1_3 :
   forall t1 n t2,
-    unshift 1 n (substitution1 (shift (S n) 0 t1) n t2) =
-    substitution3 t1 n t2.
+  unshift 1 n (substitution1 n (shift (S n) 0 t1) t2) = substitution3 n t1 t2.
 Proof.
   move=> t1 n t2.
   replace (S n) with (n + 1) by omega.
@@ -125,7 +124,7 @@ Qed.
 Inductive betared1' : relation term :=
   | betared1beta' : forall t1 t2,
                     betared1' (app (abs t1) t2)
-                              (unshift 1 0 (substitution1 (shift 1 0 t2) 0 t1))
+                              (unshift 1 0 (substitution1 0 (shift 1 0 t2) t1))
   | betared1appl' : forall t1 t1' t2,
                     betared1' t1 t1' -> betared1' (app t1 t2) (app t1' t2)
   | betared1appr' : forall t1 t2 t2',
@@ -134,7 +133,7 @@ Inductive betared1' : relation term :=
 
 Inductive betared1 : relation term :=
   | betared1beta : forall t1 t2,
-                   betared1 (app (abs t1) t2) (substitution3 t2 0 t1)
+                   betared1 (app (abs t1) t2) (substitution3 0 t2 t1)
   | betared1appl : forall t1 t1' t2,
                    betared1 t1 t1' -> betared1 (app t1 t2) (app t1' t2)
   | betared1appr : forall t1 t2 t2',
@@ -149,16 +148,19 @@ Inductive parred : relation term :=
   | parredabs  : forall t t', parred t t' -> parred (abs t) (abs t')
   | parredbeta : forall t1 t1' t2 t2',
                  parred t1 t1' -> parred t2 t2' ->
-                 parred (app (abs t1) t2) (substitution3 t2' 0 t1').
+                 parred (app (abs t1) t2) (substitution3 0 t2' t1').
 
 Fixpoint reduce_all_redex t : term :=
   match t with
     | var _ => t
     | app (abs t1) t2 =>
-      substitution3 (reduce_all_redex t2) 0 (reduce_all_redex t1)
+      substitution3 0 (reduce_all_redex t2) (reduce_all_redex t1)
     | app t1 t2 => app (reduce_all_redex t1) (reduce_all_redex t2)
     | abs t' => abs (reduce_all_redex t')
   end.
+
+Functional Scheme reduce_all_redex_ind :=
+  Induction for reduce_all_redex Sort Prop.
 
 Notation betared := (betared1 * ).
 Infix "->1b" := betared1 (at level 70, no associativity).
@@ -223,7 +225,7 @@ Proof.
   - clear=> t1 t1' t2 t2' ? ? ? ?.
     apply rt1n_trans' with (app (abs t1') t2); auto.
     apply rt1n_trans' with (app (abs t1') t2'); auto.
-    apply rt1n_trans with (substitution3 t2' 0 t1'); constructor.
+    apply rt1n_trans with (substitution3 0 t2' t1'); constructor.
 Qed.
 
 Lemma shift_shift_distr :
@@ -241,8 +243,8 @@ Qed.
 
 Lemma subst_shift_distr :
   forall n t1 t2 d c,
-  shift d (n + c) (substitution3 t1 n t2) =
-  substitution3 (shift d c t1) n (shift d (S (n + c)) t2).
+  shift d (n + c) (substitution3 n t1 t2) =
+  substitution3 n (shift d c t1) (shift d (S (n + c)) t2).
 Proof.
   move=> n t1 t2;move: t2 n; elim.
   - move=> m n d c.
@@ -262,7 +264,7 @@ Qed.
 
 Lemma shift_subst_distr :
   forall t1 t2 n d c, c <= n ->
-  shift d c (substitution3 t2 n t1) = substitution3 t2 (d + n) (shift d c t1).
+  shift d c (substitution3 n t2 t1) = substitution3 (d + n) t2 (shift d c t1).
 Proof.
   move=> t1 t2; elim t1.
   - move=> m n d c ?.
@@ -279,7 +281,7 @@ Qed.
 
 Lemma shift_const_subst :
   forall n t1 t2 d c, n < S d ->
-  shift d c t1 = substitution3 t2 (c + n) (shift (S d) c t1).
+  shift d c t1 = substitution3 (c + n) t2 (shift (S d) c t1).
 Proof.
   move=> n; elim.
   - move=> m t2 d c ?; simpl; case le_dec=> ?;
@@ -290,9 +292,9 @@ Qed.
 
 Lemma subst_subst_distr :
   forall n m t1 t2 t3,
-  substitution3 t3 (m + n) (substitution3 t2 m t1) =
-  substitution3 (substitution3 t3 n t2) m
-    (substitution3 t3 (S (m + n)) t1).
+  substitution3 (m + n) t3 (substitution3 m t2 t1) =
+  substitution3 m (substitution3 n t3 t2)
+    (substitution3 (S (m + n)) t3 t1).
 Proof.
   move=> n m t1; move: t1 m; elim.
   - move=> v m t2 t3.
@@ -321,7 +323,7 @@ Qed.
 
 Lemma subst_lemma :
   forall n t1 t1' t2 t2', parred t1 t1' -> parred t2 t2' ->
-  parred (substitution3 t1 n t2) (substitution3 t1' n t2').
+  parred (substitution3 n t1 t2) (substitution3 n t1' t2').
 Proof.
   move=> n t1 t1' t2 t2' ? H; move: H n; elim; clear t2 t2'.
   - move=> m n; simpl; case lt_eq_lt_dec; first case; move=> ?; auto.
@@ -337,20 +339,22 @@ Qed.
 Lemma parred_all_lemma :
   forall t t', parred t t' -> parred t' (reduce_all_redex t).
 Proof.
-  move=> t t'; elim.
-  - constructor.
-  - case.
-    - move=> n t1' t2 t2' H ? ? ?.
-      simpl; inversion H; constructor; auto.
-    - move=> t1l t1r t1' t2 t2' ? ? ? ?.
-      simpl; constructor; auto.
-    - move=> t1 t1' t2 t2' H H0 ? ?.
-      simpl; inversion H; constructor.
-      - rewrite -H3 in H0.
-        by inversion H0.
-      - done.
-  - by simpl; constructor.
-  - by clear=> t1 t1' t2 t2' ? ? ? ?; apply subst_lemma.
+  move=> t.
+  elim t using reduce_all_redex_ind.
+  - move=> t0 n H t' H0.
+    rewrite H.
+    by inversion H0.
+  - move=> ? t1 t2 ? n H.
+    rewrite H //= => ? ? t' H0.
+    inversion H0; constructor; auto.
+  - move=> ? t1 t2 ? t1l t1r H; rewrite H=> ? ? t' H0.
+    inversion H0; constructor; auto.
+  - move=> ? ? t2 _ t1 _ H H0 t' H1.
+    inversion H1.
+    - inversion H4; constructor; auto.
+    - apply subst_lemma; auto.
+  - move=> _ t0 _ ? t1 H.
+    inversion H; constructor; auto.
 Qed.
 
 Lemma parred_confluent : confluent parred.
