@@ -337,19 +337,14 @@ Lemma parred_all_lemma :
   forall t t', parred t t' -> parred t' (reduce_all_redex t).
 Proof.
   move=> t; elim/reduce_all_redex_ind: {t}_.
-  - move=> t n H t' H0.
-    rewrite H.
-    by inversion H0.
-  - move=> _ t1 t2 _ ? ? t' H.
-    inversion H; subst.
+  - by move=> t n ? t' H; subst; inversion H.
+  - move=> _ t1 t2 _ ? ? t' H; inversion H; subst.
     - inversion H2; subst; constructor; auto.
     - apply subst_lemma; auto.
-  - move=> _ t1 t2 _ H ? ? t' H0.
-    inversion H0; subst.
+  - move=> _ t1 t2 _ ? ? ? t' H; inversion H; subst.
     - constructor; auto.
-    - case H.
-  - move=> _ t1 _ ? t2 H.
-    inversion H; subst; constructor; auto.
+    - done.
+  - move=> _ t1 _ ? t2 H; inversion H; subst; constructor; auto.
 Qed.
 
 Lemma parred_confluent : confluent parred.
