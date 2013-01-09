@@ -1,6 +1,6 @@
 Require Import
   Arith.Arith Relations.Relations Relations.Relation_Operators
-  ssreflect seq Common.
+  ssreflect seq Relations_ext.
 
 (* Definition 2.1: Combinatory logic terms, or CL-terms *)
 
@@ -38,7 +38,7 @@ Inductive cl_occurs : relation clterm :=
 
 (* Definition 2.6, Exercise 2.8: Substitution *)
 
-Fixpoint subst_lookup (l : list (nat * clterm)) (v : nat) : option clterm :=
+Fixpoint subst_lookup (l : seq (nat * clterm)) (v : nat) : option clterm :=
   match l with
     | nil => None
     | (v', t) :: l' => if eq_nat_dec v v' then Some t else subst_lookup l' v
@@ -261,18 +261,19 @@ Proof.
     by inversion IHcl_parred1 ; apply parred_i.
 Qed.
 
-Theorem cl_parred_confluent : confluent clterm cl_parred.
+Theorem cl_parred_confluent : confluent cl_parred.
 Proof.
   by move=> t1 ; exists (cl_parred_all t1) ; split ; apply cl_parred_all_lemma.
 Qed.
 
-Theorem cl_weakred_confluent : confluent clterm cl_weakred_rtc.
+Theorem cl_weakred_confluent : confluent cl_weakred_rtc.
 Proof.
   move=> t1 t2 t3 H H0.
   elim (rt1n_confluent _ _ cl_parred_confluent _ _ _
-    (rt1n_map _ _ _ cl_weakred_in_parred _ _ H)
-    (rt1n_map _ _ _ cl_weakred_in_parred _ _ H0)) => [t4 [ ]].
-  eexists ; split ; apply rt1n_concat, (rt1n_map _ cl_parred cl_weakred_rtc) ;
+    (clos_rt_map _ _ _ cl_weakred_in_parred _ _ H)
+    (clos_rt_map _ _ _ cl_weakred_in_parred _ _ H0)) => [t4 [ ]].
+  eexists ; split ;
+    apply rt1n_nest_elim, (clos_rt_map _ cl_parred cl_weakred_rtc) ;
     (apply cl_parred_in_weakred_rtc || eauto).
 Qed.
 

@@ -131,7 +131,7 @@ Function reduce_all_redex t : term :=
     | abs t' => abs (reduce_all_redex t')
   end.
 
-Notation betared := (betared1 * ).
+Notation betared := [* betared1].
 Infix "->1b" := betared1 (at level 70, no associativity).
 Infix "->b"  := betared (at level 70, no associativity).
 Infix "->bp" := parred (at level 70, no associativity).
