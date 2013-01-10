@@ -1,7 +1,7 @@
 Require Import
   Coq.Arith.Arith Coq.Arith.Compare_dec
-  Coq.Relations.Relations Coq.Relations.Relation_Operators Omega ssreflect.
-Require Import Relations_ext.
+  Coq.Relations.Relations Coq.Relations.Relation_Operators Omega
+  ssreflect Relations_ext.
 
 Inductive term : Set := var of nat | app of term & term | abs of term.
 

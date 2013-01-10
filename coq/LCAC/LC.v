@@ -1,6 +1,6 @@
 Require Import
-  Arith.Arith Relations.Relations
-  ssreflect Relations_ext.
+  Relations.Relations
+  ssreflect ssrnat Relations_ext.
 
 (* Definition 1.1: Lambda-terms *)
 

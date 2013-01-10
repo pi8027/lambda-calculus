@@ -216,7 +216,7 @@ Proof.
   by elim ; constructor.
 Qed.
 
-Lemma cl_weakred_in_parred : forall t1 t2, t1 ->1w t2 -> t1 ->p t2.
+Lemma cl_weakred_in_parred : inclusion cl_weakred cl_parred.
 Proof.
   move=> t1 t2 ; elim.
   constructor ; [ auto | apply cl_parred_refl ].
@@ -226,7 +226,7 @@ Proof.
   constructor ; apply cl_parred_refl.
 Qed.
 
-Lemma cl_parred_in_weakred_rtc : forall t1 t2, t1 ->p t2 -> t1 ->w t2.
+Lemma cl_parred_in_weakred_rtc : inclusion cl_parred cl_weakred_rtc.
 Proof.
   intros ; induction H ; try by constructor.
   apply weakred_rtc_app ; auto.
@@ -268,13 +268,8 @@ Qed.
 
 Theorem cl_weakred_confluent : confluent cl_weakred_rtc.
 Proof.
-  move=> t1 t2 t3 H H0.
-  elim (rt1n_confluent _ _ cl_parred_confluent _ _ _
-    (clos_rt_map _ _ _ cl_weakred_in_parred _ _ H)
-    (clos_rt_map _ _ _ cl_weakred_in_parred _ _ H0)) => [t4 [ ]].
-  eexists ; split ;
-    apply rt1n_nest_elim, (clos_rt_map _ cl_parred cl_weakred_rtc) ;
-    (apply cl_parred_in_weakred_rtc || eauto).
+  apply (rt1n_confluent' _ _ _
+    cl_weakred_in_parred cl_parred_in_weakred_rtc cl_parred_confluent).
 Qed.
 
 (* Corollary 2.15.1: Uniqueness of nf *)
