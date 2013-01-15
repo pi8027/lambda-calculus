@@ -1,6 +1,6 @@
 Require Import
-  Arith.Arith Relations.Relations Relations.Relation_Operators
-  ssreflect seq Relations_ext.
+  Coq.Arith.Arith Coq.Relations.Relations Coq.Relations.Relation_Operators
+  Ssreflect.ssreflect Ssreflect.seq LCAC.Relations_ext.
 
 (* Definition 2.1: Combinatory logic terms, or CL-terms *)
 

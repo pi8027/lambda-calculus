@@ -1,6 +1,6 @@
 Require Import
   Coq.Arith.Arith Coq.Relations.Relations Coq.Relations.Relation_Operators
-  ssreflect.
+  Ssreflect.ssreflect.
 
 Notation inclusion R R' := (forall t1 t2, R t1 t2 -> R' t1 t2).
 Notation same_relation R R' := (forall t1 t2, R t1 t2 <-> R' t1 t2).

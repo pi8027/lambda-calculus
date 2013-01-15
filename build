@@ -8,11 +8,7 @@ for f in **/*.v; do
   grep --color=auto -H -n " * $" $f && echo "$f: trailing whitespace" && exit 1
 done
 
-for d in coq; do
-  pushd $d
-  coq_makefile **/*.v > Makefile_coq
-  make -f Makefile_coq || exit 1
-  popd
-done
+coq_makefile -R coq LCAC **/*.v > Makefile_coq
+make -f Makefile_coq || exit 1
 
 exit 0

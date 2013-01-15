@@ -1,1 +1,1 @@
-(setq coq-prog-args (list "-dont-load-proofs" "-R" (expand-file-name default-directory) ""))
+(setq coq-prog-args (list "-dont-load-proofs" "-R" (expand-file-name default-directory) "LCAC"))
