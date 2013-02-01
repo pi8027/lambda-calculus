@@ -145,7 +145,7 @@ Qed.
 
 Lemma parred_refl : reflexive _ parred.
 Proof.
-  elim; by constructor.
+  by elim; constructor.
 Qed.
 
 Lemma betaredappl :
