@@ -42,19 +42,18 @@ Lemma shift_add :
   forall d d' c c' t, c <= c' <= d + c ->
   shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
-  move => d d' c c' t; move: t c c'; elim.
-  - simpl => n c c' ?.
-    case: ifP => /=; case: ifP => ? ?; f_equal; ssromega.
-  - simpl => t1 ? t2 ? c c' ?; f_equal; auto.
-  - simpl => t IH c c' ?; f_equal; apply IH; ssromega.
+  move => d d' c c' t; move: t c c'; elim => /=.
+  - move => n c c' ?; do !case: ifP => /= ?; f_equal; ssromega.
+  - move => t1 ? t2 ? c c' ?; f_equal; auto.
+  - move => t IH c c' ?; f_equal; apply IH; ssromega.
 Qed.
 
 Lemma shiftzero_eq : forall n t, shift 0 n t = t.
 Proof.
   move => n t; move: t n; elim => /=.
-  - move => m n; case: ifP => H; f_equal; ssromega.
+  - move => m n; case: ifP => ?; f_equal; ssromega.
   - by move => t1 ? t2 ? n; f_equal.
-  - move => t H n; f_equal; apply H.
+  - by move => t H n; f_equal.
 Qed.
 
 Lemma unshift_shift_sub :
@@ -70,9 +69,8 @@ Qed.
 Lemma unshift_shift_eq :
   forall d c c' t, c <= c' <= d + c -> unshift d c' (shift d c t) = t.
 Proof.
-  move => d c c' t ?.
-  rewrite -{2}(shiftzero_eq c t) unshift_shift_sub; auto.
-  f_equal; ssromega.
+  move => d c c' t H.
+  rewrite -{2}(shiftzero_eq c t) unshift_shift_sub // -{1}(addn0 d) addKn //.
 Qed.
 
 Lemma substitution_eq :
@@ -81,10 +79,10 @@ Lemma substitution_eq :
 Proof.
   move => n t1 t2; move: t2 t1 n; elim.
   - simpl => n t1 m.
-    do ! case: ifP => ? //=; try by f_equal; ssromega.
+    do !case: ifP => ? //=; try by f_equal; ssromega.
     rewrite unshift_shift_sub; f_equal; ssromega.
   - by simpl => t2l ? t2r ? t1 n; f_equal.
-  - simpl => t2 IH t1 n; f_equal; rewrite shift_add; auto.
+  - by simpl => t2 IH t1 n; f_equal; rewrite shift_add.
 Qed.
 
 Inductive betared1' : relation term :=
@@ -145,27 +143,24 @@ Qed.
 Lemma betaredappl :
   forall t1 t1' t2, betared t1 t1' -> betared (app t1 t2) (app t1' t2).
 Proof.
-  move => t1 t1' t2; elim.
-  - constructor.
-  - clear => t1 t1' t1'' ? ? ?.
-    by apply rt1n_trans with (app t1' t2); first constructor.
+  move => t1 t1' t2; elim => //.
+  clear => t1 t1' t1'' ? ? ?.
+  by apply rt1n_trans with (app t1' t2); first constructor.
 Qed.
 
 Lemma betaredappr :
   forall t1 t2 t2', betared t2 t2' -> betared (app t1 t2) (app t1 t2').
 Proof.
-  move => t1 t2 t2'; elim.
-  - constructor.
-  - clear => t2 t2' t2'' ? ? ?.
-    by apply rt1n_trans with (app t1 t2'); first constructor.
+  move => t1 t2 t2'; elim => //.
+  clear => t2 t2' t2'' ? ? ?.
+  by apply rt1n_trans with (app t1 t2'); first constructor.
 Qed.
 
 Lemma betaredabs : forall t t', betared t t' -> betared (abs t) (abs t').
 Proof.
-  move => t t'; elim.
-  - constructor.
-  - clear => t t' t'' ? ? ?.
-    by apply rt1n_trans with (abs t'); first constructor.
+  move => t t'; elim => //.
+  clear => t t' t'' ? ? ?.
+  by apply rt1n_trans with (abs t'); first constructor.
 Qed.
 
 Hint Resolve parred_refl betaredappl betaredappr betaredabs.
@@ -181,8 +176,7 @@ Qed.
 
 Lemma parred_in_betared : inclusion parred betared.
 Proof.
-  move => t t'; elim.
-  - constructor.
+  move => t t'; elim => //.
   - clear => t1 t1' t2 t2' ? ? ? ?; apply rt1n_trans' with (app t1' t2); auto.
   - clear => t t' ? ?; auto.
   - clear => t1 t1' t2 t2' ? ? ? ?.
@@ -206,13 +200,11 @@ Lemma subst_shift_distr :
   shift d (n + c) (substitution n t1 t2) =
   substitution n (shift d c t1) (shift d (S (n + c)) t2).
 Proof.
-  move => n t1 t2;move: t2 n; elim.
-  - move => m n d c /=.
+  move => n t1 t2;move: t2 n; elim => //=.
+  - move => m n d c.
     do !case: ifP => ? /=; try (f_equal; ssromega).
-    symmetry.
-    apply shift_shift_distr.
-    ssromega.
-  - simpl => t2l ? t2r ? n d c; f_equal; auto.
+    apply Logic.eq_sym, shift_shift_distr; ssromega.
+  - by simpl => t2l ? t2r ? n d c; f_equal.
   - simpl => t IH n d c; f_equal; apply (IH (S n)).
 Qed.
 

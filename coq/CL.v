@@ -279,7 +279,7 @@ Qed.
 Corollary cl_weaknf_uniqueness : forall t1 t2 t3,
   cl_weaknf_of t2 t1 -> cl_weaknf_of t3 t1 -> t2 = t3.
 Proof.
-  move => t1 t2 t3; elim => H H0; elim => H1 H2.
+  move => t1 t2 t3; case => H H0; case => H1 H2.
   case: (cl_weakred_confluent H H1) => [t4 [H3 H4]].
   inversion H3.
   inversion H4.
