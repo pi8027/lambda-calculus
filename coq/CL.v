@@ -96,13 +96,15 @@ Proof.
   by apply rt1n_trans with (t3 @ t1') => //; constructor.
 Qed.
 
+Hint Resolve weakred_rtc_left weakred_rtc_right.
+
 Lemma weakred_rtc_app : forall t1 t1' t2 t2',
   t1 ->w t1' -> t2 ->w t2' -> (t1 @ t2) ->w (t1' @ t2').
 Proof.
-  move => t1 t1' t2 t2' H H0; apply rt1n_trans' with (t1 @ t2').
-  by apply weakred_rtc_right.
-  by apply weakred_rtc_left.
+  move => t1 t1' t2 t2' H H0; apply rt1n_trans' with (t1 @ t2'); auto.
 Qed.
+
+Hint Resolve weakred_rtc_app.
 
 (* Definition 2.10: Weak normal form *)
 
@@ -180,9 +182,9 @@ Qed.
 Lemma substlemma_b : forall t1 t2 t3 v,
   t1 ->w t2 -> substitute [:: (v, t1)] t3 ->w substitute [:: (v, t2)] t3.
 Proof.
-  move => t1 t2; elim => //=.
-  by move => n m; case: ifP.
-  move =>t3l H0 t3r H1 n H2; apply weakred_rtc_app; auto.
+  move => t1 t2 t3 v H; elim: t3 => //=.
+  - by move => n; case: ifP.
+  - auto.
 Qed.
 
 Lemma substlemma_c : forall t1 t2 l,
@@ -216,24 +218,21 @@ Proof.
   by elim; constructor.
 Qed.
 
+Hint Resolve cl_parred_refl.
+
 Lemma cl_weakred_in_parred : inclusion cl_weakred cl_parred.
-Proof.
-  move => t1 t2; elim.
-  constructor; [ auto | apply cl_parred_refl ].
-  constructor; [ apply cl_parred_refl | auto ].
-  move => ? ? ?; apply parred_s; apply cl_parred_refl.
-  constructor; apply cl_parred_refl.
-  constructor; apply cl_parred_refl.
+Proof with auto.
+  apply cl_weakred_ind; try by constructor...
+  move => ? ? ?; apply parred_s...
 Qed.
 
 Lemma cl_parred_in_weakred_rtc : inclusion cl_parred cl_weakred_rtc.
 Proof.
-  apply cl_parred_ind => //=.
-  - by move => t1 t1' t2 t2' H H0 H1; apply weakred_rtc_app.
+  apply cl_parred_ind => //=; auto.
   - move => t1 t1' t2 t2' t3 t3' t3'' H H0 H1 H2 H3 H4 H5 H6.
     apply rt1n_trans with (t1 @ t3 @ (t2 @ t3)).
-    constructor.
-    by do? apply weakred_rtc_app.
+    - constructor.
+    - auto.
   - move => t1 t1' t2 H H0; apply rt1n_trans with t1 => //=; constructor.
   - move => t1 t1' H H0; apply rt1n_trans with t1 => //=; constructor.
 Qed.
@@ -281,7 +280,7 @@ Corollary cl_weaknf_uniqueness : forall t1 t2 t3,
   cl_weaknf_of t2 t1 -> cl_weaknf_of t3 t1 -> t2 = t3.
 Proof.
   move => t1 t2 t3; elim => H H0; elim => H1 H2.
-  elim (cl_weakred_confluent H H1) => [t4 [H3 H4]].
+  case: (cl_weakred_confluent H H1) => [t4 [H3 H4]].
   inversion H3.
   inversion H4.
   auto.
@@ -293,10 +292,9 @@ Qed.
 
 Lemma exercise_2_16 : forall t, clatoms @ clatomk @ clatomk @ t ->w t.
 Proof.
-  move => t.
-  apply: rt1n_trans.
-  apply weakred_s.
-  apply rt1n_step, weakred_k.
+  move => t; apply: rt1n_trans.
+  - apply weakred_s.
+  - apply rt1n_step, weakred_k.
 Qed.
 
 (* Exercise 2.17 *)
