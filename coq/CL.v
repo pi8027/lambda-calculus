@@ -85,17 +85,15 @@ Infix "->w" := cl_weakred_rtc (at level 50, no associativity).
 Lemma weakred_rtc_left :
   forall t1 t2 t3, t1 ->w t2 -> t1 @ t3 ->w t2 @ t3.
 Proof.
-  move => t1 t2 t3; elim; econstructor.
-  apply weakred_left, H.
-  auto.
+  move => t1 t2 t3; elim => // {t1 t2} t1 t2 t2' H H0 H1.
+  by apply rt1n_trans with (t2 @ t3) => //; constructor.
 Qed.
 
 Lemma weakred_rtc_right :
   forall t1 t2 t3, t1 ->w t2 -> t3 @ t1 ->w t3 @ t2.
 Proof.
-  move => t1 t2 t3; elim; econstructor.
-  apply weakred_right, H.
-  auto.
+  move => t1 t2 t3; elim => // {t1 t2} t1 t1' t2 H H0 H1.
+  by apply rt1n_trans with (t3 @ t1') => //; constructor.
 Qed.
 
 Lemma weakred_rtc_app : forall t1 t1' t2 t2',
@@ -120,10 +118,10 @@ Example example_2_11 : forall t1 t2 t3,
 Proof.
   move => t1 t2 t3.
   rewrite /cl_comb_b.
-  eapply rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
-  eapply rt1n_trans ;
+  apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
+  apply: rt1n_trans ;
     first apply weakred_left, weakred_left, weakred_left, weakred_k.
-  eapply rt1n_trans; first apply weakred_s.
+  apply: rt1n_trans; first apply weakred_s.
   apply rt1n_step; apply weakred_left, weakred_k.
 Qed.
 
@@ -137,12 +135,12 @@ Example example_2_12 :
 Proof.
   move => t1 t2 t3.
   rewrite /cl_comb_c.
-  eapply rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
-  eapply rt1n_trans'; first (do 3 apply weakred_rtc_left; apply example_2_11).
-  eapply rt1n_trans'; first apply weakred_rtc_left, example_2_11.
-  eapply rt1n_trans; first apply weakred_s.
+  apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
+  apply: rt1n_trans'; first (do 3 apply weakred_rtc_left; apply example_2_11).
+  apply: rt1n_trans'; first apply weakred_rtc_left, example_2_11.
+  apply: rt1n_trans; first apply weakred_s.
   apply weakred_rtc_right.
-  eapply rt1n_trans; first apply weakred_left, weakred_left, weakred_k.
+  apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_k.
   apply rt1n_step; apply weakred_k.
 Qed.
 
@@ -175,9 +173,8 @@ Qed.
 Lemma substlemma_a : forall t1 t2 v,
   t1 ->w t2 -> cl_occurs (clvar v) t2 -> cl_occurs (clvar v) t1.
 Proof.
-  move => t1 t2 v; elim.
-  auto.
-  intros; eapply substlemma_a'; eauto.
+  move => t1 t2 v; elim => // x y z H H0 H1 H2.
+  apply: substlemma_a'; eauto.
 Qed.
 
 Lemma substlemma_b : forall t1 t2 t3 v,
@@ -297,7 +294,7 @@ Qed.
 Lemma exercise_2_16 : forall t, clatoms @ clatomk @ clatomk @ t ->w t.
 Proof.
   move => t.
-  eapply rt1n_trans.
+  apply: rt1n_trans.
   apply weakred_s.
   apply rt1n_step, weakred_k.
 Qed.

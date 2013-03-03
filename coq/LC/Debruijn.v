@@ -286,9 +286,8 @@ Proof.
   - move => _ t1 t2 _ ? ? t' H; inversion H; subst.
     - inversion H2; subst; constructor; auto.
     - apply subst_lemma; auto.
-  - move => _ t1 t2 _ ? ? ? t' H; inversion H; subst.
-    - constructor; auto.
-    - done.
+  - move => _ t1 t2 _ ? ? ? t' H; inversion H; subst => //.
+    constructor; auto.
   - move => _ t1 _ ? t2 H; inversion H; subst; constructor; auto.
 Qed.
 
