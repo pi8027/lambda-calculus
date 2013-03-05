@@ -68,13 +68,6 @@ Proof.
   - move => t IH c c' ? ?; f_equal; apply IH; ssromega.
 Qed.
 
-Lemma unshift_shift_eq :
-  forall d c c' t, c <= c' <= d + c -> unshift d c' (shift d c t) = t.
-Proof.
-  move => d c c' t H.
-  rewrite unshift_shift_sub // -{1}(addn0 d) addKn shiftzero_eq //.
-Qed.
-
 Lemma substitution_eq :
   forall n t1 t2,
   unshift 1 n (substitution' n (shift (S n) 0 t1) t2) = substitution n t1 t2.
@@ -145,20 +138,20 @@ Lemma betaredappl :
   forall t1 t1' t2, betared t1 t1' -> betared (app t1 t2) (app t1' t2).
 Proof.
   move => t1 t1' t2; elim => // {t1 t1'} t1 t1' t1'' ? ? ?.
-  by apply rt1n_trans with (app t1' t2); first constructor.
+  by apply rt1n_trans with (app t1' t2) => //; constructor.
 Qed.
 
 Lemma betaredappr :
   forall t1 t2 t2', betared t2 t2' -> betared (app t1 t2) (app t1 t2').
 Proof.
   move => t1 t2 t2'; elim => // {t2 t2'} t2 t2' t2'' ? ? ?.
-  by apply rt1n_trans with (app t1 t2'); first constructor.
+  by apply rt1n_trans with (app t1 t2') => //; constructor.
 Qed.
 
 Lemma betaredabs : forall t t', betared t t' -> betared (abs t) (abs t').
 Proof.
   move => t t'; elim => // {t t'} t t' t'' ? ? ?.
-  by apply rt1n_trans with (abs t'); first constructor.
+  by apply rt1n_trans with (abs t') => //; constructor.
 Qed.
 
 Hint Resolve parred_refl betaredappl betaredappr betaredabs.
@@ -277,6 +270,6 @@ Qed.
 
 Lemma betared_confluent : confluent betared.
 Proof.
-  apply (rt1n_confluent' _
+  apply (rt1n_confluent' parred
     betared1_in_parred parred_in_betared parred_confluent).
 Qed.
