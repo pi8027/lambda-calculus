@@ -8,6 +8,22 @@ Section Seq.
 
 Variable A : Type.
 
+Theorem drop_take_nil : forall n (xs : seq A), drop n (take n xs) = [::].
+Proof.
+  move => n xs; rewrite drop_oversize //=.
+  move: xs n; elim => // x xs IH; case => //=.
+Qed.
+
+Theorem drop_addn :
+  forall n m (xs : seq A), drop n (drop m xs) = drop (n + m) xs.
+Proof.
+  elim => [| n IH] m; case => [| x xs] //.
+  - by rewrite drop0 add0n.
+  - rewrite addSn //= -IH; clear; move: m x xs; elim => //=.
+    - by move => _ xs; rewrite drop0.
+    - move => m IH _; case => //.
+Qed.
+
 Function insert (n : nat) (a : A) (xs : seq A) :=
   if n is S n
     then (if xs is x :: xs then x :: insert n a xs else [:: a])
@@ -29,6 +45,11 @@ Fixpoint nthopt (xs : seq A) n :=
 Theorem nthopt_drop : forall xs n m, nthopt xs (n + m) = nthopt (drop n xs) m.
 Proof.
   elim => // x xs IH; case => //.
+Qed.
+
+Theorem nthopt_drop' : forall xs n, nthopt xs n = nthopt (drop n xs) 0.
+Proof.
+  by move => xs n; rewrite -{1}(addn0 n) nthopt_drop.
 Qed.
 
 Theorem nthopt_take0 :
@@ -111,3 +132,5 @@ Proof.
 Qed.
 
 End Seq.
+
+Notation seqindex xs n x := (Some x = nthopt xs n).

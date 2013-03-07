@@ -1,7 +1,8 @@
 Require Import
   Coq.Relations.Relations Coq.Relations.Relation_Operators Omega
-  Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.eqtype
-  Ssreflect.ssrnat LCAC.Relations_ext LCAC.ssrnat_ext.
+  Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
+  Ssreflect.ssrnat Ssreflect.seq
+  LCAC.Relations_ext LCAC.ssrnat_ext LCAC.seq_ext.
 
 Set Implicit Arguments.
 
@@ -52,10 +53,8 @@ Qed.
 
 Lemma shiftzero_eq : forall n t, shift 0 n t = t.
 Proof.
-  move => n t; move: t n; elim => /=.
-  - move => m n; case: ifP => ?; f_equal; ssromega.
-  - by move => t1 ? t2 ? n; f_equal.
-  - by move => t H n; f_equal.
+  move => n t; move: t n; elim => /=; try congruence.
+  move => m n; case: ifP => ?; f_equal; ssromega.
 Qed.
 
 Lemma unshift_shift_sub :
@@ -75,7 +74,7 @@ Proof.
   move => n t1 t2; move: t2 t1 n; elim => /=.
   - move => n t1 m; elimif_omega.
     rewrite unshift_shift_sub; f_equal; ssromega.
-  - by move => t2l ? t2r ? t1 n; f_equal.
+  - congruence.
   - by move => t2 IH t1 n; f_equal; rewrite shift_add.
 Qed.
 
@@ -201,8 +200,7 @@ Proof.
   move => t1 t2; elim t1 => /=.
   - move => m n d c ?; elimif_omega; apply shift_add; ssromega.
   - move => t1l ? t1r ? n d c ?; f_equal; auto.
-  - move => t1' IH n d c ?; f_equal.
-    by rewrite -addnS; apply IH; rewrite ltnS.
+  - move => t1' IH n d c ?; rewrite -addnS IH //.
 Qed.
 
 Lemma shift_const_subst :
@@ -226,7 +224,7 @@ Proof.
     - by apply Logic.eq_sym, shift_subst_distr.
     - by apply Logic.eq_sym, shift_subst_distr.
     - apply (shift_const_subst m t3 _ (m + n) 0); ssromega.
-  - by move => t1l ? t1r ? m t2 t3; f_equal.
+  - congruence.
   - by move => t1 IH m t2 t3; f_equal; rewrite -addSn.
 Qed.
 
@@ -268,8 +266,137 @@ Proof.
     exists (reduce_all_redex t1); split; apply parred_all_lemma.
 Qed.
 
-Lemma betared_confluent : confluent betared.
+Theorem betared_confluent : confluent betared.
 Proof.
   apply (rt1n_confluent' parred
     betared1_in_parred parred_in_betared parred_confluent).
 Qed.
+
+Module STLC.
+
+Inductive typ := tyvar of nat | tyfun of typ & typ.
+
+Inductive typing : seq typ -> term -> typ -> Prop :=
+  | typvar : forall ctx n ty, seqindex ctx n ty -> typing ctx (var n) ty
+  | tyapp  : forall ctx t1 t2 ty1 ty2,
+    typing ctx t1 (tyfun ty1 ty2) -> typing ctx t2 ty1 ->
+    typing ctx (app t1 t2) ty2
+  | tyabs  : forall ctx t ty1 ty2,
+    typing (ty1 :: ctx) t ty2 -> typing ctx (abs t) (tyfun ty1 ty2).
+
+Lemma typvar_seqindex :
+  forall ctx n ty, seqindex ctx n ty <-> typing ctx (var n) ty.
+Proof.
+  move => ctx n ty; split => H.
+  by constructor.
+  by inversion H.
+Qed.
+
+Lemma typing_shift_drop :
+  forall ctx t ty d c,
+  typing (take c ctx ++ drop (d + c) ctx) t ty <-> typing ctx (shift d c t) ty.
+Proof.
+  move => ctx t; move: t ctx; elim => //=.
+  - move => n ctx ty d c.
+    case: ifP => H; case: (leqP c (size ctx)) => H0; rewrite -!typvar_seqindex.
+    - rewrite (nthopt_drop' _ n) (nthopt_drop' _ (n + d))
+        -{1}(subnKC H) addnC -drop_addn (@drop_size_cat _ c (take c ctx)).
+      by rewrite drop_addn addnC -addnA (subnKC H) addnC.
+      by apply size_takel.
+    - rewrite (nthopt_drop' _ n) (nthopt_drop' _ (n + d))
+        !drop_oversize ?cats0 //; try ssromega.
+      apply leq_trans with c => //.
+      rewrite size_take; case: ifP => H1; ssromega.
+    - move: ctx c n H H0.
+      elim => // ty' ctx IH; case => // c; case => // n H H0.
+      by rewrite addnS /=; apply IH.
+    - move: ctx c n H H0.
+      elim => // ty' ctx IH; case => // c; case => // n H H0.
+      by rewrite addnS /=; apply IH.
+  - move => tl IHtl tr IHtr ctx ty d c.
+    split => H; inversion H; subst; apply tyapp with ty1.
+    - by apply (proj1 (IHtl ctx (tyfun ty1 ty) d c)).
+    - by apply (proj1 (IHtr ctx ty1 d c)).
+    - by apply (proj2 (IHtl ctx (tyfun ty1 ty) d c)).
+    - by apply (proj2 (IHtr ctx ty1 d c)).
+  - move => t IH ctx ty; split => H; inversion H; subst; constructor.
+    - apply (proj1 (IH (ty1 :: ctx) ty2 d c.+1)).
+      rewrite -addSnnS //=.
+    - move: (proj2 (IH (ty1 :: ctx) ty2 d c.+1)).
+      rewrite -addSnnS //=; auto.
+Qed.
+
+Lemma shift_type_preserve :
+  forall t ty ctx1 ctx2 ctx3,
+  typing (ctx1 ++ ctx3) t ty ->
+  typing (ctx1 ++ ctx2 ++ ctx3) (shift (size ctx2) (size ctx1) t) ty.
+Proof.
+ elim => /=.
+  - move => n ty ctx1 ctx2 ctx3 H.
+    inversion H; subst => /= {H}.
+    case: ifP => H /=; constructor.
+    - by move: H2; rewrite -(subnKC H) {H}
+        -addnA (addnC (n - size ctx1)) -!lift_seqindex.
+    - move: H2; rewrite !appl_seqindex //; ssromega.
+  - move => tl IHtl tr IHtr ty ctx1 ctx2 ctx3 H.
+    inversion H; subst; apply tyapp with ty1; auto.
+  - move => t IH ty ctx1 ctx2 ctx3 H.
+    by inversion H; subst; constructor; apply (IH _ (ty1 :: ctx1)).
+Qed.
+
+Lemma substitution_type_preserve :
+  forall ctx t1 t2 ty1 ty2 n,
+  typing (drop n ctx) t1 ty1 ->
+  typing (insert n ty1 ctx) t2 ty2 ->
+  n <= size ctx -> typing ctx (substitution n t1 t2) ty2.
+Proof.
+  move => ctx t1 t2; move: t2 t1 ctx; elim => /=.
+  - move => m t1 ctx ty1 ty2 n H H0 H1;
+      inversion H0; simpl in *; subst; do !case: ifP => /=.
+    - move/eqnP => ? _; subst.
+      move: H4; rewrite -insert_seqindex_c // => ?; subst.
+      by rewrite -typing_shift_drop take0 //= addn0.
+    - move => H2 H3; constructor.
+      (have: n < m by ssromega) => {H0 H2 H3} H0; move: H4.
+      rewrite -{1}(ltn_predK H0) -insert_seqindex_r //; ssromega.
+    - move => H2; constructor.
+      (have: m < n by ssromega) => {H0 H2} H0; move: H4.
+      rewrite -insert_seqindex_l //; ssromega.
+  - move => t2l IHt2l t2r IHt2r t1 ctx ty1 ty2 n H H0 H1.
+    inversion H0; subst; apply tyapp with ty0.
+    - by apply IHt2l with ty1.
+    - by apply IHt2r with ty1.
+  - move => t IH t1 ctx ty1 ty2 n H H0 H1.
+    inversion H0; subst; constructor.
+    by apply (IH t1 (ty0 :: ctx) ty1 ty3).
+Qed.
+
+Lemma type_preserve1 :
+  forall ctx t1 t2 ty, t1 ->1b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
+Proof.
+  move => ctx t1 t2 ty H; move: t1 t2 H ctx ty.
+  refine (betared1_ind _ _ _ _ _) => //=.
+  - move => t1 t2 ctx ty H.
+    inversion H; subst; inversion H3; subst.
+    apply substitution_type_preserve with ty1 => //.
+    by rewrite drop0.
+  - move => t1 t1' t2 H IH ctx ty H0.
+    inversion H0; subst.
+    by apply tyapp with ty1; auto.
+  - move => t1 t2 t2' H IH ctx ty H0.
+    inversion H0; subst.
+    by apply tyapp with ty1; auto.
+  - move => t1 t2 H IH ctx ty H0.
+    inversion H0; subst; constructor; auto.
+Qed.
+
+Theorem type_preserve :
+  forall ctx t1 t2 ty, t1 ->b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
+Proof.
+  move => ctx t1 t2 ty; move: t1 t2.
+  refine (clos_refl_trans_1n_ind _ _ _ _ _) => // t1 t2 t3 H _ IH H0.
+  apply IH.
+  by apply type_preserve1 with t1.
+Qed.
+
+End STLC.
