@@ -21,10 +21,36 @@ Proof.
   - by case => //= x xs; f_equal.
 Qed.
 
-Fixpoint seqindex (xs : seq A) n x :=
-  if xs is x' :: xs
-    then (if n is n.+1 then seqindex xs n x else x = x')
-    else False.
+Fixpoint nthopt (xs : seq A) n :=
+  if xs is x :: xs
+    then (if n is n.+1 then nthopt xs n else Some x)
+    else None.
+
+Theorem nthopt_drop : forall xs n m, nthopt xs (n + m) = nthopt (drop n xs) m.
+Proof.
+  elim => // x xs IH; case => //.
+Qed.
+
+Theorem nthopt_take0 :
+  forall xs n m, m <= n -> nthopt (take m xs) n = None.
+Proof.
+  elim => // x xs IH; case => [| n]; case => //= m; rewrite ltnS; apply IH.
+Qed.
+
+Theorem nthopt_take1 :
+  forall xs n m, n < m -> nthopt (take m xs) n = nthopt xs n.
+Proof.
+  by elim => // x xs IH; case => [| n]; case => //= m; rewrite ltnS; apply IH.
+Qed.
+
+Notation seqindex xs n x := (Some x = nthopt xs n).
+
+Theorem seqindex_drop :
+  forall (xs : seq A) n m a,
+  seqindex xs (n + m) a <-> seqindex (drop n xs) m a.
+Proof.
+  elim => [| x xs IH]; case => //.
+Qed.
 
 Theorem lift_seqindex :
   forall xs ys n a, seqindex ys n a <-> seqindex (xs ++ ys) (size xs + n) a.
@@ -36,12 +62,7 @@ Theorem appl_seqindex :
   forall xs ys n a, n < size xs ->
   (seqindex (xs ++ ys) n a <-> seqindex xs n a).
 Proof.
-  elim.
-  - move => /= ys n a H.
-    apply False_ind; ssromega.
-  - move => x xs IH ys; case => //= n a H.
-    apply IH.
-    by rewrite -ltnS.
+  elim => // x xs IH ys; case => //= n a; rewrite ltnS; apply IH.
 Qed.
 
 Theorem appr_seqindex :
@@ -62,28 +83,31 @@ Qed.
 Theorem insert_seqindex_c :
   forall n a b xs, n <= size xs -> (a = b <-> seqindex (insert n a xs) n b).
 Proof.
-  elim => // n IHn a b; case => //= _ xs; rewrite ltnS; apply IHn.
+  elim => [| n IHn] a b; case => //=.
+  - move => _; split; congruence.
+  - move => _ _ _; split; congruence.
+  - move => _ xs; rewrite ltnS; apply IHn.
 Qed.
 
 Theorem insert_seqindex_r :
   forall m n a x xs,
-  n < m -> (seqindex xs m x <-> seqindex (insert n a xs) m.+1 x).
+  n <= m -> (seqindex xs m x <-> seqindex (insert n a xs) m.+1 x).
 Proof.
-  by elim => // m IHm; case => // n a x; case => // x' xs H; apply IHm.
+  by elim => [| m IHm]; case => // n a x; case => //= x' xs; apply IHm.
 Qed.
 
 Theorem dec_seqindex :
   forall xs n, { a | seqindex xs n a } + ({ a | seqindex xs n a } -> False).
 Proof.
-  elim => [ | x xs IH] /=.
+  elim => [ | x xs IH] //=.
   - by move => _; right; case.
-  - by case => //=; left; exists x.
+  - by case => //; left; exists x.
 Defined.
 
 Theorem unique_seqindex :
   forall xs n x y, seqindex xs n x -> seqindex xs n y -> x = y.
 Proof.
-  elim => // x xs IHxs; case => //= x' y H H0; congruence.
+  elim => // x xs IH; case => //=; congruence.
 Qed.
 
 End Seq.
