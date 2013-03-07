@@ -292,27 +292,20 @@ Proof.
   by inversion H.
 Qed.
 
-Lemma typing_shift_drop :
+Lemma typing_shift_ctx :
   forall ctx t ty d c,
-  typing (take c ctx ++ drop (d + c) ctx) t ty <-> typing ctx (shift d c t) ty.
+  typing (take c ctx ++ drop (c + d) ctx) t ty <-> typing ctx (shift d c t) ty.
 Proof.
   move => ctx t; move: t ctx; elim => //=.
   - move => n ctx ty d c.
-    case: ifP => H; case: (leqP c (size ctx)) => H0; rewrite -!typvar_seqindex.
-    - rewrite (nthopt_drop' _ n) (nthopt_drop' _ (n + d))
-        -{1}(subnKC H) addnC -drop_addn (@drop_size_cat _ c (take c ctx)).
-      by rewrite drop_addn addnC -addnA (subnKC H) addnC.
-      by apply size_takel.
-    - rewrite (nthopt_drop' _ n) (nthopt_drop' _ (n + d))
-        !drop_oversize ?cats0 //; try ssromega.
-      apply leq_trans with c => //.
-      rewrite size_take; case: ifP => H1; ssromega.
-    - move: ctx c n H H0.
-      elim => // ty' ctx IH; case => // c; case => // n H H0.
-      by rewrite addnS /=; apply IH.
-    - move: ctx c n H H0.
-      elim => // ty' ctx IH; case => // c; case => // n H H0.
-      by rewrite addnS /=; apply IH.
+    case: ifP => H; rewrite -!typvar_seqindex.
+    - move: ctx c n H.
+      elim => // ty' ctx IH; case => [| c]; case => [| n] //.
+      - rewrite take0 add0n cat0s -nthopt_drop'; tauto.
+      - rewrite take0 add0n cat0s -nthopt_drop addnC; tauto.
+      - rewrite !addSn ltnS /=; apply IH.
+    - move: ctx c n H.
+      by elim => // ty' ctx IH; case => // c; case => //= n H; apply IH.
   - move => tl IHtl tr IHtr ctx ty d c.
     split => H; inversion H; subst; apply tyapp with ty1.
     - by apply (proj1 (IHtl ctx (tyfun ty1 ty) d c)).
@@ -320,10 +313,8 @@ Proof.
     - by apply (proj2 (IHtl ctx (tyfun ty1 ty) d c)).
     - by apply (proj2 (IHtr ctx ty1 d c)).
   - move => t IH ctx ty; split => H; inversion H; subst; constructor.
-    - apply (proj1 (IH (ty1 :: ctx) ty2 d c.+1)).
-      rewrite -addSnnS //=.
-    - move: (proj2 (IH (ty1 :: ctx) ty2 d c.+1)).
-      rewrite -addSnnS //=; auto.
+    - apply (proj1 (IH (ty1 :: ctx) ty2 d c.+1)) => //=.
+    - move: (proj2 (IH (ty1 :: ctx) ty2 d c.+1)) => //=; auto.
 Qed.
 
 Lemma shift_type_preserve :
@@ -355,7 +346,7 @@ Proof.
       inversion H0; simpl in *; subst; do !case: ifP => /=.
     - move/eqnP => ? _; subst.
       move: H4; rewrite -insert_seqindex_c // => ?; subst.
-      by rewrite -typing_shift_drop take0 //= addn0.
+      by rewrite -typing_shift_ctx take0 //= addn0.
     - move => H2 H3; constructor.
       (have: n < m by ssromega) => {H0 H2 H3} H0; move: H4.
       rewrite -{1}(ltn_predK H0) -insert_seqindex_r //; ssromega.
