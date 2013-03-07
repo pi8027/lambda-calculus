@@ -292,43 +292,16 @@ Proof.
   by inversion H.
 Qed.
 
-Lemma typing_shift_ctx :
-  forall ctx t ty d c,
-  typing (take c ctx ++ drop (c + d) ctx) t ty <-> typing ctx (shift d c t) ty.
-Proof.
-  move => ctx t; move: t ctx; elim => //=.
-  - move => n ctx ty d c.
-    case: ifP => H; rewrite -!typvar_seqindex.
-    - move: ctx c n H.
-      elim => // ty' ctx IH; case => [| c]; case => [| n] //.
-      - rewrite take0 add0n cat0s -nthopt_drop'; tauto.
-      - rewrite take0 add0n cat0s -nthopt_drop addnC; tauto.
-      - rewrite !addSn ltnS /=; apply IH.
-    - move: ctx c n H.
-      by elim => // ty' ctx IH; case => // c; case => //= n H; apply IH.
-  - move => tl IHtl tr IHtr ctx ty d c.
-    split => H; inversion H; subst; apply tyapp with ty1.
-    - by apply (proj1 (IHtl ctx (tyfun ty1 ty) d c)).
-    - by apply (proj1 (IHtr ctx ty1 d c)).
-    - by apply (proj2 (IHtl ctx (tyfun ty1 ty) d c)).
-    - by apply (proj2 (IHtr ctx ty1 d c)).
-  - move => t IH ctx ty; split => H; inversion H; subst; constructor.
-    - apply (proj1 (IH (ty1 :: ctx) ty2 d c.+1)) => //=.
-    - move: (proj2 (IH (ty1 :: ctx) ty2 d c.+1)) => //=; auto.
-Qed.
-
 Lemma shift_type_preserve :
   forall t ty ctx1 ctx2 ctx3,
   typing (ctx1 ++ ctx3) t ty ->
   typing (ctx1 ++ ctx2 ++ ctx3) (shift (size ctx2) (size ctx1) t) ty.
 Proof.
  elim => /=.
-  - move => n ty ctx1 ctx2 ctx3 H.
-    inversion H; subst => /= {H}.
-    case: ifP => H /=; constructor.
-    - by move: H2; rewrite -(subnKC H) {H}
-        -addnA (addnC (n - size ctx1)) -!lift_seqindex.
-    - move: H2; rewrite !appl_seqindex //; ssromega.
+  - move => n ty ctx1 ctx2 ctx3.
+    case: ifP => H; rewrite -!typvar_seqindex.
+    - by rewrite -(subnKC H) {H} -addnA (addnC (n - size ctx1)) -!lift_seqindex.
+    - rewrite !appl_seqindex //; ssromega.
   - move => tl IHtl tr IHtr ty ctx1 ctx2 ctx3 H.
     inversion H; subst; apply tyapp with ty1; auto.
   - move => t IH ty ctx1 ctx2 ctx3 H.
@@ -337,28 +310,29 @@ Qed.
 
 Lemma substitution_type_preserve :
   forall ctx t1 t2 ty1 ty2 n,
+  n <= size ctx ->
   typing (drop n ctx) t1 ty1 ->
   typing (insert n ty1 ctx) t2 ty2 ->
-  n <= size ctx -> typing ctx (substitution n t1 t2) ty2.
+  typing ctx (substitution n t1 t2) ty2.
 Proof.
   move => ctx t1 t2; move: t2 t1 ctx; elim => /=.
-  - move => m t1 ctx ty1 ty2 n H H0 H1;
-      inversion H0; simpl in *; subst; do !case: ifP => /=.
-    - move/eqnP => ? _; subst.
-      move: H4; rewrite -insert_seqindex_c // => ?; subst.
-      by rewrite -typing_shift_ctx take0 //= addn0.
-    - move => H2 H3; constructor.
-      (have: n < m by ssromega) => {H0 H2 H3} H0; move: H4.
-      rewrite -{1}(ltn_predK H0) -insert_seqindex_r //; ssromega.
-    - move => H2; constructor.
-      (have: m < n by ssromega) => {H0 H2} H0; move: H4.
+  - move => m t1 ctx ty1 ty2 n H H0.
+    do !(case: ifP => /=); rewrite -!typvar_seqindex.
+    - move/eqnP => ? _; subst; rewrite -insert_seqindex_c // => ?; subst.
+      move: (shift_type_preserve [::] (take m ctx) (drop m ctx) H0) => /=.
+      rewrite cat_take_drop size_takel //.
+    - move => H1 H2.
+      (have: n < m by ssromega) => {H1 H2} H1.
+      rewrite -{1}(ltn_predK H1) -insert_seqindex_r //; ssromega.
+    - move => H1.
+      (have: m < n by ssromega) => {H1} H1.
       rewrite -insert_seqindex_l //; ssromega.
   - move => t2l IHt2l t2r IHt2r t1 ctx ty1 ty2 n H H0 H1.
-    inversion H0; subst; apply tyapp with ty0.
+    inversion H1; subst; apply tyapp with ty0.
     - by apply IHt2l with ty1.
     - by apply IHt2r with ty1.
   - move => t IH t1 ctx ty1 ty2 n H H0 H1.
-    inversion H0; subst; constructor.
+    inversion H1; subst; constructor.
     by apply (IH t1 (ty0 :: ctx) ty1 ty3).
 Qed.
 
