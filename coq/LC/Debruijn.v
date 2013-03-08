@@ -292,7 +292,7 @@ Proof.
   by inversion H.
 Qed.
 
-Lemma shift_type_preserve :
+Lemma subject_shift :
   forall t ty ctx1 ctx2 ctx3,
   typing (ctx1 ++ ctx3) t ty ->
   typing (ctx1 ++ ctx2 ++ ctx3) (shift (size ctx2) (size ctx1) t) ty.
@@ -308,7 +308,7 @@ Proof.
     by inversion H; subst; constructor; apply (IH _ (ty1 :: ctx1)).
 Qed.
 
-Lemma substitution_type_preserve :
+Lemma subject_substitution :
   forall ctx t1 t2 ty1 ty2 n,
   n <= size ctx ->
   typing (drop n ctx) t1 ty1 ->
@@ -319,13 +319,12 @@ Proof.
   - move => m t1 ctx ty1 ty2 n H H0.
     do !(case: ifP => /=); rewrite -!typvar_seqindex.
     - move/eqnP => ? _; subst; rewrite -insert_seqindex_c // => ?; subst.
-      move: (shift_type_preserve [::] (take m ctx) (drop m ctx) H0) => /=.
+      move: (subject_shift [::] (take m ctx) (drop m ctx) H0) => /=.
       rewrite cat_take_drop size_takel //.
     - move => H1 H2.
       (have: n < m by ssromega) => {H1 H2} H1.
       rewrite -{1}(ltn_predK H1) -insert_seqindex_r //; ssromega.
     - move => H1.
-      (have: m < n by ssromega) => {H1} H1.
       rewrite -insert_seqindex_l //; ssromega.
   - move => t2l IHt2l t2r IHt2r t1 ctx ty1 ty2 n H H0 H1.
     inversion H1; subst; apply tyapp with ty0.
@@ -336,14 +335,14 @@ Proof.
     by apply (IH t1 (ty0 :: ctx) ty1 ty3).
 Qed.
 
-Lemma type_preserve1 :
+Lemma subject_reduction1 :
   forall ctx t1 t2 ty, t1 ->1b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
 Proof.
   move => ctx t1 t2 ty H; move: t1 t2 H ctx ty.
   refine (betared1_ind _ _ _ _ _) => //=.
   - move => t1 t2 ctx ty H.
     inversion H; subst; inversion H3; subst.
-    apply substitution_type_preserve with ty1 => //.
+    apply subject_substitution with ty1 => //.
     by rewrite drop0.
   - move => t1 t1' t2 H IH ctx ty H0.
     inversion H0; subst.
@@ -355,13 +354,22 @@ Proof.
     inversion H0; subst; constructor; auto.
 Qed.
 
-Theorem type_preserve :
+Theorem subject_reduction :
   forall ctx t1 t2 ty, t1 ->b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
 Proof.
   move => ctx t1 t2 ty; move: t1 t2.
-  refine (clos_refl_trans_1n_ind _ _ _ _ _) => // t1 t2 t3 H _ IH H0.
-  apply IH.
-  by apply type_preserve1 with t1.
+  exact (rt1n_preservation (fun t => typing ctx t ty)
+    (fun t1 t2 => @subject_reduction1 ctx t1 t2 ty)).
 Qed.
+
+Fixpoint reducible' (ctx : seq typ) (ty : typ) (t : term) : Prop :=
+  match ty with
+    | tyvar n => Acc betared t
+    | tyfun ty1 ty2 =>
+      forall t1, typing ctx t1 ty1 /\ reducible' ctx ty1 t1 ->
+                 reducible' ctx ty2 (app t t1)
+  end.
+
+Notation reducible ctx ty t := (typing ctx t ty /\ reducible' ctx ty t).
 
 End STLC.

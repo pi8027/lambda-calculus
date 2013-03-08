@@ -74,3 +74,12 @@ Proof.
     => t4 [? ?].
   by exists t4; split; rewrite -rt1n_nest_elim; apply (clos_rt_map _ H0).
 Qed.
+
+Theorem rt1n_preservation :
+  forall A (P : A -> Prop) (R : relation A),
+  (forall x y, R x y -> P x -> P y) -> forall x y, [* R] x y -> P x -> P y.
+Proof.
+  move => A P R H.
+  refine (clos_refl_trans_1n_ind A R _ _ _) => //= x y z H0 _ H1 H2.
+  exact (H1 (H x y H0 H2)).
+Qed.
