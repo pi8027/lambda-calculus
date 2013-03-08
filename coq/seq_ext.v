@@ -1,4 +1,5 @@
 Require Import
+  Lists.List
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool
   Ssreflect.ssrnat Ssreflect.seq LCAC.ssrnat_ext.
 
@@ -6,7 +7,21 @@ Set Implicit Arguments.
 
 Section Seq.
 
-Variable A : Type.
+Variable A B : Type.
+
+Theorem Forall_app : forall (P : A -> Prop) xs ys,
+  Forall P xs -> Forall P ys -> Forall P (xs ++ ys).
+Proof.
+  move => P xs ys H0 H; move: xs H0.
+  by refine (Forall_ind _ _ _) => //= x xs H0 H1 IHxs; constructor.
+Qed.
+
+Theorem Forall_map : forall (P : B -> Prop) (f : A -> B) xs,
+  Forall P (map f xs) <-> Forall (fun x => P (f x)) xs.
+Proof.
+  move => P f; elim => //= x xs IH;
+    split => H; inversion H; subst; constructor; tauto.
+Qed.
 
 Theorem drop_take_nil : forall n (xs : seq A), drop n (take n xs) = [::].
 Proof.

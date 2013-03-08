@@ -1,5 +1,6 @@
 Require Import
-  Coq.Relations.Relations Coq.Relations.Relation_Operators Omega
+  Coq.Lists.List Coq.Relations.Relations Coq.Relations.Relation_Operators
+  Coq.Program.Basics Omega
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat Ssreflect.seq
   LCAC.Relations_ext LCAC.ssrnat_ext LCAC.seq_ext.
@@ -163,12 +164,12 @@ Qed.
 Lemma parred_in_betared : inclusion parred betared.
 Proof.
   move => t t'; elim => //; clear.
-  - move => t1 t1' t2 t2' ? ? ? ?; apply rt1n_trans' with (app t1' t2); auto.
+  - move => t1 t1' t2 t2' ? ? ? ?; apply rtc_trans' with (app t1' t2); auto.
   - move => t t' ? ?; auto.
   - move => t1 t1' t2 t2' ? ? ? ?.
-    apply rt1n_trans' with (app (abs t1') t2); auto.
-    apply rt1n_trans' with (app (abs t1') t2'); auto.
-    apply rt1n_step; constructor.
+    apply rtc_trans' with (app (abs t1') t2); auto.
+    apply rtc_trans' with (app (abs t1') t2'); auto.
+    apply rtc_step; constructor.
 Qed.
 
 Lemma shift_shift_distr :
@@ -268,8 +269,77 @@ Qed.
 
 Theorem betared_confluent : confluent betared.
 Proof.
-  apply (rt1n_confluent' parred
+  apply (rtc_confluent' parred
     betared1_in_parred parred_in_betared parred_confluent).
+Qed.
+
+Fixpoint enumerate_next (t : term) : seq term :=
+  match t with
+    | var n => [::]
+    | app (abs t1) t2 =>
+      substitution 0 t2 t1 ::
+      [seq app (abs t1') t2 | t1' <- enumerate_next t1 ] ++
+      [seq app (abs t1) t2' | t2' <- enumerate_next t2 ]
+    | app t1 t2 =>
+      [seq app t1' t2 | t1' <- enumerate_next t1 ] ++
+      [seq app t1 t2' | t2' <- enumerate_next t2 ]
+    | abs t1 => map abs (enumerate_next t1)
+  end.
+
+Theorem enumerate_next_spec1 :
+  forall (t1 t2 : term), t1 ->1b t2 -> In t2 (enumerate_next t1).
+Proof.
+  refine (betared1_ind _ _ _ _ _) => /=; auto.
+  - case => //.
+    - move => t1l t1r; move: (app t1l t1r).
+      move => t1 t1' t2 H H0.
+      apply in_or_app; left.
+      rewrite -/((fun t1 => app t1 t2) t1').
+      by apply in_map.
+    - move => t1 t1' t2.
+      rewrite (map_comp (fun t1 => app t1 t2) abs (enumerate_next t1)).
+      rewrite -/(enumerate_next (abs t1)).
+      move: t1 (abs t1) t1' t2 => /= ? t1 t1' t2 H H0.
+      right.
+      apply in_or_app; left.
+      rewrite -/((fun t1 => app t1 t2) t1').
+      by apply in_map.
+  - case.
+    - move => //= n t2 t2' H H0.
+      by apply (in_map (fun t2 => app (var n) t2)).
+    - move => t1l t1r t2 t2' H H0.
+      apply in_or_app; right.
+      by apply (in_map (fun t2 => app (app t1l t1r) t2)).
+    - move => t1 t2 t2' H H0.
+      apply List.in_cons, in_or_app; right.
+      by apply (in_map (fun t2 => app (abs t1) t2)).
+  - move => t t' H.
+    apply (in_map abs).
+Qed.
+
+Theorem enumerate_next_spec2 :
+  forall t, List.Forall (betared1 t) (enumerate_next t).
+Proof.
+  elim => //=.
+  - case.
+    - move => n _ t H0.
+      apply Forall_app => //=.
+      move: (enumerate_next t) H0.
+      by refine (Forall_ind _ _ _) => //=; do !constructor.
+    - move => tl tr H t H0.
+      apply Forall_app.
+      - move: (app tl tr) H => t'; move: (enumerate_next t').
+        by refine (Forall_ind _ _ _) => //=; do !constructor.
+      - move: (enumerate_next t) H0.
+        by refine (Forall_ind _ _ _) => //=; do !constructor.
+  - move => /= t H t' H0.
+    do !constructor; apply Forall_app.
+    - move: H; rewrite Forall_map; move: (enumerate_next t).
+      refine (Forall_ind _ _ _) => //=; do !constructor => //=.
+    - move: (enumerate_next t') H0.
+      by refine (Forall_ind _ _ _) => //=; do !constructor.
+  - move => t; move: (enumerate_next t).
+    by refine (Forall_ind _ _ _) => //=; do !constructor.
 Qed.
 
 Module STLC.
@@ -358,7 +428,7 @@ Theorem subject_reduction :
   forall ctx t1 t2 ty, t1 ->b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
 Proof.
   move => ctx t1 t2 ty; move: t1 t2.
-  exact (rt1n_preservation (fun t => typing ctx t ty)
+  exact (rtc_preservation (fun t => typing ctx t ty)
     (fun t1 t2 => @subject_reduction1 ctx t1 t2 ty)).
 Qed.
 
@@ -371,5 +441,7 @@ Fixpoint reducible' (ctx : seq typ) (ty : typ) (t : term) : Prop :=
   end.
 
 Notation reducible ctx ty t := (typing ctx t ty /\ reducible' ctx ty t).
+
+
 
 End STLC.

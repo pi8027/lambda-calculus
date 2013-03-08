@@ -101,7 +101,7 @@ Hint Resolve weakred_rtc_left weakred_rtc_right.
 Lemma weakred_rtc_app : forall t1 t1' t2 t2',
   t1 ->w t1' -> t2 ->w t2' -> (t1 @ t2) ->w (t1' @ t2').
 Proof.
-  move => t1 t1' t2 t2' H H0; apply rt1n_trans' with (t1 @ t2'); auto.
+  move => t1 t1' t2 t2' H H0; apply rtc_trans' with (t1 @ t2'); auto.
 Qed.
 
 Hint Resolve weakred_rtc_app.
@@ -124,7 +124,7 @@ Proof.
   apply: rt1n_trans ;
     first apply weakred_left, weakred_left, weakred_left, weakred_k.
   apply: rt1n_trans; first apply weakred_s.
-  apply rt1n_step; apply weakred_left, weakred_k.
+  apply rtc_step; apply weakred_left, weakred_k.
 Qed.
 
 (* Example 2.12 *)
@@ -138,12 +138,12 @@ Proof.
   move => t1 t2 t3.
   rewrite /cl_comb_c.
   apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
-  apply: rt1n_trans'; first (do 3 apply weakred_rtc_left; apply example_2_11).
-  apply: rt1n_trans'; first apply weakred_rtc_left, example_2_11.
+  apply: rtc_trans'; first (do 3 apply weakred_rtc_left; apply example_2_11).
+  apply: rtc_trans'; first apply weakred_rtc_left, example_2_11.
   apply: rt1n_trans; first apply weakred_s.
   apply weakred_rtc_right.
   apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_k.
-  apply rt1n_step; apply weakred_k.
+  apply rtc_step; apply weakred_k.
 Qed.
 
 (* Exercise 2.13 *)
@@ -270,7 +270,7 @@ Qed.
 
 Theorem cl_weakred_confluent : confluent cl_weakred_rtc.
 Proof.
-  apply (rt1n_confluent' _
+  apply (rtc_confluent' _
     cl_weakred_in_parred cl_parred_in_weakred_rtc cl_parred_confluent).
 Qed.
 
@@ -294,7 +294,7 @@ Lemma exercise_2_16 : forall t, clatoms @ clatomk @ clatomk @ t ->w t.
 Proof.
   move => t; apply: rt1n_trans.
   - apply weakred_s.
-  - apply rt1n_step, weakred_k.
+  - apply rtc_step, weakred_k.
 Qed.
 
 (* Exercise 2.17 *)
