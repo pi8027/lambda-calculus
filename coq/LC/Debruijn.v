@@ -291,30 +291,23 @@ Theorem enumerate_next_spec1 :
 Proof.
   refine (betared1_ind _ _ _ _ _) => /=; auto.
   - case => //.
-    - move => t1l t1r; move: (app t1l t1r).
-      move => t1 t1' t2 H H0.
-      apply in_or_app; left.
-      rewrite -/((fun t1 => app t1 t2) t1').
-      by apply in_map.
+    - move => t1l t1r; move: (app t1l t1r) => t1 t1' t2 H H0.
+      by apply In_appl, (in_map (fun t1 => app t1 t2)).
     - move => t1 t1' t2.
       rewrite (map_comp (fun t1 => app t1 t2) abs (enumerate_next t1)).
       rewrite -/(enumerate_next (abs t1)).
       move: t1 (abs t1) t1' t2 => /= ? t1 t1' t2 H H0.
       right.
-      apply in_or_app; left.
-      rewrite -/((fun t1 => app t1 t2) t1').
-      by apply in_map.
+      by apply In_appl, (in_map (fun t1 => app t1 t2)).
   - case.
     - move => //= n t2 t2' H H0.
       by apply (in_map (fun t2 => app (var n) t2)).
     - move => t1l t1r t2 t2' H H0.
-      apply in_or_app; right.
-      by apply (in_map (fun t2 => app (app t1l t1r) t2)).
+      by apply In_appr, (in_map (fun t2 => app (app t1l t1r) t2)).
     - move => t1 t2 t2' H H0.
-      apply List.in_cons, in_or_app; right.
-      by apply (in_map (fun t2 => app (abs t1) t2)).
+      by apply List.in_cons, In_appr, (in_map (fun t2 => app (abs t1) t2)).
   - move => t t' H.
-    apply (in_map abs).
+    apply in_map.
 Qed.
 
 Theorem enumerate_next_spec2 :

@@ -1,19 +1,67 @@
 Require Import
-  Lists.List
+  Coq.Lists.List
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool
   Ssreflect.ssrnat Ssreflect.seq LCAC.ssrnat_ext.
 
 Set Implicit Arguments.
 
+(*
+Definition In' A x : seq A -> Type :=
+  foldr (fun t r => r + {t = x}) Empty_set.
+
+Definition Forall' A (P : A -> Prop) : seq A -> Type :=
+  foldr (fun t r => @sig r (fun _ => P t)) Empty_set.
+*)
+
 Section Seq.
 
 Variable A B : Type.
+
+(*
+Theorem In_appl : forall (a : A) xs ys, In' a xs -> In' a (xs ++ ys).
+Proof.
+  move => a xs ys; elim: xs => //= x xs IHxs; case => H; last subst; tauto.
+Qed.
+
+Theorem In_appr : forall (a : A) xs ys, In' a ys -> In' a (xs ++ ys).
+Proof.
+  move => a xs ys; elim: xs => //= x xs IHxs H; tauto.
+Qed.
+
+Theorem In_map : forall (f : A -> B) x xs, In' x xs -> In' (f x) (map f xs).
+Proof.
+  move => f x'; elim => //= x xs IHxs; case => H; last subst; tauto.
+Qed.
+
+Theorem Forall_app : forall (P : A -> Prop) xs ys,
+  Forall' P xs -> Forall' P ys -> Forall' P (xs ++ ys).
+Proof.
+  move => P xs ys H0 H; move: xs H0.
+  elim => //= x xs IHxs; case; constructor; auto.
+Qed.
+
+Theorem Forall_map : forall (P : B -> Prop) (f : A -> B) xs,
+  Forall' P (map f xs) = Forall' (fun x => P (f x)) xs.
+Proof.
+  by move => P f; elim => //= x xs H; rewrite H.
+Qed.
+*)
+
+Theorem In_appl : forall (a : A) xs ys, In a xs -> In a (xs ++ ys).
+Proof.
+  move => a xs ys; elim: xs => //= x xs IHxs; case => H; first subst; tauto.
+Qed.
+
+Theorem In_appr : forall (a : A) xs ys, In a ys -> In a (xs ++ ys).
+Proof.
+  move => a xs ys H; elim: xs => //=; tauto.
+Qed.
 
 Theorem Forall_app : forall (P : A -> Prop) xs ys,
   Forall P xs -> Forall P ys -> Forall P (xs ++ ys).
 Proof.
   move => P xs ys H0 H; move: xs H0.
-  by refine (Forall_ind _ _ _) => //= x xs H0 H1 IHxs; constructor.
+  by refine (Forall_ind _ _ _) => //; constructor.
 Qed.
 
 Theorem Forall_map : forall (P : B -> Prop) (f : A -> B) xs,
