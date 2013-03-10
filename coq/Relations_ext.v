@@ -83,20 +83,3 @@ Proof.
   refine (clos_refl_trans_1n_ind A R _ _ _) => //= x y z H0 _ H1 H2.
   exact (H1 (H x y H0 H2)).
 Qed.
-
-Inductive rtc_length A R : forall (x y : A), [* R] x y -> nat -> Prop :=
-  | rtcl0 : forall x, rtc_length (rt1n_refl A R x) 0
-  | rtclS :
-    forall x y z n (H : R x y) (H0 : [* R] y z),
-    rtc_length H0 n -> rtc_length (rt1n_trans A R x y z H H0) n.+1.
-
-Theorem rtc_has_length :
-  forall A R (x y : A) (H : [* R] x y), exists n, rtc_length H n.
-Proof.
-  move => A R.
-  fix IH 3 => x y; case.
-  - exists 0; constructor.
-  - move => y' z H H0.
-    case: (IH y' z H0) => n H1.
-    by exists n.+1; constructor.
-Qed.

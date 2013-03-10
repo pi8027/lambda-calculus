@@ -273,68 +273,6 @@ Proof.
     betared1_in_parred parred_in_betared parred_confluent).
 Qed.
 
-Fixpoint enumerate_next (t : term) : seq term :=
-  match t with
-    | var n => [::]
-    | app (abs t1) t2 =>
-      substitution 0 t2 t1 ::
-      [seq app (abs t1') t2 | t1' <- enumerate_next t1 ] ++
-      [seq app (abs t1) t2' | t2' <- enumerate_next t2 ]
-    | app t1 t2 =>
-      [seq app t1' t2 | t1' <- enumerate_next t1 ] ++
-      [seq app t1 t2' | t2' <- enumerate_next t2 ]
-    | abs t1 => map abs (enumerate_next t1)
-  end.
-
-Theorem enumerate_next_spec1 :
-  forall (t1 t2 : term), t1 ->1b t2 -> In t2 (enumerate_next t1).
-Proof.
-  refine (betared1_ind _ _ _ _ _) => /=; auto.
-  - case => //.
-    - move => t1l t1r; move: (app t1l t1r) => t1 t1' t2 H H0.
-      by apply In_appl, (in_map (fun t1 => app t1 t2)).
-    - move => t1 t1' t2.
-      rewrite (map_comp (fun t1 => app t1 t2) abs (enumerate_next t1)).
-      rewrite -/(enumerate_next (abs t1)).
-      move: t1 (abs t1) t1' t2 => /= ? t1 t1' t2 H H0.
-      right.
-      by apply In_appl, (in_map (fun t1 => app t1 t2)).
-  - case.
-    - move => //= n t2 t2' H H0.
-      by apply (in_map (fun t2 => app (var n) t2)).
-    - move => t1l t1r t2 t2' H H0.
-      by apply In_appr, (in_map (fun t2 => app (app t1l t1r) t2)).
-    - move => t1 t2 t2' H H0.
-      by apply List.in_cons, In_appr, (in_map (fun t2 => app (abs t1) t2)).
-  - move => t t' H.
-    apply in_map.
-Qed.
-
-Theorem enumerate_next_spec2 :
-  forall t, List.Forall (betared1 t) (enumerate_next t).
-Proof.
-  elim => //=.
-  - case.
-    - move => n _ t H0.
-      apply Forall_app => //=.
-      move: (enumerate_next t) H0.
-      by refine (Forall_ind _ _ _) => //=; do !constructor.
-    - move => tl tr H t H0.
-      apply Forall_app.
-      - move: (app tl tr) H => t'; move: (enumerate_next t').
-        by refine (Forall_ind _ _ _) => //=; do !constructor.
-      - move: (enumerate_next t) H0.
-        by refine (Forall_ind _ _ _) => //=; do !constructor.
-  - move => /= t H t' H0.
-    do !constructor; apply Forall_app.
-    - move: H; rewrite Forall_map; move: (enumerate_next t).
-      refine (Forall_ind _ _ _) => //=; do !constructor => //=.
-    - move: (enumerate_next t') H0.
-      by refine (Forall_ind _ _ _) => //=; do !constructor.
-  - move => t; move: (enumerate_next t).
-    by refine (Forall_ind _ _ _) => //=; do !constructor.
-Qed.
-
 Module STLC.
 
 Inductive typ := tyvar of nat | tyfun of typ & typ.
@@ -417,7 +355,7 @@ Proof.
     inversion H0; subst; constructor; auto.
 Qed.
 
-Theorem subject_reduction :
+Lemma subject_reduction :
   forall ctx t1 t2 ty, t1 ->b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
 Proof.
   move => ctx t1 t2 ty; move: t1 t2.
@@ -425,15 +363,29 @@ Proof.
     (fun t1 t2 => @subject_reduction1 ctx t1 t2 ty)).
 Qed.
 
-Fixpoint reducible' (ctx : seq typ) (ty : typ) (t : term) : Prop :=
+Fixpoint reducible' (ctx : seq typ) (t : term) (ty : typ) : Prop :=
   match ty with
-    | tyvar n => Acc betared t
+    | tyvar n => Acc (fun t1 t2 => betared1 t2 t1) t
     | tyfun ty1 ty2 =>
-      forall t1, typing ctx t1 ty1 /\ reducible' ctx ty1 t1 ->
-                 reducible' ctx ty2 (app t t1)
+      forall t1, typing ctx t1 ty1 /\ reducible' ctx t1 ty1 ->
+                 reducible' ctx (app t t1) ty1
   end.
 
-Notation reducible ctx ty t := (typing ctx t ty /\ reducible' ctx ty t).
+Notation reducible ctx t ty := (typing ctx t ty /\ reducible' ctx t ty).
+
+Lemma CR2 :
+  forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
+Proof.
+  move => ctx t t' ty H; case => H0 H1; split.
+  - by apply subject_reduction with t.
+  - move: H H1 {H0}.
+    apply (rtc_preservation (fun t => reducible' ctx t ty)) => {t t'}.
+    elim: ty.
+    - by move => n t1 t2 H; case => H0; apply H0.
+    - move => /= tyl IHtyl tyr IHtyr t1 t2 H H0 t3 H1.
+      apply IHtyl with (app t1 t3); auto.
+      by constructor.
+Qed.
 
 
 
