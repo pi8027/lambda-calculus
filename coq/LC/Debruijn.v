@@ -273,6 +273,53 @@ Proof.
     betared1_in_parred parred_in_betared parred_confluent).
 Qed.
 
+Fixpoint forallfv' P t n :=
+  match t with
+    | var m => if n <= m then P (m - n) else True
+    | app t1 t2 => forallfv' P t1 n /\ forallfv' P t2 n
+    | abs t => forallfv' P t n.+1
+  end.
+
+Notation forallfv P t := (forallfv' P t 0).
+
+Lemma shift_preserves_forallfv :
+  forall P t n d c, c <= n -> forallfv' P t n ->
+  forallfv' P (shift d c t) (n + d).
+Proof.
+  move => P t n d; move : t n; elim => /=.
+  - by move => t n c H; elimif_omega; rewrite subnDr.
+  - move => tl IHtl tr IHtr n c H; case; auto.
+  - move => t IH n c; rewrite -addSn -ltnS; auto.
+Qed.
+
+Lemma substitution_preserves_forallfv :
+  forall P t1 t2 n m,
+  forallfv' P t1 (n + m).+1 -> forallfv' P t2 n ->
+  forallfv' P (substitution m t2 t1) (n + m).
+Proof.
+  move => P; elim => /=.
+  - move => t1 t2 n m.
+    elimif_omega.
+    - by replace (t1 - (n + m).+1) with (t1.-1 - (n + m)) by ssromega.
+    - move => _.
+      by apply shift_preserves_forallfv.
+  - move => t1l IHt1l t1r IHt1r t2 n m; case; auto.
+  - move => t1 IH t2 n m; rewrite -addnS; apply IH.
+Qed.
+
+Theorem betared_preserves_forallfv :
+  forall P t1 t2, t1 ->1b t2 -> forallfv P t1 -> forallfv P t2.
+Proof.
+  move => P t1 t2 H; move: t1 t2 H 0.
+  refine (betared1_ind _ _ _ _ _).
+  - move => /= t1 t2 n; case.
+    rewrite -{1 3}(addn0 n).
+    apply (substitution_preserves_forallfv P t1 t2 n 0).
+  - by move => /= t1 t1' t2 H H0 n; case => H1 H2; split => //; apply H0.
+  - by move => /= t1 t2 t2' H H0 n; case => H1 h2; split => //; apply H0.
+  - move => /= t t' _ H n; apply H.
+Qed.
+
 Module STLC.
 
 Inductive typ := tyvar of nat | tyfun of typ & typ.
@@ -363,12 +410,14 @@ Proof.
     (fun t1 t2 => @subject_reduction1 ctx t1 t2 ty)).
 Qed.
 
+Notation SNorm t := (Acc (fun x y => betared1 y x) t).
+
 Fixpoint reducible' (ctx : seq typ) (t : term) (ty : typ) : Prop :=
   match ty with
-    | tyvar n => Acc (flip betared1) t
+    | tyvar n => SNorm t
     | tyfun ty1 ty2 =>
       forall t1, typing ctx t1 ty1 /\ reducible' ctx t1 ty1 ->
-                 reducible' ctx (app t t1) ty1
+                 reducible' ctx (app t t1) ty2
   end.
 
 Notation reducible ctx t ty := (typing ctx t ty /\ reducible' ctx t ty).
@@ -380,6 +429,23 @@ Fixpoint neutral (t : term) : Prop :=
     | abs _ => False
   end.
 
+Lemma backward : forall t, (forall t', t ->1b t' -> SNorm t') -> SNorm t.
+Proof.
+  elim => //=.
+Qed.
+
+Goal forall tl tr, SNorm (app tl tr) -> SNorm tl.
+Proof.
+  move => tl tr; move: tl.
+  fix IH 2 => tl; case => H; constructor => tl' H0.
+  by apply IH, H; constructor.
+Qed.
+
+Lemma shift_preserves_snorm : forall t d c, SNorm t -> SNorm (shift d c t).
+Proof.
+  fix IH 4 => t d c; case => H; constructor => t' H0.
+Abort.
+
 Lemma CR2 :
   forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
 Proof.
@@ -390,21 +456,27 @@ Proof.
     elim: ty.
     - by move => n t1 t2 H; case => H0; apply H0.
     - move => /= tyl IHtyl tyr IHtyr t1 t2 H H0 t3 H1.
-      apply IHtyl with (app t1 t3); auto.
-      by constructor.
+      apply IHtyr with (app t1 t3).
+      - by constructor.
+      - by apply H0.
 Qed.
 
-Lemma backward : forall t,
-  (forall t', t ->1b t' -> Acc (flip betared1) t') -> Acc (flip betared1) t.
+Lemma CR1_3 :
+  forall ctx t ty,
+  (reducible ctx t ty -> SNorm t) /\
+  (typing ctx t ty -> neutral t ->
+   (forall t', t ->1b t' -> reducible ctx t' ty) ->
+   reducible ctx t ty).
 Proof.
-  elim => //=.
-Qed.
-
-Goal forall tl tr, Acc (flip betared1) (app tl tr) -> Acc (flip betared1) tl.
-Proof.
-  move => tl tr; move: tl.
-  fix IH 2 => tl; case => H; constructor => tl' H0.
-  by apply IH, H; constructor.
-Qed.
+  move=> ctx t ty; move: ty ctx t; elim.
+  - move => n ctx t; split.
+    - tauto.
+    - move => /= H H0 H1; split.
+      - done.
+      - by constructor => t' H2; case: (H1 t' H2).
+  - move => /= tyl IHtyl tyr IHtyr ctx t; split.
+    - case => /= H H0.
+      case: (IHtyr (tyl :: ctx) (app (shift 1 0 t) (var 0))) => /= _ H1.
+Abort.
 
 End STLC.
