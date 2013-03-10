@@ -441,9 +441,48 @@ Proof.
   by apply IH, H; constructor.
 Qed.
 
+Theorem betared_preserves_shifted :
+  forall d c t1 t2, t1 ->1b t2 ->
+  (exists t1', t1 = shift d c t1') -> (exists t2', t2 = shift d c t2').
+Proof.
+  move => d c t1 t2 H; move: t1 t2 H c.
+  refine (betared1_ind _ _ _ _ _).
+  - move => /= t1 t2 c; case; case => /=.
+    - move => n; rewrite -fun_if => H; inversion H.
+    - case => /=.
+      - move => n t; rewrite -fun_if => H; inversion H.
+      - move => ? ? ? H; inversion H.
+      - move => t1' t2'; case => H H0.
+        exists (substitution 0 t2' t1').
+        rewrite {1}H {1}H0.
+        apply Logic.eq_sym, (subst_shift_distr 0).
+    - move => t H; inversion H.
+  - move => t1 t1' t2 H IH c; case; case => /=.
+    - move => n; rewrite -fun_if => H0; inversion H0.
+    - move => t1u t2u; case => H0 H1.
+      case: (IH c (ex_intro _ t1u H0)) => t1'u H2.
+      by exists (app t1'u t2u) => /=; f_equal.
+    - move => t H0; inversion H0.
+  - move => t1 t2 t2' H IH c; case; case => /=.
+    - move => n; rewrite -fun_if => H0; inversion H0.
+    - move => t1u t2u; case => H0 H1.
+      case: (IH c (ex_intro _ t2u H1)) => t2'u H2.
+      by exists (app t1u t2'u) => /=; f_equal.
+    - move => t H0; inversion H0.
+  - move => t t' H IH c; case; case => /=.
+    - move => n; rewrite -fun_if => H0; inversion H0.
+    - move => ? ? H0; inversion H0.
+    - move => tu; case => H0.
+      case: (IH c.+1 (ex_intro _ tu H0)) => t'u H1.
+      by exists (abs t'u) => /=; f_equal.
+Qed.
+
 Lemma shift_preserves_snorm : forall t d c, SNorm t -> SNorm (shift d c t).
 Proof.
   fix IH 4 => t d c; case => H; constructor => t' H0.
+  case: (betared_preserves_shifted d c H0 (ex_intro _ t Logic.eq_refl)).
+  move => t'' H1; rewrite H1.
+  apply IH, H.
 Abort.
 
 Lemma CR2 :
