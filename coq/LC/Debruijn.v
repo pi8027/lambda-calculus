@@ -365,13 +365,20 @@ Qed.
 
 Fixpoint reducible' (ctx : seq typ) (t : term) (ty : typ) : Prop :=
   match ty with
-    | tyvar n => Acc (fun t1 t2 => betared1 t2 t1) t
+    | tyvar n => Acc (flip betared1) t
     | tyfun ty1 ty2 =>
       forall t1, typing ctx t1 ty1 /\ reducible' ctx t1 ty1 ->
                  reducible' ctx (app t t1) ty1
   end.
 
 Notation reducible ctx t ty := (typing ctx t ty /\ reducible' ctx t ty).
+
+Fixpoint neutral (t : term) : Prop :=
+  match t with
+    | var _ => True
+    | app _ _ => True
+    | abs _ => False
+  end.
 
 Lemma CR2 :
   forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
@@ -387,6 +394,17 @@ Proof.
       by constructor.
 Qed.
 
+Lemma backward : forall t,
+  (forall t', t ->1b t' -> Acc (flip betared1) t') -> Acc (flip betared1) t.
+Proof.
+  elim => //=.
+Qed.
 
+Goal forall tl tr, Acc (flip betared1) (app tl tr) -> Acc (flip betared1) tl.
+Proof.
+  move => tl tr; move: tl.
+  fix IH 2 => tl; case => H; constructor => tl' H0.
+  by apply IH, H; constructor.
+Qed.
 
 End STLC.
