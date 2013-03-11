@@ -434,7 +434,7 @@ Proof.
   elim => //=.
 Qed.
 
-Goal forall tl tr, SNorm (app tl tr) -> SNorm tl.
+Lemma snorm_appl : forall tl tr, SNorm (app tl tr) -> SNorm tl.
 Proof.
   move => tl tr; move: tl.
   fix IH 2 => tl; case => H; constructor => tl' H0.
@@ -502,20 +502,39 @@ Qed.
 
 Lemma CR1_3 :
   forall ctx t ty,
-  (reducible ctx t ty -> SNorm t) /\
+  ((forall ctx', reducible (ctx ++ ctx') t ty) -> SNorm t) /\
   (typing ctx t ty -> neutral t ->
    (forall t', t ->1b t' -> reducible ctx t' ty) ->
    reducible ctx t ty).
 Proof.
   move=> ctx t ty; move: ty ctx t; elim.
   - move => n ctx t; split.
-    - tauto.
+    - move => H; move: (H [::]) => /=; tauto.
     - move => /= H H0 H1; split.
       - done.
       - by constructor => t' H2; case: (H1 t' H2).
   - move => /= tyl IHtyl tyr IHtyr ctx t; split.
-    - case => /= H H0.
-      case: (IHtyr (tyl :: ctx) (app (shift 1 0 t) (var 0))) => /= _ H1.
-Abort.
+    - move => H.
+      case: (IHtyr (ctx ++ [:: tyl ]) (app t (var (size ctx)))) => H0 _.
+      have H1: forall ctx', typing (ctx ++ tyl :: ctx') (var (size ctx)) tyl.
+        move => ctx'.
+        rewrite -typvar_seqindex -(addn0 (size ctx)) seqindex_drop
+          (drop_size_cat (tyl :: ctx') Logic.eq_refl); constructor.
+      have H2: typing (ctx ++ [:: tyl ]) (app t (var (size ctx))) tyr
+        by apply tyapp with tyl; [case (H [:: tyl]) | apply H1].
+      apply snorm_appl with (var (size ctx)), H0 => {H0} ctx'.
+      case: (IHtyr (ctx ++ tyl :: ctx') (app t (var (size ctx)))) => _ H0.
+      rewrite -catA; apply H0 => {H0} //.
+      - admit.
+      - move => t' H0; apply CR2 with (app t (var (size ctx))).
+        - apply rtc_step => //.
+        - split.
+          - admit.
+          - case: (H (tyl :: ctx')) => _ H3; apply H3 => {H3}.
+            case: (IHtyl (ctx ++ tyl :: ctx') (var (size ctx))) => _ H3;
+              apply H3 => {H3} //.
+            move => x H3; inversion H3.
+    - admit.
+Qed.
 
 End STLC.
