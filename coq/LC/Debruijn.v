@@ -326,10 +326,10 @@ Inductive typ := tyvar of nat | tyfun of typ & typ.
 
 Inductive typing : seq typ -> term -> typ -> Prop :=
   | typvar : forall ctx n ty, seqindex ctx n ty -> typing ctx (var n) ty
-  | tyapp  : forall ctx t1 t2 ty1 ty2,
+  | typapp : forall ctx t1 t2 ty1 ty2,
     typing ctx t1 (tyfun ty1 ty2) -> typing ctx t2 ty1 ->
     typing ctx (app t1 t2) ty2
-  | tyabs  : forall ctx t ty1 ty2,
+  | typabs : forall ctx t ty1 ty2,
     typing (ty1 :: ctx) t ty2 -> typing ctx (abs t) (tyfun ty1 ty2).
 
 Lemma typvar_seqindex :
@@ -351,7 +351,7 @@ Proof.
     - by rewrite -(subnKC H) {H} -addnA (addnC (n - size ctx1)) -!lift_seqindex.
     - rewrite !appl_seqindex //; ssromega.
   - move => tl IHtl tr IHtr ty ctx1 ctx2 ctx3 H.
-    inversion H; subst; apply tyapp with ty1; auto.
+    inversion H; subst; apply typapp with ty1; auto.
   - move => t IH ty ctx1 ctx2 ctx3 H.
     by inversion H; subst; constructor; apply (IH _ (ty1 :: ctx1)).
 Qed.
@@ -375,7 +375,7 @@ Proof.
     - move => H1.
       rewrite -insert_seqindex_l //; ssromega.
   - move => t2l IHt2l t2r IHt2r t1 ctx ty1 ty2 n H H0 H1.
-    inversion H1; subst; apply tyapp with ty0.
+    inversion H1; subst; apply typapp with ty0.
     - by apply IHt2l with ty1.
     - by apply IHt2r with ty1.
   - move => t IH t1 ctx ty1 ty2 n H H0 H1.
@@ -394,10 +394,10 @@ Proof.
     by rewrite drop0.
   - move => t1 t1' t2 H IH ctx ty H0.
     inversion H0; subst.
-    by apply tyapp with ty1; auto.
+    by apply typapp with ty1; auto.
   - move => t1 t2 t2' H IH ctx ty H0.
     inversion H0; subst.
-    by apply tyapp with ty1; auto.
+    by apply typapp with ty1; auto.
   - move => t1 t2 H IH ctx ty H0.
     inversion H0; subst; constructor; auto.
 Qed.
@@ -410,14 +410,34 @@ Proof.
     (fun t1 t2 => @subject_reduction1 ctx t1 t2 ty)).
 Qed.
 
+Lemma typing_app_ctx :
+  forall ctx ctx' t ty, typing ctx t ty -> typing (ctx ++ ctx') t ty.
+Proof.
+  move => ctx ctx'; move: ctx.
+  refine (typing_ind _ _ _ _).
+  - move => ctx n ty.
+    rewrite -!typvar_seqindex.
+    move: n ctx; elim => [| n IHn]; case => //.
+  - move => ctx t1 t2 ty1 ty2 _ H _ H0.
+    by apply typapp with ty1.
+  - by move => ctx t ty1 ty2 _ H; constructor.
+Qed.
+
 Notation SNorm t := (Acc (fun x y => betared1 y x) t).
+
+Lemma snorm_appl : forall tl tr, SNorm (app tl tr) -> SNorm tl.
+Proof.
+  move => tl tr; move: tl.
+  fix IH 2 => tl; case => H; constructor => tl' H0.
+  by apply IH, H; constructor.
+Qed.
 
 Fixpoint reducible' (ctx : seq typ) (t : term) (ty : typ) : Prop :=
   match ty with
     | tyvar n => SNorm t
-    | tyfun ty1 ty2 =>
-      forall t1, typing ctx t1 ty1 /\ reducible' ctx t1 ty1 ->
-                 reducible' ctx (app t t1) ty2
+    | tyfun ty1 ty2 => forall t1 ctx',
+        typing (ctx ++ ctx') t1 ty1 /\ reducible' (ctx ++ ctx') t1 ty1 ->
+        reducible' (ctx ++ ctx') (app t t1) ty2
   end.
 
 Notation reducible ctx t ty := (typing ctx t ty /\ reducible' ctx t ty).
@@ -434,57 +454,6 @@ Proof.
   elim => //=.
 Qed.
 
-Lemma snorm_appl : forall tl tr, SNorm (app tl tr) -> SNorm tl.
-Proof.
-  move => tl tr; move: tl.
-  fix IH 2 => tl; case => H; constructor => tl' H0.
-  by apply IH, H; constructor.
-Qed.
-
-Theorem betared_preserves_shifted :
-  forall d c t1 t2, t1 ->1b t2 ->
-  (exists t1', t1 = shift d c t1') -> (exists t2', t2 = shift d c t2').
-Proof.
-  move => d c t1 t2 H; move: t1 t2 H c.
-  refine (betared1_ind _ _ _ _ _).
-  - move => /= t1 t2 c; case; case => /=.
-    - move => n; rewrite -fun_if => H; inversion H.
-    - case => /=.
-      - move => n t; rewrite -fun_if => H; inversion H.
-      - move => ? ? ? H; inversion H.
-      - move => t1' t2'; case => H H0.
-        exists (substitution 0 t2' t1').
-        rewrite {1}H {1}H0.
-        apply Logic.eq_sym, (subst_shift_distr 0).
-    - move => t H; inversion H.
-  - move => t1 t1' t2 H IH c; case; case => /=.
-    - move => n; rewrite -fun_if => H0; inversion H0.
-    - move => t1u t2u; case => H0 H1.
-      case: (IH c (ex_intro _ t1u H0)) => t1'u H2.
-      by exists (app t1'u t2u) => /=; f_equal.
-    - move => t H0; inversion H0.
-  - move => t1 t2 t2' H IH c; case; case => /=.
-    - move => n; rewrite -fun_if => H0; inversion H0.
-    - move => t1u t2u; case => H0 H1.
-      case: (IH c (ex_intro _ t2u H1)) => t2'u H2.
-      by exists (app t1u t2'u) => /=; f_equal.
-    - move => t H0; inversion H0.
-  - move => t t' H IH c; case; case => /=.
-    - move => n; rewrite -fun_if => H0; inversion H0.
-    - move => ? ? H0; inversion H0.
-    - move => tu; case => H0.
-      case: (IH c.+1 (ex_intro _ tu H0)) => t'u H1.
-      by exists (abs t'u) => /=; f_equal.
-Qed.
-
-Lemma shift_preserves_snorm : forall t d c, SNorm t -> SNorm (shift d c t).
-Proof.
-  fix IH 4 => t d c; case => H; constructor => t' H0.
-  case: (betared_preserves_shifted d c H0 (ex_intro _ t Logic.eq_refl)).
-  move => t'' H1; rewrite H1.
-  apply IH, H.
-Abort.
-
 Lemma CR2 :
   forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
 Proof.
@@ -492,9 +461,9 @@ Proof.
   - by apply subject_reduction with t.
   - move: H H1 {H0}.
     apply (rtc_preservation (fun t => reducible' ctx t ty)) => {t t'}.
-    elim: ty.
-    - by move => n t1 t2 H; case => H0; apply H0.
-    - move => /= tyl IHtyl tyr IHtyr t1 t2 H H0 t3 H1.
+    move: ty ctx; elim.
+    - by move => n ctx t1 t2 H; case => H0; apply H0.
+    - move => /= tyl IHtyl tyr IHtyr ctx t1 t2 H H0 t3 ctx' H1.
       apply IHtyr with (app t1 t3).
       - by constructor.
       - by apply H0.
@@ -502,37 +471,32 @@ Qed.
 
 Lemma CR1_3 :
   forall ty,
-  (forall ctx t, (forall ctx', reducible (ctx ++ ctx') t ty) -> SNorm t) /\
+  (forall ctx t, reducible ctx t ty -> SNorm t) /\
   (forall ctx t, typing ctx t ty -> neutral t ->
    (forall t', t ->1b t' -> reducible ctx t' ty) ->
    reducible ctx t ty).
 Proof.
   elim.
-  - move => n; split => ctx t.
-    - move => H; move: (H [::]) => /=; tauto.
-    - move => /= H H0 H1; split.
-      - done.
-      - by constructor => t' H2; case: (H1 t' H2).
+  - move => n; split => /= ctx t.
+    - firstorder.
+    - move => H H0 H1; split; last constructor; firstorder.
   - move => tyl; case => IHtyl1 IHtyl2 tyr;
       case => IHtyr1 IHtyr2; split => ctx t.
-    - move => /= H.
-      have H0: forall ctx', typing (ctx ++ tyl :: ctx') (var (size ctx)) tyl.
-        move => ctx'.
-        rewrite -typvar_seqindex -(addn0 (size ctx)) seqindex_drop
-          (drop_size_cat (tyl :: ctx') Logic.eq_refl); constructor.
-      have H1: typing (ctx ++ [:: tyl ]) (app t (var (size ctx))) tyr
-        by apply tyapp with tyl; [case (H [:: tyl]) | apply H0].
-      apply snorm_appl with (var (size ctx)),
-        IHtyr1 with (ctx ++ [:: tyl ]) => ctx'.
-      rewrite -catA /=.
-      have H2: typing (ctx ++ tyl :: ctx') (app t (var (size ctx))) tyr
-        by admit.
+    - case => /= H H0.
+      have H1: typing (ctx ++ [:: tyl ]) (var (size ctx)) tyl
+        by rewrite -typvar_seqindex -(addn0 (size ctx))
+          seqindex_drop (drop_size_cat [:: tyl ] Logic.eq_refl).
+      have H2: typing (ctx ++ [:: tyl ]) (app t (var (size ctx))) tyr.
+        by apply typapp with tyl => //; apply typing_app_ctx.
+      apply snorm_appl with (var (size ctx)).
+      apply IHtyr1 with (ctx ++ [:: tyl ]).
       apply IHtyr2 => // t' H3.
       apply CR2 with (app t (var (size ctx))).
-      - apply rtc_step => //.
+      - by apply rtc_step.
       - split => //.
-        apply H, IHtyl2 => // x H4; inversion H4.
-    - admit.
-Qed.
+        apply H0, IHtyl2 => // x H4; inversion H4.
+    - move => H H0 H1.
+
+Abort.
 
 End STLC.
