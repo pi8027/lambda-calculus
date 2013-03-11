@@ -501,39 +501,37 @@ Proof.
 Qed.
 
 Lemma CR1_3 :
-  forall ctx t ty,
-  ((forall ctx', reducible (ctx ++ ctx') t ty) -> SNorm t) /\
-  (typing ctx t ty -> neutral t ->
+  forall ty,
+  (forall ctx t, (forall ctx', reducible (ctx ++ ctx') t ty) -> SNorm t) /\
+  (forall ctx t, typing ctx t ty -> neutral t ->
    (forall t', t ->1b t' -> reducible ctx t' ty) ->
    reducible ctx t ty).
 Proof.
-  move=> ctx t ty; move: ty ctx t; elim.
-  - move => n ctx t; split.
+  elim.
+  - move => n; split => ctx t.
     - move => H; move: (H [::]) => /=; tauto.
     - move => /= H H0 H1; split.
       - done.
       - by constructor => t' H2; case: (H1 t' H2).
-  - move => /= tyl IHtyl tyr IHtyr ctx t; split.
-    - move => H.
-      case: (IHtyr (ctx ++ [:: tyl ]) (app t (var (size ctx)))) => H0 _.
-      have H1: forall ctx', typing (ctx ++ tyl :: ctx') (var (size ctx)) tyl.
+  - move => tyl; case => IHtyl1 IHtyl2 tyr;
+      case => IHtyr1 IHtyr2; split => ctx t.
+    - move => /= H.
+      have H0: forall ctx', typing (ctx ++ tyl :: ctx') (var (size ctx)) tyl.
         move => ctx'.
         rewrite -typvar_seqindex -(addn0 (size ctx)) seqindex_drop
           (drop_size_cat (tyl :: ctx') Logic.eq_refl); constructor.
-      have H2: typing (ctx ++ [:: tyl ]) (app t (var (size ctx))) tyr
-        by apply tyapp with tyl; [case (H [:: tyl]) | apply H1].
-      apply snorm_appl with (var (size ctx)), H0 => {H0} ctx'.
-      case: (IHtyr (ctx ++ tyl :: ctx') (app t (var (size ctx)))) => _ H0.
-      rewrite -catA; apply H0 => {H0} //.
-      - admit.
-      - move => t' H0; apply CR2 with (app t (var (size ctx))).
-        - apply rtc_step => //.
-        - split.
-          - admit.
-          - case: (H (tyl :: ctx')) => _ H3; apply H3 => {H3}.
-            case: (IHtyl (ctx ++ tyl :: ctx') (var (size ctx))) => _ H3;
-              apply H3 => {H3} //.
-            move => x H3; inversion H3.
+      have H1: typing (ctx ++ [:: tyl ]) (app t (var (size ctx))) tyr
+        by apply tyapp with tyl; [case (H [:: tyl]) | apply H0].
+      apply snorm_appl with (var (size ctx)),
+        IHtyr1 with (ctx ++ [:: tyl ]) => ctx'.
+      rewrite -catA /=.
+      have H2: typing (ctx ++ tyl :: ctx') (app t (var (size ctx))) tyr
+        by admit.
+      apply IHtyr2 => // t' H3.
+      apply CR2 with (app t (var (size ctx))).
+      - apply rtc_step => //.
+      - split => //.
+        apply H, IHtyl2 => // x H4; inversion H4.
     - admit.
 Qed.
 
