@@ -473,8 +473,7 @@ Lemma CR1_3 :
   forall ty,
   (forall ctx t, reducible ctx t ty -> SNorm t) /\
   (forall ctx t, typing ctx t ty -> neutral t ->
-   (forall t', t ->1b t' -> reducible ctx t' ty) ->
-   reducible ctx t ty).
+   (forall t', t ->1b t' -> reducible ctx t' ty) -> reducible ctx t ty).
 Proof.
   elim.
   - move => n; split => /= ctx t.
@@ -495,8 +494,30 @@ Proof.
       - by apply rtc_step.
       - split => //.
         apply H0, IHtyl2 => // x H4; inversion H4.
-    - move => H H0 H1.
-
-Abort.
+    - move => H H0 H1 /=; split => // tr ctx' H2.
+      have H3: SNorm tr by apply IHtyl1 with (ctx ++ ctx').
+      move: tr H3 H2.
+      refine (Acc_ind _ _) => tr H2 H3 H4.
+      apply IHtyr2 => //.
+      - apply typapp with tyl.
+        - by apply typing_app_ctx.
+        - tauto.
+      - move => tr' H5; inversion H5; subst.
+        - move: H0 => //=.
+        - split.
+          - apply subject_reduction1 with (app t tr) => //.
+            apply typapp with tyl.
+            - by apply typing_app_ctx.
+            - tauto.
+          - case: (H1 t1' H9); firstorder.
+        - split.
+          - apply subject_reduction1 with (app t tr) => //.
+            apply typapp with tyl.
+            - by apply typing_app_ctx.
+            - tauto.
+          - apply H3 => //.
+            apply CR2 with tr => //.
+            apply rtc_step => //.
+Qed.
 
 End STLC.
