@@ -496,28 +496,21 @@ Proof.
         apply H0, IHtyl2 => // x H4; inversion H4.
     - move => H H0 H1 /=; split => // tr ctx' H2.
       have H3: SNorm tr by apply IHtyl1 with (ctx ++ ctx').
-      move: tr H3 H2.
-      refine (Acc_ind _ _) => tr H2 H3 H4.
-      apply IHtyr2 => //.
-      - apply typapp with tyl.
+      have: typing (ctx ++ ctx') (app t tr) tyr.
+        apply typapp with tyl.
         - by apply typing_app_ctx.
         - tauto.
-      - move => tr' H5; inversion H5; subst.
-        - move: H0 => //=.
-        - split.
-          - apply subject_reduction1 with (app t tr) => //.
-            apply typapp with tyl.
-            - by apply typing_app_ctx.
-            - tauto.
-          - case: (H1 t1' H9); firstorder.
-        - split.
-          - apply subject_reduction1 with (app t tr) => //.
-            apply typapp with tyl.
-            - by apply typing_app_ctx.
-            - tauto.
-          - apply H3 => //.
-            apply CR2 with tr => //.
-            apply rtc_step => //.
+      move: tr H3 H2.
+      refine (Acc_ind _ _) => tr H2 H3 H4 H5.
+      apply IHtyr2 => //.
+      move => tr' H6; move: H0; inversion H6; subst => // _; split.
+      - apply subject_reduction1 with (app t tr) => //.
+      - case: (H1 t1' H9); firstorder.
+      - apply subject_reduction1 with (app t tr) => //.
+      - apply H3 => //.
+        - apply CR2 with tr => //.
+          apply rtc_step => //.
+        - apply subject_reduction1 with (app t tr) => //.
 Qed.
 
 End STLC.
