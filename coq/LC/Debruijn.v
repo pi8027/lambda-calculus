@@ -442,16 +442,14 @@ Fixpoint reducible' (ctx : seq typ) (t : term) (ty : typ) : Prop :=
 
 Notation reducible ctx t ty := (typing ctx t ty /\ reducible' ctx t ty).
 
-Fixpoint neutral (t : term) : Prop := if t is abs _ then False else True.
+Definition neutral t := (if t is abs _ then False else True).
 
-Lemma CR2 :
-  forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
+Lemma CR2' :
+  forall ctx t t' ty, t ->1b t' -> reducible ctx t ty -> reducible ctx t' ty.
 Proof.
   move => ctx t t' ty H; case => H0 H1; split.
-  - by apply subject_reduction with t.
-  - move: H H1 {H0}.
-    apply (rtc_preservation (fun t => reducible' ctx t ty)) => {t t'}.
-    move: ty ctx; elim.
+  - by apply subject_reduction1 with t.
+  - move: ty ctx t t' H H1 {H0}; elim.
     - by move => n ctx t1 t2 H; case => H0; apply H0.
     - move => /= tyl IHtyl tyr IHtyr ctx t1 t2 H H0 t3 ctx' H1.
       apply IHtyr with (app t1 t3).
@@ -459,7 +457,15 @@ Proof.
       - by apply H0.
 Qed.
 
-Lemma CR1_3 :
+Lemma CR2 :
+  forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
+Proof.
+  move => ctx t t' ty; move: t t'.
+  apply (rtc_preservation (fun t => reducible ctx t ty)) => t t'.
+  apply CR2'.
+Qed.
+
+Lemma CR1_and_CR3 :
   forall ty,
   (forall ctx t, reducible ctx t ty -> SNorm t) /\
   (forall ctx t, typing ctx t ty -> neutral t ->
@@ -472,18 +478,17 @@ Proof.
   - move => tyl; case => IHtyl1 IHtyl2 tyr;
       case => IHtyr1 IHtyr2; split => ctx t.
     - case => /= H H0.
-      have H1: typing (ctx ++ [:: tyl ]) (var (size ctx)) tyl
+      have H1: typing (ctx ++ [:: tyl]) (var (size ctx)) tyl
         by rewrite -typvar_seqindex -(addn0 (size ctx))
-          seqindex_drop (drop_size_cat [:: tyl ] Logic.eq_refl).
-      have H2: typing (ctx ++ [:: tyl ]) (app t (var (size ctx))) tyr.
+          seqindex_drop (drop_size_cat [:: tyl] Logic.eq_refl).
+      have H2: typing (ctx ++ [:: tyl]) (app t (var (size ctx))) tyr.
         by apply typapp with tyl => //; apply typing_app_ctx.
       apply snorm_appl with (var (size ctx)).
-      apply IHtyr1 with (ctx ++ [:: tyl ]).
+      apply IHtyr1 with (ctx ++ [:: tyl]).
       apply IHtyr2 => // t' H3.
-      apply CR2 with (app t (var (size ctx))).
-      - by apply rtc_step.
-      - split => //.
-        apply H0, IHtyl2 => // x H4; inversion H4.
+      apply CR2' with (app t (var (size ctx))) => //.
+      split => //.
+      apply H0, IHtyl2 => // x H4; inversion H4.
     - move => H H0 H1 /=; split => // tr ctx' H2.
       have H3: SNorm tr by apply IHtyl1 with (ctx ++ ctx').
       move: tr H3 H2; refine (Acc_ind _ _) => tr _ IH H2.
@@ -496,7 +501,12 @@ Proof.
       - by apply subject_reduction1 with (app t tr).
       - case: (H1 t1' H7); auto.
       - by apply subject_reduction1 with (app t tr).
-      - by apply IH => //; apply CR2 with tr => //; apply rtc_step.
+      - by apply IH => //; apply CR2' with tr.
+Qed.
+
+Lemma CR1 : forall ty ctx t, reducible ctx t ty -> SNorm t.
+Proof.
+  move => ty; by case: (CR1_and_CR3 ty).
 Qed.
 
 End STLC.

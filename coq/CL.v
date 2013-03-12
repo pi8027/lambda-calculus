@@ -61,8 +61,8 @@ Fixpoint substitute (l : list (nat * clterm)) (t : clterm) : clterm :=
 (* Example 2.7 *)
 
 Eval compute in substitute
-  [:: (1, clatoms @ clatomk) ] (clvar 0 @ clvar 1 @ clvar 1).
-Eval compute in substitute [:: (1, clatoms @ clatomk); (0, clatomk @ clatomi) ]
+  [:: (1, clatoms @ clatomk)] (clvar 0 @ clvar 1 @ clvar 1).
+Eval compute in substitute [:: (1, clatoms @ clatomk); (0, clatomk @ clatomi)]
   (clvar 0 @ clvar 1 @ clvar 1).
 
 (* Definition 2.9: Weak reduction *)
