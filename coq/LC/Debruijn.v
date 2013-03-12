@@ -449,11 +449,6 @@ Fixpoint neutral (t : term) : Prop :=
     | abs _ => False
   end.
 
-Lemma backward : forall t, (forall t', t ->1b t' -> SNorm t') -> SNorm t.
-Proof.
-  elim => //=.
-Qed.
-
 Lemma CR2 :
   forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
 Proof.
