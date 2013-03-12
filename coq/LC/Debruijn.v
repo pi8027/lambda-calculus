@@ -442,12 +442,7 @@ Fixpoint reducible' (ctx : seq typ) (t : term) (ty : typ) : Prop :=
 
 Notation reducible ctx t ty := (typing ctx t ty /\ reducible' ctx t ty).
 
-Fixpoint neutral (t : term) : Prop :=
-  match t with
-    | var _ => True
-    | app _ _ => True
-    | abs _ => False
-  end.
+Fixpoint neutral (t : term) : Prop := if t is abs _ then False else True.
 
 Lemma CR2 :
   forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
