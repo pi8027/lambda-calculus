@@ -229,7 +229,18 @@ Proof.
   - by move => t1 IH m t2 t3; f_equal; rewrite -addSn.
 Qed.
 
-Lemma shift_lemma :
+Lemma subst_betared1 :
+  forall n t1 t2 t2', t2 ->1b t2' ->
+  substitution n t1 t2 ->1b substitution n t1 t2'.
+Proof.
+  move => n t1 t2 t2' H; move: t2 t2' H n.
+  refine (betared1_ind _ _ _ _ _); try by constructor.
+  move => t2 t2' n.
+  rewrite (subst_subst_distr n 0).
+  constructor.
+Qed.
+
+Lemma shift_parred :
   forall t t' d c, parred t t' -> parred (shift d c t) (shift d c t').
 Proof.
   move => t t' d c H; move: H d c; elim; clear => //=; try by constructor.
@@ -238,13 +249,13 @@ Proof.
   by constructor.
 Qed.
 
-Lemma subst_lemma :
+Lemma subst_parred :
   forall n t1 t1' t2 t2', parred t1 t1' -> parred t2 t2' ->
   parred (substitution n t1 t2) (substitution n t1' t2').
 Proof.
   move => n t1 t1' t2 t2' H H0; move: t2 t2' H0 n.
   refine (parred_ind _ _ _ _ _) => /=; try constructor; auto.
-  - by move => m n; do !case: ifP => ? //; apply shift_lemma.
+  - by move => m n; do !case: ifP => ? //; apply shift_parred.
   - move => t2l t2l' ? ? t2r t2r' ? ? n.
     by rewrite (subst_subst_distr n 0); constructor.
 Qed.
@@ -256,7 +267,7 @@ Proof with auto.
   - by move => t n ? t' H; subst; inversion H.
   - move => _ t1 t2 _ ? ? t' H; inversion H; subst.
     - inversion H2; subst; constructor...
-    - apply subst_lemma...
+    - apply subst_parred...
   - move => _ t1 t2 _ ? ? ? t' H; inversion H; subst => //; constructor...
   - move => _ t1 _ ? t2 H; inversion H; subst; constructor...
 Qed.
@@ -504,9 +515,60 @@ Proof.
       - by apply IH => //; apply CR2' with tr.
 Qed.
 
-Lemma CR1 : forall ty ctx t, reducible ctx t ty -> SNorm t.
+Lemma CR1 : forall ctx t ty, reducible ctx t ty -> SNorm t.
 Proof.
-  move => ty; by case: (CR1_and_CR3 ty).
+  move => ctx t ty; case: (CR1_and_CR3 ty); firstorder.
+Qed.
+
+Lemma CR3 :
+  forall ctx t ty, typing ctx t ty -> neutral t ->
+  (forall t', t ->1b t' -> reducible ctx t' ty) -> reducible ctx t ty.
+Proof.
+  move => ctx t ty; case: (CR1_and_CR3 ty); firstorder.
+Qed.
+
+Lemma snorm_subst :
+  forall t1 t2, SNorm (substitution 0 t2 t1) -> SNorm t1.
+Proof.
+  move => t1 t2.
+  move: (Logic.eq_refl (substitution 0 t2 t1)).
+  move: {1 3}(substitution 0 t2 t1) => t3 H H0.
+  move: t3 H0 t1 t2 H.
+  refine (Acc_ind _ _) => t3 _ IH t1 t2 H; constructor => t3' H0.
+  refine (IH (substitution 0 t2 t3') _ t3' t2 _) => // {IH}.
+  by subst; apply subst_betared1.
+Qed.
+
+Lemma abstraction_lemma :
+  forall ctx t1 tyl tyr,
+  typing ctx (abs t1) (tyfun tyl tyr) ->
+  (forall t2 ctx',
+   reducible (ctx ++ ctx') t2 tyl ->
+   reducible (ctx ++ ctx') (substitution 0 t2 t1) tyr) ->
+  reducible ctx (abs t1) (tyfun tyl tyr).
+Proof.
+  move => ctx t1 tyl tyr H H0; split => //= t2 ctx' H1.
+  suff: (reducible (ctx ++ ctx') (app (abs t1) t2) tyr) by tauto.
+  move: (snorm_subst t1 t2 (CR1 (H0 t2 ctx' H1))) (CR1 H1) => H2 H3.
+  move: t1 H2 t2 H3 H H0 H1.
+  refine (Acc_ind _ _) => t1 H H0; refine (Acc_ind _ _) => t2 H1 H2 H3 H4 H5.
+  apply CR3 => //.
+  - apply typapp with tyl.
+    - by apply typing_app_ctx.
+    - tauto.
+  - move => t3 H6.
+    inversion H6; subst => {H6}.
+    - by apply H4.
+    - inversion H10; subst => {H10}.
+      apply H0 => //.
+      - apply subject_reduction1 with (abs t1) => //.
+        by constructor.
+      - move => t'' ctx'' H6.
+        apply CR2' with (substitution 0 t'' t1).
+        - by apply subst_betared1.
+        - by apply H4.
+    - apply H2 => //.
+      by apply CR2' with t2.
 Qed.
 
 End STLC.
