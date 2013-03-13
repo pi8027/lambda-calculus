@@ -561,14 +561,11 @@ Proof.
     - by apply H4.
     - inversion H10; subst => {H10}.
       apply H0 => //.
-      - apply subject_reduction1 with (abs t1) => //.
-        by constructor.
+      - by apply subject_reduction1 with (abs t1) => //; constructor.
       - move => t'' ctx'' H6.
-        apply CR2' with (substitution 0 t'' t1).
-        - by apply subst_betared1.
-        - by apply H4.
-    - apply H2 => //.
-      by apply CR2' with t2.
+        apply CR2' with (substitution 0 t'' t1); auto.
+        by apply subst_betared1.
+    - by apply H2 => //; apply CR2' with t2.
 Qed.
 
 End STLC.
