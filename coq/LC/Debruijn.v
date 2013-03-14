@@ -607,7 +607,7 @@ Fixpoint substitute_seq n ts t : term :=
     | abs t' => abs (substitute_seq n.+1 ts t')
   end.
 
-Lemma substitution_seq_cons_eq :
+Lemma substitute_seq_cons_eq :
   forall n t ts t',
   substitute n t (substitute_seq n.+1 ts t') = substitute_seq n (t :: ts) t'.
 Proof.
@@ -627,6 +627,47 @@ Proof.
       by replace (n - n) with 0 by ssromega.
   - by move => /= tl IHtl tr IHtr n t ts; f_equal.
   - by move => /= t' IH n t ts; f_equal.
+Qed.
+
+Lemma substitute_seq_nil_eq : forall n t, substitute_seq n [::] t = t.
+Proof.
+  move => n t; elim: t n => /=.
+  - move => n m; case: ifP => // H; rewrite addnC subnKC //.
+  - by move => tl IHtl tr IHtr n; f_equal.
+  - by move => t H n; f_equal.
+Qed.
+
+Lemma typing_substitute_seq :
+  forall ctx1 ctx2 ctx' t ty,
+  Forall (fun p => typing ctx2 p.1 p.2) ctx' ->
+  typing (ctx1 ++ [seq p.2 | p <- ctx'] ++ ctx2) t ty ->
+  typing (ctx1 ++ ctx2) (substitute_seq (size ctx1) [seq p.1 | p <- ctx'] t) ty.
+Proof.
+  move => ctx1 ctx2 ctx' t ty; elim: t ty ctx1 ctx2 ctx'.
+  - move => /= n ty ctx1 ctx2 ctx' H H0.
+    case: ifP => H1.
+    - move: H H0.
+      rewrite -{1}(subnKC H1).
+      elim: ctx' (n - size ctx1) => {n H1} /=.
+      - move => n _ H.
+        by rewrite addnC.
+      - move => c' ctx' IH n H; inversion H; subst => {H}.
+        rewrite -typvar_seqindex -lift_seqindex.
+        case: n H2 H3 => //=.
+        - move => H H0; case => H1; subst.
+          apply (@subject_shift c'.1 c'.2 [::] ctx1 ctx2) => //.
+        - move => n H H0 H1.
+          apply IH => //.
+          by rewrite -typvar_seqindex -lift_seqindex.
+    - move: H1 H0.
+      rewrite -!typvar_seqindex.
+      elim: ctx1 n => // c1 ctx1 IH; case => //.
+  - move => /= tl IHtl tr IHtr ty ctx1 ctx2 ctx' H H0.
+    inversion H0; subst; apply typapp with ty1; auto.
+  - move => /= t IH ty ctx1 ctx2 ctx' H H0.
+    inversion H0; subst => {H0}.
+    constructor.
+    by apply (IH ty2 (ty1 :: ctx1) ctx2 ctx').
 Qed.
 
 Lemma reduce_lemma :
@@ -657,21 +698,33 @@ Proof.
     inversion H; subst => {H}.
     move: (IHtl (tyfun ty1 ty) ctx ctx'); case => //= H1 H2; split.
     - apply typapp with ty1 => //.
-      admit.
+      apply (typing_substitute_seq [::]) => //.
+      by move: H0; rewrite !Forall_forall => H0 x H3; apply H0.
     - rewrite -(cats0 ctx); apply H2; rewrite cats0.
       by apply IHtr.
   - move => t IHt ty ctx ctx' H H0.
     inversion H; subst => {H} /=.
     apply abstraction_lemma.
-    - admit.
+    - apply (@typing_substitute_seq [::] ctx ctx' (abs t)) => //=.
+      - by move: H0; rewrite !Forall_forall => H0 x H1; apply H0.
+      - by constructor.
     - move => t2 ctx2 H.
-      rewrite substitution_seq_cons_eq -/[seq p.1 | p <- (t2, ty1) :: ctx'].
+      rewrite substitute_seq_cons_eq -/[seq p.1 | p <- (t2, ty1) :: ctx'].
       apply IHt.
       - by rewrite catA; apply typing_app_ctx => /=.
       - constructor => //=.
         move: H0.
         rewrite !Forall_forall => H0 p H1.
         by apply reducible_app_ctx, H0.
-Abort.
+Qed.
+
+Theorem typed_term_is_snorm : forall ctx t ty, typing ctx t ty -> SNorm t.
+Proof.
+  move => ctx t ty H.
+  apply (@CR1 ctx t ty).
+  move: (@reduce_lemma ctx [::] t ty H) => /=.
+  rewrite substitute_seq_nil_eq => H0.
+  by apply H0.
+Qed.
 
 End STLC.
