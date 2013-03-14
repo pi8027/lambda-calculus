@@ -15,31 +15,31 @@ Fixpoint shift d c t : term :=
   match t with
     | var n => (if leq c n then var (n + d) else var n)
     | app t1 t2 => app (shift d c t1) (shift d c t2)
-    | abs t1 => abs (shift d (S c) t1)
+    | abs t1 => abs (shift d c.+1 t1)
   end.
 
 Fixpoint unshift d c t : term :=
   match t with
     | var n => (if leq c n then var (n - d) else var n)
     | app t1 t2 => app (unshift d c t1) (unshift d c t2)
-    | abs t1 => abs (unshift d (S c) t1)
+    | abs t1 => abs (unshift d c.+1 t1)
   end.
 
-Fixpoint substitution' n t1 t2 : term :=
+Fixpoint substitute' n t1 t2 : term :=
   match t2 with
     | var m => (if eqn n m then t1 else var m)
-    | app t2l t2r => app (substitution' n t1 t2l) (substitution' n t1 t2r)
-    | abs t2' => abs (substitution' (S n) (shift 1 0 t1) t2')
+    | app t2l t2r => app (substitute' n t1 t2l) (substitute' n t1 t2r)
+    | abs t2' => abs (substitute' n.+1 (shift 1 0 t1) t2')
   end.
 
-Fixpoint substitution n t1 t2 : term :=
+Fixpoint substitute n t1 t2 : term :=
   match t2 with
     | var m =>
       if leq n m
         then (if eqn n m then shift n 0 t1 else var m.-1)
         else var m
-    | app t2l t2r => app (substitution n t1 t2l) (substitution n t1 t2r)
-    | abs t2' => abs (substitution (S n) t1 t2')
+    | app t2l t2r => app (substitute n t1 t2l) (substitute n t1 t2r)
+    | abs t2' => abs (substitute n.+1 t1 t2')
   end.
 
 Lemma shift_add :
@@ -68,9 +68,9 @@ Proof.
   - move => t IH c c' ? ?; f_equal; apply IH; ssromega.
 Qed.
 
-Lemma substitution_eq :
+Lemma substitute_eq :
   forall n t1 t2,
-  unshift 1 n (substitution' n (shift (S n) 0 t1) t2) = substitution n t1 t2.
+  unshift 1 n (substitute' n (shift n.+1 0 t1) t2) = substitute n t1 t2.
 Proof.
   move => n t1 t2; move: t2 t1 n; elim => /=.
   - move => n t1 m; elimif_omega.
@@ -82,7 +82,7 @@ Qed.
 Inductive betared1' : relation term :=
   | betared1beta' : forall t1 t2,
                     betared1' (app (abs t1) t2)
-                              (unshift 1 0 (substitution' 0 (shift 1 0 t2) t1))
+                              (unshift 1 0 (substitute' 0 (shift 1 0 t2) t1))
   | betared1appl' : forall t1 t1' t2,
                     betared1' t1 t1' -> betared1' (app t1 t2) (app t1' t2)
   | betared1appr' : forall t1 t2 t2',
@@ -91,7 +91,7 @@ Inductive betared1' : relation term :=
 
 Inductive betared1 : relation term :=
   | betared1beta : forall t1 t2,
-                   betared1 (app (abs t1) t2) (substitution 0 t2 t1)
+                   betared1 (app (abs t1) t2) (substitute 0 t2 t1)
   | betared1appl : forall t1 t1' t2,
                    betared1 t1 t1' -> betared1 (app t1 t2) (app t1' t2)
   | betared1appr : forall t1 t2 t2',
@@ -106,13 +106,13 @@ Inductive parred : relation term :=
   | parredabs  : forall t t', parred t t' -> parred (abs t) (abs t')
   | parredbeta : forall t1 t1' t2 t2',
                  parred t1 t1' -> parred t2 t2' ->
-                 parred (app (abs t1) t2) (substitution 0 t2' t1').
+                 parred (app (abs t1) t2) (substitute 0 t2' t1').
 
 Function reduce_all_redex t : term :=
   match t with
     | var _ => t
     | app (abs t1) t2 =>
-      substitution 0 (reduce_all_redex t2) (reduce_all_redex t1)
+      substitute 0 (reduce_all_redex t2) (reduce_all_redex t1)
     | app t1 t2 => app (reduce_all_redex t1) (reduce_all_redex t2)
     | abs t' => abs (reduce_all_redex t')
   end.
@@ -125,8 +125,8 @@ Infix "->bp" := parred (at level 70, no associativity).
 Lemma betared1_eq : same_relation betared1' betared1.
 Proof.
   split; elim; (try by constructor) => ? ?.
-  - rewrite substitution_eq; constructor.
-  - rewrite -substitution_eq; constructor.
+  - rewrite substitute_eq; constructor.
+  - rewrite -substitute_eq; constructor.
 Qed.
 
 Lemma parred_refl : forall t, parred t t.
@@ -184,8 +184,8 @@ Qed.
 
 Lemma subst_shift_distr :
   forall n t1 t2 d c,
-  shift d (n + c) (substitution n t1 t2) =
-  substitution n (shift d c t1) (shift d (S (n + c)) t2).
+  shift d (n + c) (substitute n t1 t2) =
+  substitute n (shift d c t1) (shift d (S (n + c)) t2).
 Proof.
   move => n t1 t2;move: t2 n; elim => //=.
   - move => m n d c; elimif_omega.
@@ -196,7 +196,7 @@ Qed.
 
 Lemma shift_subst_distr :
   forall t1 t2 n d c, c <= n ->
-  shift d c (substitution n t2 t1) = substitution (d + n) t2 (shift d c t1).
+  shift d c (substitute n t2 t1) = substitute (d + n) t2 (shift d c t1).
 Proof.
   move => t1 t2; elim t1 => /=.
   - move => m n d c ?; elimif_omega; apply shift_add; ssromega.
@@ -206,7 +206,7 @@ Qed.
 
 Lemma shift_const_subst :
   forall n t1 t2 d c, n < S d ->
-  shift d c t1 = substitution (c + n) t2 (shift (S d) c t1).
+  shift d c t1 = substitute (c + n) t2 (shift (S d) c t1).
 Proof.
   move => n; elim => /=.
   - move => m t2 d c ?; elimif_omega.
@@ -216,9 +216,9 @@ Qed.
 
 Lemma subst_subst_distr :
   forall n m t1 t2 t3,
-  substitution (m + n) t3 (substitution m t2 t1) =
-  substitution m (substitution n t3 t2)
-    (substitution (S (m + n)) t3 t1).
+  substitute (m + n) t3 (substitute m t2 t1) =
+  substitute m (substitute n t3 t2)
+    (substitute (S (m + n)) t3 t1).
 Proof.
   move => n m t1; move: t1 m; elim => /=.
   - case => [ | v] m t2 t3; elimif_omega.
@@ -231,7 +231,7 @@ Qed.
 
 Lemma subst_betared1 :
   forall n t1 t2 t2', t2 ->1b t2' ->
-  substitution n t1 t2 ->1b substitution n t1 t2'.
+  substitute n t1 t2 ->1b substitute n t1 t2'.
 Proof.
   move => n t1 t2 t2' H; move: t2 t2' H n.
   refine (betared1_ind _ _ _ _ _); try by constructor.
@@ -251,7 +251,7 @@ Qed.
 
 Lemma subst_parred :
   forall n t1 t1' t2 t2', parred t1 t1' -> parred t2 t2' ->
-  parred (substitution n t1 t2) (substitution n t1' t2').
+  parred (substitute n t1 t2) (substitute n t1' t2').
 Proof.
   move => n t1 t1' t2 t2' H H0; move: t2 t2' H0 n.
   refine (parred_ind _ _ _ _ _) => /=; try constructor; auto.
@@ -303,10 +303,10 @@ Proof.
   - move => t IH n c; rewrite -addSn -ltnS; auto.
 Qed.
 
-Lemma substitution_preserves_forallfv :
+Lemma substitute_preserves_forallfv :
   forall P t1 t2 n m,
   forallfv' P t1 (n + m).+1 -> forallfv' P t2 n ->
-  forallfv' P (substitution m t2 t1) (n + m).
+  forallfv' P (substitute m t2 t1) (n + m).
 Proof.
   move => P; elim => /=.
   - move => t1 t2 n m.
@@ -325,7 +325,7 @@ Proof.
   refine (betared1_ind _ _ _ _ _).
   - move => /= t1 t2 n; case.
     rewrite -{1 3}(addn0 n).
-    apply (substitution_preserves_forallfv P t1 t2 n 0).
+    apply (substitute_preserves_forallfv P t1 t2 n 0).
   - by move => /= t1 t1' t2 H H0 n; case => H1 H2; split => //; apply H0.
   - by move => /= t1 t2 t2' H H0 n; case => H1 h2; split => //; apply H0.
   - move => /= t t' _ H n; apply H.
@@ -367,12 +367,12 @@ Proof.
     by inversion H; subst; constructor; apply (IH _ (ty1 :: ctx1)).
 Qed.
 
-Lemma subject_substitution :
+Lemma subject_substitute :
   forall ctx t1 t2 ty1 ty2 n,
   n <= size ctx ->
   typing (drop n ctx) t1 ty1 ->
   typing (insert n ty1 ctx) t2 ty2 ->
-  typing ctx (substitution n t1 t2) ty2.
+  typing ctx (substitute n t1 t2) ty2.
 Proof.
   move => ctx t1 t2; move: t2 t1 ctx; elim => /=.
   - move => m t1 ctx ty1 ty2 n H H0.
@@ -401,7 +401,7 @@ Proof.
   refine (betared1_ind _ _ _ _ _) => //=.
   - move => t1 t2 ctx ty H.
     inversion H; subst; inversion H3; subst.
-    apply subject_substitution with ty1 => //.
+    apply subject_substitute with ty1 => //.
     by rewrite drop0.
   - move => t1 t1' t2 H IH ctx ty H0.
     inversion H0; subst.
@@ -454,6 +454,19 @@ Fixpoint reducible' (ctx : seq typ) (t : term) (ty : typ) : Prop :=
 Notation reducible ctx t ty := (typing ctx t ty /\ reducible' ctx t ty).
 
 Definition neutral t := (if t is abs _ then False else True).
+
+Lemma reducible_app_ctx :
+  forall ctx1 ctx2 t ty, reducible ctx1 t ty -> reducible (ctx1 ++ ctx2) t ty.
+Proof.
+  move => ctx1 ctx2 t ty; elim: ty ctx1 ctx2 t.
+  - move => /= n ctx1 ctx2 t; case => H H0; split => //.
+    by apply typing_app_ctx.
+  - move => /= tyl IHtyl tyr IHtyr ctx1 ctx2 t1; case => H H0; split.
+    - by apply typing_app_ctx.
+    - move => t2 ctx3.
+      rewrite -catA => H1.
+      by apply H0.
+Qed.
 
 Lemma CR2' :
   forall ctx t t' ty, t ->1b t' -> reducible ctx t ty -> reducible ctx t' ty.
@@ -528,15 +541,27 @@ Proof.
 Qed.
 
 Lemma snorm_subst :
-  forall t1 t2, SNorm (substitution 0 t2 t1) -> SNorm t1.
+  forall t1 t2, SNorm (substitute 0 t2 t1) -> SNorm t1.
 Proof.
   move => t1 t2.
-  move: (Logic.eq_refl (substitution 0 t2 t1)).
-  move: {1 3}(substitution 0 t2 t1) => t3 H H0.
+  move: (Logic.eq_refl (substitute 0 t2 t1)).
+  move: {1 3}(substitute 0 t2 t1) => t3 H H0.
   move: t3 H0 t1 t2 H.
   refine (Acc_ind _ _) => t3 _ IH t1 t2 H; constructor => t3' H0.
-  refine (IH (substitution 0 t2 t3') _ t3' t2 _) => // {IH}.
+  refine (IH (substitute 0 t2 t3') _ t3' t2 _) => // {IH}.
   by subst; apply subst_betared1.
+Qed.
+
+Lemma apply_lemma :
+  forall ctx tl tr tyl tyr,
+  reducible ctx tl (tyfun tyl tyr) ->
+  reducible ctx tr tyl -> reducible ctx (app tl tr) tyr.
+Proof.
+  move => /= ctx tl tr tyl tyr; case => H H0; case => H1 H2; split.
+  - by apply typapp with tyl.
+  - rewrite -(cats0 ctx).
+    apply H0.
+    by rewrite cats0; split.
 Qed.
 
 Lemma abstraction_lemma :
@@ -544,7 +569,7 @@ Lemma abstraction_lemma :
   typing ctx (abs t1) (tyfun tyl tyr) ->
   (forall t2 ctx',
    reducible (ctx ++ ctx') t2 tyl ->
-   reducible (ctx ++ ctx') (substitution 0 t2 t1) tyr) ->
+   reducible (ctx ++ ctx') (substitute 0 t2 t1) tyr) ->
   reducible ctx (abs t1) (tyfun tyl tyr).
 Proof.
   move => ctx t1 tyl tyr H H0; split => //= t2 ctx' H1.
@@ -563,9 +588,72 @@ Proof.
       apply H0 => //.
       - by apply subject_reduction1 with (abs t1) => //; constructor.
       - move => t'' ctx'' H6.
-        apply CR2' with (substitution 0 t'' t1); auto.
+        apply CR2' with (substitute 0 t'' t1); auto.
         by apply subst_betared1.
     - by apply H2 => //; apply CR2' with t2.
 Qed.
+
+Fixpoint substitutel n ts t : term :=
+  match t with
+    | var m =>
+      if leq n m
+        then
+          (fix f ts x :=
+            if ts is t :: ts
+              then (if x is x.+1 then f ts x else shift n 0 t)
+              else var (x + n))
+          ts (m - n)
+        else var m
+    | app t1 t2 => app (substitutel n ts t1) (substitutel n ts t2)
+    | abs t' => abs (substitutel n.+1 ts t')
+  end.
+
+Lemma reduce_lemma :
+  forall ctx (ctx' : seq (term * typ)) t ty,
+  typing ([seq p.2 | p <- ctx'] ++ ctx) t ty ->
+  Forall (fun p => reducible ctx p.1 p.2) ctx' ->
+  reducible ctx (substitutel 0 [seq p.1 | p <- ctx'] t) ty.
+Proof.
+  move => ctx ctx' t ty; elim: t ty ctx ctx'.
+  - move => /= n ty ctx ctx'.
+    rewrite -typvar_seqindex subn0.
+    elim: ctx' n => [| c' ctx' IH].
+    - move => /= n H _; rewrite addn0.
+      elim: ctx n H => // c ctx IH; case => //=.
+      - case => H; subst; apply CR3 => //.
+        - do! constructor.
+        - move => t' H; inversion H.
+      - move => n H.
+        case: (IH n H) => _ H0 {IH}.
+        apply CR3 => //.
+        - by do! constructor.
+        - move => t' H1; inversion H1.
+    - move => n H H0; inversion H0; subst => {H0}.
+      case: n H H3 H4.
+      - by case => /= H H0 H1; rewrite shiftzero_eq H.
+      - by move => /= n H H0 H1; apply IH.
+  - move => tl IHtl tr IHtr ty ctx ctx' H H0.
+    inversion H; subst => {H}.
+    move: (IHtl (tyfun ty1 ty) ctx ctx') => /=; case => //= H1 H2; split.
+    - apply typapp with ty1 => //.
+      admit.
+    - rewrite -(cats0 ctx); apply H2; rewrite cats0.
+      by apply IHtr.
+  - move => t IHt ty ctx ctx' H H0.
+    inversion H; subst => {H} /=.
+    apply abstraction_lemma.
+    - constructor.
+      admit.
+    - move => t2 ctx2 H.
+      replace (substitute 0 t2 (substitutel 1 [seq p.1 | p <- ctx'] t)) with
+        (substitutel 0 [seq p.1 | p <- ((t2, ty1) :: ctx')] t).
+      - apply IHt.
+        - by rewrite catA; apply typing_app_ctx => /=.
+        - constructor => //=.
+          move: H0.
+          rewrite !Forall_forall => H0 p H1.
+          by apply reducible_app_ctx, H0.
+      - admit.
+Abort.
 
 End STLC.
