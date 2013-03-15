@@ -1,6 +1,6 @@
 Require Import
-  Coq.Lists.List Coq.Relations.Relations Coq.Relations.Relation_Operators
-  Coq.Program.Basics Omega
+  Coq.Relations.Relations Coq.Relations.Relation_Operators Coq.Program.Basics
+  Omega
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat Ssreflect.seq
   LCAC.Relations_ext LCAC.ssrnat_ext LCAC.seq_ext.
@@ -343,11 +343,11 @@ Inductive typing : seq typ -> term -> typ -> Prop :=
     typing (ty1 :: ctx) t ty2 -> typing ctx (abs t) (tyfun ty1 ty2).
 
 Lemma typvar_seqindex :
-  forall ctx n ty, seqindex ctx n ty <-> typing ctx (var n) ty.
+  forall ctx n ty, typing ctx (var n) ty <-> seqindex ctx n ty.
 Proof.
   move => ctx n ty; split => H.
-  by constructor.
   by inversion H.
+  by constructor.
 Qed.
 
 Lemma subject_shift :
@@ -357,9 +357,9 @@ Lemma subject_shift :
 Proof.
  elim => /=.
   - move => n ty ctx1 ctx2 ctx3.
-    case: ifP => H; rewrite -!typvar_seqindex.
-    - by rewrite -(subnKC H) {H} -addnA (addnC (n - size ctx1)) -!lift_seqindex.
-    - rewrite !appl_seqindex //; ssromega.
+    case: ifP => H; rewrite !typvar_seqindex.
+    - by rewrite -(subnKC H) {H} -addnA (addnC (n - size ctx1)) !nthopt_appr.
+    - rewrite !nthopt_appl //; ssromega.
   - move => tl IHtl tr IHtr ty ctx1 ctx2 ctx3 H.
     inversion H; subst; apply typapp with ty1; auto.
   - move => t IH ty ctx1 ctx2 ctx3 H.
@@ -375,15 +375,16 @@ Lemma subject_substitute :
 Proof.
   move => ctx t1 t2; elim: t2 t1 ctx => /=.
   - move => m t1 ctx ty1 ty2 n H H0.
-    do !(case: ifP => /=); rewrite -!typvar_seqindex.
-    - move/eqnP => ? _; subst; rewrite -insert_seqindex_c // => ?; subst.
+    do !(case: ifP => /=); rewrite !typvar_seqindex.
+    - move/eqnP => ? _; subst.
+      rewrite insert_nthopt_c //; case => ?; subst.
       move: (subject_shift [::] (take m ctx) (drop m ctx) H0) => /=.
       rewrite cat_take_drop size_takel //.
     - move => H1 H2.
       (have: n < m by ssromega) => {H1 H2} H1.
-      rewrite -{1}(ltn_predK H1) -insert_seqindex_r //; ssromega.
+      rewrite -{1}(ltn_predK H1) insert_nthopt_r //; ssromega.
     - move => H1.
-      rewrite -insert_seqindex_l //; ssromega.
+      rewrite insert_nthopt_l //; ssromega.
   - move => t2l IHt2l t2r IHt2r t1 ctx ty1 ty2 n H H0 H1.
     inversion H1; subst; apply typapp with ty0.
     - by apply IHt2l with ty1.
@@ -426,8 +427,8 @@ Proof.
   move => ctx ctx'; move: ctx.
   refine (typing_ind _ _ _ _).
   - move => ctx n ty.
-    rewrite -!typvar_seqindex.
-    elim: n ctx => [| n IHn]; case => //.
+    rewrite !typvar_seqindex.
+    by elim: n ctx => [| n IHn]; case.
   - move => ctx t1 t2 ty1 ty2 _ H _ H0.
     by apply typapp with ty1.
   - by move => ctx t ty1 ty2 _ H; constructor.
@@ -502,9 +503,9 @@ Proof.
       case => IHtyr1 IHtyr2; split => ctx t.
     - case => /= H H0.
       have H1: typing (ctx ++ [:: tyl]) (var (size ctx)) tyl
-        by rewrite -typvar_seqindex -(addn0 (size ctx))
-          seqindex_drop (drop_size_cat [:: tyl] Logic.eq_refl).
-      have H2: typing (ctx ++ [:: tyl]) (app t (var (size ctx))) tyr.
+        by rewrite typvar_seqindex -(addn0 (size ctx))
+          nthopt_drop (drop_size_cat [:: tyl] Logic.eq_refl).
+      have H2: typing (ctx ++ [:: tyl]) (app t (var (size ctx))) tyr
         by apply typapp with tyl => //; apply typing_app_ctx.
       apply snorm_appl with (var (size ctx)).
       apply IHtyr1 with (ctx ++ [:: tyl]).
@@ -651,16 +652,15 @@ Proof.
       elim: ctx' (n - size ctx1) => {n H1} /=.
       - move => n _ H.
         by rewrite addnC.
-      - move => c' ctx' IH n H; inversion H; subst => {H}.
-        rewrite -typvar_seqindex -lift_seqindex.
-        case: n H2 H3 => //=.
-        - move => H H0; case => H1; subst.
+      - move => c' ctx' IH n; case => H H0.
+        rewrite typvar_seqindex nthopt_appr.
+        case: n => //=.
+        - case => H1; subst.
           apply (@subject_shift c'.1 c'.2 [::] ctx1 ctx2) => //.
-        - move => n H H0 H1.
-          apply IH => //.
-          by rewrite -typvar_seqindex -lift_seqindex.
+        - move => n H1; apply IH => //.
+          by rewrite typvar_seqindex nthopt_appr.
     - move: H1 H0.
-      rewrite -!typvar_seqindex.
+      rewrite !typvar_seqindex.
       elim: ctx1 n => // c1 ctx1 IH; case => //.
   - move => /= tl IHtl tr IHtr ty ctx1 ctx2 ctx' H H0.
     inversion H0; subst; apply typapp with ty1; auto.
@@ -678,7 +678,7 @@ Lemma reduce_lemma :
 Proof.
   move => ctx ctx' t ty; elim: t ty ctx ctx'.
   - move => /= n ty ctx ctx'.
-    rewrite -typvar_seqindex subn0.
+    rewrite typvar_seqindex subn0.
     elim: ctx' n => [| c' ctx' IH].
     - move => /= n H _; rewrite addn0.
       elim: ctx n H => // c ctx IH; case => //=.
@@ -690,32 +690,30 @@ Proof.
         apply CR3 => //.
         - by do! constructor.
         - move => t' H1; inversion H1.
-    - move => n H H0; inversion H0; subst => {H0}.
-      case: n H H3 H4.
-      - by case => /= H H0 H1; rewrite shiftzero_eq H.
-      - by move => /= n H H0 H1; apply IH.
+    - case => /=.
+      - by case => H; case => H0 H1; rewrite shiftzero_eq H.
+      - by move => n H; case => H0 H1; apply IH.
   - move => tl IHtl tr IHtr ty ctx ctx' H H0.
     inversion H; subst => {H}.
     move: (IHtl (tyfun ty1 ty) ctx ctx'); case => //= H1 H2; split.
     - apply typapp with ty1 => //.
       apply (typing_substitute_seq [::]) => //.
-      by move: H0; rewrite !Forall_forall => H0 x H3; apply H0.
+      by move: H0; apply Forall_impl => p; case.
     - rewrite -(cats0 ctx); apply H2; rewrite cats0.
       by apply IHtr.
   - move => t IHt ty ctx ctx' H H0.
     inversion H; subst => {H} /=.
     apply abstraction_lemma.
     - apply (@typing_substitute_seq [::] ctx ctx' (abs t)) => //=.
-      - by move: H0; rewrite !Forall_forall => H0 x H1; apply H0.
+      - by move: H0; apply Forall_impl => p; case.
       - by constructor.
     - move => t2 ctx2 H.
       rewrite substitute_seq_cons_eq -/[seq p.1 | p <- (t2, ty1) :: ctx'].
       apply IHt.
       - by rewrite catA; apply typing_app_ctx => /=.
-      - constructor => //=.
-        move: H0.
-        rewrite !Forall_forall => H0 p H1.
-        by apply reducible_app_ctx, H0.
+      - split => //.
+        move: H0; apply Forall_impl => p.
+        apply reducible_app_ctx.
 Qed.
 
 Theorem typed_term_is_snorm : forall ctx t ty, typing ctx t ty -> SNorm t.

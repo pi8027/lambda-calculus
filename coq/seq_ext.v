@@ -1,19 +1,27 @@
 Require Import
-  Coq.Lists.List
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool
   Ssreflect.ssrnat Ssreflect.seq LCAC.ssrnat_ext.
 
 Set Implicit Arguments.
 
+Fixpoint Forall A (P : A -> Prop) xs :=
+  if xs is x :: xs then P x /\ Forall P xs else True.
+
 Section Seq.
 
-Variable A B : Type.
+Variable (A : Type).
 
-Theorem drop_take_nil : forall n (xs : seq A), drop n (take n xs) = [::].
-Proof.
-  move => n xs; rewrite drop_oversize //=.
-  move: xs n; elim => // x xs IH; case => //=.
-Qed.
+Function insert (n : nat) (a : A) (xs : seq A) :=
+  if n is n.+1
+    then (if xs is x :: xs then x :: insert n a xs else [:: a])
+    else a :: xs.
+
+Fixpoint nthopt (xs : seq A) n :=
+  if xs is x :: xs
+    then (if n is n.+1 then nthopt xs n else Some x)
+    else None.
+
+(* drop and take *)
 
 Theorem drop_addn :
   forall n m (xs : seq A), drop n (drop m xs) = drop (n + m) xs.
@@ -25,23 +33,27 @@ Proof.
     - move => m IH _; case => //.
 Qed.
 
-Function insert (n : nat) (a : A) (xs : seq A) :=
-  if n is S n
-    then (if xs is x :: xs then x :: insert n a xs else [:: a])
-    else a :: xs.
-
-Theorem insert_eq :
-  forall n (a : A) (xs : seq A), insert n a xs = take n xs ++ a :: drop n xs.
+Theorem take_minn :
+  forall n m (xs : seq A), take n (take m xs) = take (minn n m) xs.
 Proof.
-  elim => [| n IHn] a.
-  - by move => xs; rewrite take0 drop0.
-  - by case => //= x xs; f_equal.
+  elim => [| n IH]; case => [| m]; case => [| x xs] => //.
+  by rewrite minnSS /=; f_equal.
 Qed.
 
-Fixpoint nthopt (xs : seq A) n :=
-  if xs is x :: xs
-    then (if n is n.+1 then nthopt xs n else Some x)
-    else None.
+Theorem drop_take_distr :
+  forall n m (xs : seq A), drop n (take m xs) = take (m - n) (drop n xs).
+Proof.
+  elim => [| n IH]; case => [| m]; case => [| x xs] => //=.
+  - rewrite sub0n take0 //.
+  - rewrite subSS //.
+Qed.
+
+Theorem drop_take_nil : forall n (xs : seq A), drop n (take n xs) = [::].
+Proof.
+  move => n xs; rewrite drop_take_distr -(addn0 n) subnDl take0 //.
+Qed.
+
+(* nthopt *)
 
 Theorem nthopt_drop : forall xs n m, nthopt xs (n + m) = nthopt (drop n xs) m.
 Proof.
@@ -65,71 +77,57 @@ Proof.
   by elim => // x xs IH; case => [| n]; case => //= m; rewrite ltnS; apply IH.
 Qed.
 
-Notation seqindex xs n x := (Some x = nthopt xs n).
-
-Theorem seqindex_drop :
-  forall (xs : seq A) n m a,
-  seqindex xs (n + m) a <-> seqindex (drop n xs) m a.
+Theorem nthopt_appl :
+  forall xs ys n, n < size xs -> nthopt (xs ++ ys) n = nthopt xs n.
 Proof.
-  elim => [| x xs IH]; case => //.
+  elim => // x xs IH ys; case => //= n; rewrite ltnS; apply IH.
 Qed.
 
-Theorem lift_seqindex :
-  forall xs ys n a, seqindex ys n a <-> seqindex (xs ++ ys) (size xs + n) a.
+Theorem nthopt_appr :
+  forall xs ys n, nthopt (xs ++ ys) (size xs + n) = nthopt ys n.
 Proof.
   elim => //.
 Qed.
 
-Theorem appl_seqindex :
-  forall xs ys n a, n < size xs ->
-  (seqindex (xs ++ ys) n a <-> seqindex xs n a).
+(* insert *)
+
+Theorem insert_eq :
+  forall n (a : A) (xs : seq A), insert n a xs = take n xs ++ a :: drop n xs.
 Proof.
-  elim => // x xs IH ys; case => //= n a; rewrite ltnS; apply IH.
+  elim => [| n IHn] a.
+  - by move => xs; rewrite take0 drop0.
+  - by case => //= x xs; f_equal.
 Qed.
 
-Theorem appr_seqindex :
-  forall xs ys n a, size xs <= n ->
-  (seqindex (xs ++ ys) n a <-> seqindex ys (n - size xs) a).
+Theorem insert_nthopt_l :
+  forall m n a xs,
+  m < n -> m < size xs -> nthopt (insert n a xs) m = nthopt xs m.
 Proof.
-  move => xs ys n a H.
-  by rewrite -{1}(subnKC H) {H} -lift_seqindex.
+  elim => //=.
+  - by case => // n a; case.
+  - move => m IH; case => // n a; case => //= x xs.
+    rewrite !ltnS; apply IH.
 Qed.
 
-Theorem insert_seqindex_l :
-  forall m n a x xs,
-  m < n <= size xs -> (seqindex xs m x <-> seqindex (insert n a xs) m x).
+Theorem insert_nthopt_c :
+  forall n a xs, n <= size xs -> nthopt (insert n a xs) n = Some a.
 Proof.
-  by elim => [| m IHm]; case => // n a x; case => //= _ xs H; apply IHm.
+  elim => // n IH a; case => //= x xs; rewrite ltnS; apply IH.
 Qed.
 
-Theorem insert_seqindex_c :
-  forall n a b xs, n <= size xs -> (a = b <-> seqindex (insert n a xs) n b).
+Theorem insert_nthopt_r :
+  forall m n a xs, n <= m -> nthopt (insert n a xs) m.+1 = nthopt xs m.
 Proof.
-  elim => [| n IHn] a b; case => //=.
-  - move => _; split; congruence.
-  - move => _ _ _; split; congruence.
-  - move => _ xs; rewrite ltnS; apply IHn.
+  elim => [| m IH]; case => // n a; case => //= x xs; rewrite ltnS; apply IH.
 Qed.
 
-Theorem insert_seqindex_r :
-  forall m n a x xs,
-  n <= m -> (seqindex xs m x <-> seqindex (insert n a xs) m.+1 x).
-Proof.
-  by elim => [| m IHm]; case => // n a x; case => //= x' xs; apply IHm.
-Qed.
+(* Forall *)
 
-Theorem dec_seqindex :
-  forall xs n, { a | seqindex xs n a } + ({ a | seqindex xs n a } -> False).
+Theorem Forall_impl :
+  forall (P Q : A -> Prop) xs,
+  (forall a : A, P a -> Q a) -> Forall P xs -> Forall Q xs.
 Proof.
-  elim => [ | x xs IH] //=.
-  - by move => _; right; case.
-  - by case => //; left; exists x.
-Defined.
-
-Theorem unique_seqindex :
-  forall xs n x y, seqindex xs n x -> seqindex xs n y -> x = y.
-Proof.
-  elim => // x xs IH; case => //=; congruence.
+  move => P Q xs H; elim: xs; firstorder.
 Qed.
 
 End Seq.
