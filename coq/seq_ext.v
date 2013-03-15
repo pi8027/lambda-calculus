@@ -1,6 +1,6 @@
 Require Import
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool
-  Ssreflect.ssrnat Ssreflect.seq LCAC.ssrnat_ext.
+  Ssreflect.ssrnat Ssreflect.seq.
 
 Set Implicit Arguments.
 
@@ -53,7 +53,6 @@ Qed.
 
 (* nthopt *)
 
-
 Theorem nthopt_drop : forall xs n m, nthopt xs (n + m) = nthopt (drop n xs) m.
 Proof.
   by elim => // x xs IH; case.
@@ -64,8 +63,7 @@ Proof.
   by move => xs n; rewrite -{1}(addn0 n) nthopt_drop.
 Qed.
 
-Theorem nthopt_take0 :
-  forall xs n m, m <= n -> nthopt (take m xs) n = None.
+Theorem nthopt_take0 : forall xs n m, m <= n -> nthopt (take m xs) n = None.
 Proof.
   by elim => // x xs IH n; case => // m; case: n => //= n H; rewrite IH.
 Qed.
@@ -90,8 +88,7 @@ Qed.
 
 (* insert *)
 
-Theorem insert_eq :
-  forall n (a : A) (xs : seq A), insert n a xs = take n xs ++ a :: drop n xs.
+Theorem insert_eq : forall n a xs, insert n a xs = take n xs ++ a :: drop n xs.
 Proof.
   move => n a; elim: n => [| n IH].
   - by move => xs; rewrite take0 drop0.
@@ -123,7 +120,7 @@ Qed.
 
 Theorem Forall_impl :
   forall (P Q : A -> Prop) xs,
-  (forall a : A, P a -> Q a) -> Forall P xs -> Forall Q xs.
+  (forall a, P a -> Q a) -> Forall P xs -> Forall Q xs.
 Proof.
   move => P Q xs H; elim: xs; firstorder.
 Qed.
