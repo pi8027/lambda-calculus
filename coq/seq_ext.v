@@ -27,7 +27,7 @@ Theorem drop_addn :
   forall n m (xs : seq A), drop n (drop m xs) = drop (n + m) xs.
 Proof.
   move => n; elim => [| m IH]; case => // x xs.
-  - rewrite addn0 //.
+  - by rewrite addn0.
   - by rewrite addnS /= IH.
 Qed.
 
@@ -42,20 +42,21 @@ Theorem drop_take_distr :
   forall n m (xs : seq A), drop n (take m xs) = take (m - n) (drop n xs).
 Proof.
   elim => [| n IH]; case => [| m]; case => [| x xs] => //=.
-  - rewrite sub0n take0 //.
-  - rewrite subSS //.
+  - by rewrite sub0n take0.
+  - by rewrite subSS.
 Qed.
 
 Theorem drop_take_nil : forall n (xs : seq A), drop n (take n xs) = [::].
 Proof.
-  move => n xs; rewrite drop_take_distr -(addn0 n) subnDl take0 //.
+  by move => n xs; rewrite drop_take_distr -(addn0 n) subnDl take0.
 Qed.
 
 (* nthopt *)
 
+
 Theorem nthopt_drop : forall xs n m, nthopt xs (n + m) = nthopt (drop n xs) m.
 Proof.
-  elim => // x xs IH; case => //.
+  by elim => // x xs IH; case.
 Qed.
 
 Theorem nthopt_drop' : forall xs n, nthopt xs n = nthopt (drop n xs) 0.
@@ -66,25 +67,25 @@ Qed.
 Theorem nthopt_take0 :
   forall xs n m, m <= n -> nthopt (take m xs) n = None.
 Proof.
-  elim => // x xs IH; case => [| n]; case => //= m; rewrite ltnS; apply IH.
+  by elim => // x xs IH n; case => // m; case: n => //= n H; rewrite IH.
 Qed.
 
 Theorem nthopt_take1 :
   forall xs n m, n < m -> nthopt (take m xs) n = nthopt xs n.
 Proof.
-  by elim => // x xs IH; case => [| n]; case => //= m; rewrite ltnS; apply IH.
+  by elim => // x xs IH n; case => // m; case: n => //= n H; rewrite IH.
 Qed.
 
 Theorem nthopt_appl :
   forall xs ys n, n < size xs -> nthopt (xs ++ ys) n = nthopt xs n.
 Proof.
-  elim => // x xs IH ys; case => //= n; rewrite ltnS; apply IH.
+  by move => xs ys; elim: xs => // x xs IH; case.
 Qed.
 
 Theorem nthopt_appr :
   forall xs ys n, nthopt (xs ++ ys) (size xs + n) = nthopt ys n.
 Proof.
-  elim => //.
+  by elim.
 Qed.
 
 (* insert *)
@@ -92,7 +93,7 @@ Qed.
 Theorem insert_eq :
   forall n (a : A) (xs : seq A), insert n a xs = take n xs ++ a :: drop n xs.
 Proof.
-  elim => [| n IHn] a.
+  move => n a; elim: n => [| n IH].
   - by move => xs; rewrite take0 drop0.
   - by case => //= x xs; f_equal.
 Qed.
@@ -101,22 +102,21 @@ Theorem insert_nthopt_l :
   forall m n a xs,
   m < n -> m < size xs -> nthopt (insert n a xs) m = nthopt xs m.
 Proof.
-  elim => //=.
-  - by case => // n a; case.
-  - move => m IH; case => // n a; case => //= x xs.
-    rewrite !ltnS; apply IH.
+  move => m n a xs; elim: xs n m => // x xs IH; case => // n; case => //= m.
+  rewrite !ltnS; apply IH.
 Qed.
 
 Theorem insert_nthopt_c :
   forall n a xs, n <= size xs -> nthopt (insert n a xs) n = Some a.
 Proof.
-  elim => // n IH a; case => //= x xs; rewrite ltnS; apply IH.
+  by move => n a; elim: n => // n IH; case.
 Qed.
 
 Theorem insert_nthopt_r :
   forall m n a xs, n <= m -> nthopt (insert n a xs) m.+1 = nthopt xs m.
 Proof.
-  elim => [| m IH]; case => // n a; case => //= x xs; rewrite ltnS; apply IH.
+  by move => m n a; elim: m n => [| m IH];
+    case => // n; case => //= x xs H; rewrite IH.
 Qed.
 
 (* Forall *)
