@@ -43,12 +43,12 @@ Proof.
 Qed.
 
 Lemma rtc_semi_confluent :
-  forall A (R S : relation A),
-  (forall t1 t2 t3, R t1 t2 -> S t1 t3 -> exists t4, S t2 t4 /\ R t3 t4) ->
-  (forall t1 t2 t3, [* R] t1 t2 -> S t1 t3 ->
-    exists t4, S t2 t4 /\ [* R] t3 t4).
+  forall A (R R' : relation A),
+  (forall t1 t2 t3, R t1 t2 -> R' t1 t3 -> exists t4, R' t2 t4 /\ R t3 t4) ->
+  (forall t1 t2 t3, [* R] t1 t2 -> R' t1 t3 ->
+    exists t4, R' t2 t4 /\ [* R] t3 t4).
 Proof.
-  move => A R S H t1 t2 t3 H0; move: t1 t2 H0 t3.
+  move => A R R' H t1 t2 t3 H0; move: t1 t2 H0 t3.
   refine (clos_refl_trans_1n_ind A R _ _ _).
   - by move => t1 t3 H0; exists t3.
   - move => t1 t1' t2 H0 H1 IH t3 H2.

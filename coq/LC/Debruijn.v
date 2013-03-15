@@ -42,30 +42,87 @@ Fixpoint substitute n t1 t2 : term :=
     | abs t2' => abs (substitute n.+1 t1 t2')
   end.
 
+Lemma shiftzero : forall n t, shift 0 n t = t.
+Proof.
+  move => n t; elim: t n => /=; try congruence.
+  by move => m n; rewrite addn0; case: ifP.
+Qed.
+
 Lemma shift_add :
   forall d d' c c' t, c <= c' <= d + c ->
   shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
-  move => d d' c c' t; move: t c c'; elim => /=.
+  move => d d' c c' t; elim: t c c' => /=.
   - move => n c c' ?; elimif_omega.
   - move => t1 ? t2 ? c c' ?; f_equal; auto.
-  - move => t IH c c' ?; f_equal; apply IH; ssromega.
+  - by move => t IH c c' ?; rewrite IH // addnS !ltnS.
 Qed.
 
-Lemma shiftzero_eq : forall n t, shift 0 n t = t.
+Lemma shift_shift_distr :
+  forall d c d' c' t,
+  c' <= c -> shift d' c' (shift d c t) = shift d (d' + c) (shift d' c' t).
 Proof.
-  move => n t; move: t n; elim => /=; try congruence.
-  move => m n; case: ifP => ?; f_equal; ssromega.
+  move => d c d' c' t; elim: t c c' => /=.
+  - move => n c c' ?; elimif_omega.
+  - move => t1 ? t2 ? c c' ?; f_equal; auto.
+  - by move => t' IH c c' ?; rewrite -addnS IH.
+Qed.
+
+Lemma subst_shift_distr :
+  forall n t1 t2 d c,
+  shift d (n + c) (substitute n t1 t2) =
+  substitute n (shift d c t1) (shift d (n + c).+1 t2).
+Proof.
+  move => n t1 t2;move: t2 n; elim => //=.
+  - move => m n d c; elimif_omega.
+    symmetry; apply shift_shift_distr; ssromega.
+  - by move => t2l ? t2r ? n d c; f_equal.
+  - by move => t IH n d c; rewrite (IH n.+1).
+Qed.
+
+Lemma shift_subst_distr :
+  forall t1 t2 n d c, c <= n ->
+  shift d c (substitute n t2 t1) = substitute (d + n) t2 (shift d c t1).
+Proof.
+  move => t1 t2; elim t1 => /=.
+  - by move => m n d c ?; elimif_omega; apply shift_add; rewrite addn0.
+  - move => t1l ? t1r ? n d c ?; f_equal; auto.
+  - by move => t1' IH n d c ?; rewrite -addnS IH.
+Qed.
+
+Lemma shift_const_subst :
+  forall n t1 t2 d c, n <= d ->
+  shift d c t1 = substitute (c + n) t2 (shift d.+1 c t1).
+Proof.
+  move => n t1 t2 d c; elim: t1 c => /=.
+  - move => m c ?; elimif_omega.
+  - move => t1l ? t1r ? c ?; f_equal; auto.
+  - by move => t1 IH c ?; rewrite IH.
+Qed.
+
+Lemma subst_subst_distr :
+  forall n m t1 t2 t3,
+  substitute (m + n) t3 (substitute m t2 t1) =
+  substitute m (substitute n t3 t2)
+    (substitute (S (m + n)) t3 t1).
+Proof.
+  move => n m t1; elim: t1 m => /=.
+  - case => [ | v] m t2 t3; elimif_omega.
+    - by apply Logic.eq_sym, shift_subst_distr.
+    - by apply Logic.eq_sym, shift_subst_distr.
+    - apply (shift_const_subst m t3 _ (m + n) 0); ssromega.
+  - congruence.
+  - by move => t1 IH m t2 t3; rewrite -addSn IH.
 Qed.
 
 Lemma unshift_shift_sub :
   forall d d' c c' t, c <= c' <= d + c -> d' <= d ->
   unshift d' c' (shift d c t) = shift (d - d') c t.
 Proof.
-  move => d d' c c' t; move: t c c'; elim => /=.
-  - move => n c c' ? ?; do 2 case: ifP => /= ?; f_equal; ssromega.
+  move => d d' c c' t; elim: t c c' => /=.
+  - move => n c c' ? ?; elimif_omega.
   - move => t1 ? t2 ? c c' ? ?; f_equal; auto.
-  - move => t IH c c' ? ?; f_equal; apply IH; ssromega.
+  - by move => t IH c c' ? ?; f_equal; apply IH => //; rewrite addnS !ltnS.
 Qed.
 
 Lemma substitute_eq :
@@ -135,20 +192,20 @@ Proof.
 Qed.
 
 Lemma betaredappl :
-  forall t1 t1' t2, betared t1 t1' -> betared (app t1 t2) (app t1' t2).
+  forall t1 t1' t2, t1 ->b t1' -> app t1 t2 ->b app t1' t2.
 Proof.
   move => t1 t1' t2; elim => // {t1 t1'} t1 t1' t1'' ? ? ?.
   by apply rt1n_trans with (app t1' t2) => //; constructor.
 Qed.
 
 Lemma betaredappr :
-  forall t1 t2 t2', betared t2 t2' -> betared (app t1 t2) (app t1 t2').
+  forall t1 t2 t2', t2 ->b t2' -> app t1 t2 ->b app t1 t2'.
 Proof.
   move => t1 t2 t2'; elim => // {t2 t2'} t2 t2' t2'' ? ? ?.
   by apply rt1n_trans with (app t1 t2') => //; constructor.
 Qed.
 
-Lemma betaredabs : forall t t', betared t t' -> betared (abs t) (abs t').
+Lemma betaredabs : forall t t', t ->b t' -> abs t ->b abs t'.
 Proof.
   move => t t'; elim => // {t t'} t t' t'' ? ? ?.
   by apply rt1n_trans with (abs t') => //; constructor.
@@ -170,63 +227,6 @@ Proof.
     apply rtc_trans' with (app (abs t1') t2); auto.
     apply rtc_trans' with (app (abs t1') t2'); auto.
     apply rtc_step; constructor.
-Qed.
-
-Lemma shift_shift_distr :
-  forall d c d' c' t,
-  c' <= c -> shift d' c' (shift d c t) = shift d (d' + c) (shift d' c' t).
-Proof.
-  move => d c d' c' t; move: t c c'; elim => /=.
-  - move => n c c' ?; elimif_omega.
-  - move => t1 ? t2 ? c c' ?; f_equal; auto.
-  - by move => t' IH c c' ?; f_equal; rewrite -addnS; apply IH.
-Qed.
-
-Lemma subst_shift_distr :
-  forall n t1 t2 d c,
-  shift d (n + c) (substitute n t1 t2) =
-  substitute n (shift d c t1) (shift d (S (n + c)) t2).
-Proof.
-  move => n t1 t2;move: t2 n; elim => //=.
-  - move => m n d c; elimif_omega.
-    apply Logic.eq_sym, shift_shift_distr; ssromega.
-  - by move => t2l ? t2r ? n d c; f_equal.
-  - move => t IH n d c; f_equal; apply (IH (S n)).
-Qed.
-
-Lemma shift_subst_distr :
-  forall t1 t2 n d c, c <= n ->
-  shift d c (substitute n t2 t1) = substitute (d + n) t2 (shift d c t1).
-Proof.
-  move => t1 t2; elim t1 => /=.
-  - move => m n d c ?; elimif_omega; apply shift_add; ssromega.
-  - move => t1l ? t1r ? n d c ?; f_equal; auto.
-  - move => t1' IH n d c ?; rewrite -addnS IH //.
-Qed.
-
-Lemma shift_const_subst :
-  forall n t1 t2 d c, n < S d ->
-  shift d c t1 = substitute (c + n) t2 (shift (S d) c t1).
-Proof.
-  move => n; elim => /=.
-  - move => m t2 d c ?; elimif_omega.
-  - move => t1l ? t1r ? t2 d c ?; f_equal; auto.
-  - by move => t1 IH t2 d c ?; f_equal; apply IH.
-Qed.
-
-Lemma subst_subst_distr :
-  forall n m t1 t2 t3,
-  substitute (m + n) t3 (substitute m t2 t1) =
-  substitute m (substitute n t3 t2)
-    (substitute (S (m + n)) t3 t1).
-Proof.
-  move => n m t1; move: t1 m; elim => /=.
-  - case => [ | v] m t2 t3; elimif_omega.
-    - by apply Logic.eq_sym, shift_subst_distr.
-    - by apply Logic.eq_sym, shift_subst_distr.
-    - apply (shift_const_subst m t3 _ (m + n) 0); ssromega.
-  - congruence.
-  - by move => t1 IH m t2 t3; f_equal; rewrite -addSn.
 Qed.
 
 Lemma subst_betared1 :
@@ -691,7 +691,7 @@ Proof.
         - by do! constructor.
         - move => t' H1; inversion H1.
     - case => /=.
-      - by case => H; case => H0 H1; rewrite shiftzero_eq H.
+      - by case => H; case => H0 H1; rewrite shiftzero H.
       - by move => n H; case => H0 H1; apply IH.
   - move => tl IHtl tr IHtr ty ctx ctx' H H0.
     inversion H; subst => {H}.

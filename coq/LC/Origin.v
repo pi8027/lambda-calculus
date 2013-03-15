@@ -30,14 +30,14 @@ Check (lclam (lcapp (lcubvar 0) (lcbvar 0))).
 Fixpoint lclams (n : nat) (t : lcterm) :=
   match n with
     | 0 => t
-    | S n => lclams n (lclam t)
+    | n.+1 => lclams n (lclam t)
   end.
 
 (* Definition 1.6: Length of lambda-term *)
 
 Fixpoint lc_length (t : lcterm) : nat :=
   match t with
-    | lclam t' => S (lc_length t')
+    | lclam t' => (lc_length t').+1
     | lcapp t1 t2 => lc_length t1 + lc_length t2
     | _ => 1
   end.
