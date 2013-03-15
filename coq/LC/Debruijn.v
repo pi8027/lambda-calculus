@@ -73,7 +73,7 @@ Lemma subst_shift_distr :
   shift d (n + c) (substitute n t1 t2) =
   substitute n (shift d c t1) (shift d (n + c).+1 t2).
 Proof.
-  move => n t1 t2;move: t2 n; elim => //=.
+  move => n t1 t2; elim: t2 n => /=.
   - move => m n d c; elimif_omega.
     symmetry; apply shift_shift_distr; ssromega.
   - by move => t2l ? t2r ? n d c; f_equal.
@@ -129,7 +129,7 @@ Lemma substitute_eq :
   forall n t1 t2,
   unshift 1 n (substitute' n (shift n.+1 0 t1) t2) = substitute n t1 t2.
 Proof.
-  move => n t1 t2; move: t2 t1 n; elim => /=.
+  move => n t1 t2; elim: t2 t1 n => /=.
   - move => n t1 m; elimif_omega.
     rewrite unshift_shift_sub; f_equal; ssromega.
   - congruence.

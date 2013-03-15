@@ -26,11 +26,9 @@ Fixpoint nthopt (xs : seq A) n :=
 Theorem drop_addn :
   forall n m (xs : seq A), drop n (drop m xs) = drop (n + m) xs.
 Proof.
-  elim => [| n IH] m; case => [| x xs] //.
-  - by rewrite drop0 add0n.
-  - rewrite addSn //= -IH; clear; move: m x xs; elim => //=.
-    - by move => _ xs; rewrite drop0.
-    - move => m IH _; case => //.
+  move => n; elim => [| m IH]; case => // x xs.
+  - rewrite addn0 //.
+  - by rewrite addnS /= IH.
 Qed.
 
 Theorem take_minn :
