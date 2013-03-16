@@ -136,6 +136,9 @@ Proof.
   - by move => t2 IH t1 n; f_equal; rewrite shift_add.
 Qed.
 
+Reserved Notation "t ->1b t'" (at level 70, no associativity).
+Reserved Notation "t ->bp t'" (at level 70, no associativity).
+
 Inductive betared1' : relation term :=
   | betared1beta' : forall t1 t2,
                     betared1' (app (abs t1) t2)
@@ -147,23 +150,24 @@ Inductive betared1' : relation term :=
   | betared1abs'  : forall t t', betared1' t t' -> betared1' (abs t) (abs t').
 
 Inductive betared1 : relation term :=
-  | betared1beta : forall t1 t2,
-                   betared1 (app (abs t1) t2) (substitute 0 t2 t1)
-  | betared1appl : forall t1 t1' t2,
-                   betared1 t1 t1' -> betared1 (app t1 t2) (app t1' t2)
-  | betared1appr : forall t1 t2 t2',
-                   betared1 t2 t2' -> betared1 (app t1 t2) (app t1 t2')
-  | betared1abs  : forall t t', betared1 t t' -> betared1 (abs t) (abs t').
+  | betared1beta : forall t1 t2, app (abs t1) t2 ->1b substitute 0 t2 t1
+  | betared1appl : forall t1 t1' t2, t1 ->1b t1' -> app t1 t2 ->1b app t1' t2
+  | betared1appr : forall t1 t2 t2', t2 ->1b t2' -> app t1 t2 ->1b app t1 t2'
+  | betared1abs  : forall t t', t ->1b t' -> abs t ->1b abs t'
+  where "t ->1b t'" := (betared1 t t').
 
 Inductive parred : relation term :=
-  | parredvar  : forall n, parred (var n) (var n)
+  | parredvar  : forall n, var n ->bp var n
   | parredapp  : forall t1 t1' t2 t2',
-                 parred t1 t1' -> parred t2 t2' ->
-                 parred (app t1 t2) (app t1' t2')
-  | parredabs  : forall t t', parred t t' -> parred (abs t) (abs t')
+                 t1 ->bp t1' -> t2 ->bp t2' -> app t1 t2 ->bp app t1' t2'
+  | parredabs  : forall t t', t ->bp t' -> abs t ->bp abs t'
   | parredbeta : forall t1 t1' t2 t2',
-                 parred t1 t1' -> parred t2 t2' ->
-                 parred (app (abs t1) t2) (substitute 0 t2' t1').
+                 t1 ->bp t1' -> t2 ->bp t2' ->
+                 app (abs t1) t2 ->bp substitute 0 t2' t1'
+  where "t ->bp t'" := (parred t t').
+
+Notation betared := [* betared1].
+Infix "->b" := betared (at level 70, no associativity).
 
 Function reduce_all_redex t : term :=
   match t with
@@ -173,11 +177,6 @@ Function reduce_all_redex t : term :=
     | app t1 t2 => app (reduce_all_redex t1) (reduce_all_redex t2)
     | abs t' => abs (reduce_all_redex t')
   end.
-
-Notation betared := [* betared1].
-Infix "->1b" := betared1 (at level 70, no associativity).
-Infix "->b"  := betared (at level 70, no associativity).
-Infix "->bp" := parred (at level 70, no associativity).
 
 Lemma betared1_eq : same_relation betared1' betared1.
 Proof.

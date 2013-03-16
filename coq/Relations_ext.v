@@ -23,7 +23,7 @@ Qed.
 
 Lemma rtc_step : forall (A : Set) (R : relation A), inclusion R [* R].
 Proof.
-  move => A R x y H; apply rt1n_trans with y; auto.
+  by move => A R x y H; apply rt1n_trans with y.
 Qed.
 
 Lemma rtc_map :
