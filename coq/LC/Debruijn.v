@@ -74,9 +74,8 @@ Lemma subst_shift_distr :
   substitute n (shift d c t1) (shift d (n + c).+1 t2).
 Proof.
   move => n t1 t2; elim: t2 n => /=.
-  - move => m n d c; elimif_omega.
-    symmetry; apply shift_shift_distr; ssromega.
-  - by move => t2l ? t2r ? n d c; f_equal.
+  - move => m n d c; elimif_omega; rewrite -shift_shift_distr //.
+  - congruence.
   - by move => t IH n d c; rewrite (IH n.+1).
 Qed.
 
@@ -85,7 +84,7 @@ Lemma shift_subst_distr :
   shift d c (substitute n t2 t1) = substitute (d + n) t2 (shift d c t1).
 Proof.
   move => t1 t2; elim t1 => /=.
-  - by move => m n d c ?; elimif_omega; apply shift_add; rewrite addn0.
+  - by move => m n d c ?; elimif_omega; rewrite shift_add // addn0.
   - move => t1l ? t1r ? n d c ?; f_equal; auto.
   - by move => t1' IH n d c ?; rewrite -addnS IH.
 Qed.
@@ -122,7 +121,7 @@ Proof.
   move => d d' c c' t; elim: t c c' => /=.
   - move => n c c' ? ?; elimif_omega.
   - move => t1 ? t2 ? c c' ? ?; f_equal; auto.
-  - by move => t IH c c' ? ?; f_equal; apply IH => //; rewrite addnS !ltnS.
+  - by move => t IH c c' ? ?; rewrite IH // addnS !ltnS.
 Qed.
 
 Lemma substitute_eq :
@@ -214,14 +213,14 @@ Hint Resolve parred_refl betaredappl betaredappr betaredabs.
 
 Lemma betared1_in_parred : inclusion betared1 parred.
 Proof.
-  by move => t t'; elim; intros; constructor.
+  by apply betared1_ind; constructor.
 Qed.
 
 Lemma parred_in_betared : inclusion parred betared.
 Proof.
-  move => t t'; elim => //; clear.
+  apply parred_ind => //.
   - move => t1 t1' t2 t2' ? ? ? ?; apply rtc_trans' with (app t1' t2); auto.
-  - move => t t' ? ?; auto.
+  - auto.
   - move => t1 t1' t2 t2' ? ? ? ?.
     apply rtc_trans' with (app (abs t1') t2); auto.
     apply rtc_trans' with (app (abs t1') t2'); auto.
@@ -240,30 +239,30 @@ Proof.
 Qed.
 
 Lemma shift_parred :
-  forall t t' d c, parred t t' -> parred (shift d c t) (shift d c t').
+  forall t t' d c, t ->bp t' -> shift d c t ->bp shift d c t'.
 Proof.
-  move => t t' d c H; elim: H d c; clear => //=; try by constructor.
-  move => t1 t1' t2 t2' ? ? ? ? d c.
-  rewrite -(add0n c) subst_shift_distr.
+  move => t t' d c H; move: t t' H d c.
+  refine (parred_ind _ _ _ _ _) => //; try by constructor.
+  move => t1 t1' t2 t2' ? ? ? ? d c /=.
+  rewrite (subst_shift_distr 0).
   by constructor.
 Qed.
 
 Lemma subst_parred :
-  forall n t1 t1' t2 t2', parred t1 t1' -> parred t2 t2' ->
-  parred (substitute n t1 t2) (substitute n t1' t2').
+  forall n t1 t1' t2 t2',
+  t1 ->bp t1' -> t2 ->bp t2' -> substitute n t1 t2 ->bp substitute n t1' t2'.
 Proof.
   move => n t1 t1' t2 t2' H H0; move: t2 t2' H0 n.
   refine (parred_ind _ _ _ _ _) => /=; try constructor; auto.
-  - by move => m n; do !case: ifP => ? //; apply shift_parred.
+  - by move => m n; do !case: ifP => // _; apply shift_parred.
   - move => t2l t2l' ? ? t2r t2r' ? ? n.
     by rewrite (subst_subst_distr n 0); constructor.
 Qed.
 
-Lemma parred_all_lemma :
-  forall t t', parred t t' -> parred t' (reduce_all_redex t).
+Lemma parred_all_lemma : forall t t', t ->bp t' -> t' ->bp reduce_all_redex t.
 Proof with auto.
   move => t; elim/reduce_all_redex_ind: {t}_.
-  - by move => t n ? t' H; subst; inversion H.
+  - by move => t n ? t' H; inversion H; subst.
   - move => _ t1 t2 _ ? ? t' H; inversion H; subst.
     - inversion H2; subst; constructor...
     - apply subst_parred...
