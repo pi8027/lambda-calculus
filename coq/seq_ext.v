@@ -112,8 +112,8 @@ Qed.
 Theorem insert_nthopt_r :
   forall m n a xs, n <= m -> nthopt (insert n a xs) m.+1 = nthopt xs m.
 Proof.
-  by move => m n a; elim: m n => [| m IH];
-    case => // n; case => //= x xs H; rewrite IH.
+  move => m n a; elim: m n => [| m IH];
+    case => // n; case => //= _ xs; apply IH.
 Qed.
 
 (* Forall *)
