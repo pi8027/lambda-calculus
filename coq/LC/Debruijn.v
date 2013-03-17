@@ -7,7 +7,9 @@ Require Import
 
 Set Implicit Arguments.
 
-Local Ltac elimif_omega := do ! ((try (f_equal; ssromega)); case: ifP => //= ?).
+Local Ltac elimif_omega :=
+  do !((try (f_equal; ssromega));
+       let hyp := fresh "H" in case: ifP => //= hyp).
 
 Inductive term : Set := var of nat | app of term & term | abs of term.
 
@@ -135,17 +137,15 @@ Lemma substitute_seq_cons_eq :
 Proof.
   move => n t ts t'; elim: t' n t ts.
   - move => /= n m t ts.
-    do !case: ifP => //=; try (do !move => ?; ssromega).
-    - move => _ H.
-      rewrite -(subnSK H).
+    elimif_omega.
+    - rewrite -(subnSK H).
       elim: ts (n - m.+1) => //=.
-      - move => x; do !case: ifP => ?; try ssromega.
-        by rewrite addnS /=.
+      - move => x; elimif_omega.
       - move => t' ts IH; case => // {IH}.
         symmetry.
         rewrite -{2}(add0n m).
         by apply shift_const_subst.
-    - move/eqnP => H _ _; subst.
+    - move/eqnP: H1 => H1; subst.
       by replace (n - n) with 0 by ssromega.
   - by move => /= tl IHtl tr IHtr n t ts; f_equal.
   - by move => /= t' IH n t ts; f_equal.
@@ -654,15 +654,9 @@ Proof.
     rewrite typvar_seqindex subn0.
     elim: ctx' n => [| c' ctx' IH].
     - move => /= n H _; rewrite addn0.
-      elim: ctx n H => // c ctx IH; case => //=.
-      - case => H; subst; apply CR3 => //.
-        - do! constructor.
-        - move => t' H; inversion H.
-      - move => n H.
-        case: (IH n H) => _ H0 {IH}.
-        apply CR3 => //.
-        - by do! constructor.
-        - move => t' H1; inversion H1.
+      apply CR3 => //.
+      - by constructor.
+      - move => t' H0; inversion H0.
     - case => /=.
       - by case => H; case => H0 H1; rewrite shiftzero H.
       - by move => n H; case => H0 H1; apply IH.
@@ -682,8 +676,8 @@ Proof.
       apply subject_substitute_seq => //.
       by rewrite /= drop0; move: H0; apply Forall_impl => p; case.
     - move => t2 ctx2 H H1.
-      rewrite substitute_seq_cons_eq -/[seq p.1 | p <- (t2, ty1) :: ctx'].
-      apply IHt => /=.
+      rewrite substitute_seq_cons_eq.
+      apply (IHt ty2 ctx2 ((t2, ty1) :: ctx')) => /=.
       - move: H3; apply ctxleq_preserves_typing.
         move: H; apply (ctxleq_appl (Some ty1 :: _)).
       - split => //.
