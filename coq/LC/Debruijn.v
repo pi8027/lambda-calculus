@@ -400,12 +400,11 @@ Proof.
   move => ctx1 ctx2 t ty H H0; move: ctx1 t ty H0 ctx2 H.
   refine (typing_ind _ _ _ _).
   - move => ctx2 n ty H ctx1 H0.
-    constructor; move: H0 H.
-    apply ctxleq_preserves_ctxindex.
+    constructor; auto.
   - move => ctx2 tl tr tyl tyr H H0 H1 H2 ctx1 H3.
     apply typapp with tyl; auto.
   - move => ctx2 t tyl tyr H H0 ctx1 H1.
-    constructor; apply H0 => /=; tauto.
+    constructor; apply H0; case => //.
 Qed.
 
 Lemma subject_shift :
@@ -447,8 +446,8 @@ Proof.
           apply ctxleq_preserves_typing.
           (* FIXME *)
           elim: ctx n {H IH} => [| c ctx IH].
-          - elim => //.
-          - case => /= [| n]; split; auto; apply ctxleq_refl.
+          - elim => // n H; case => //.
+          - case => // n; case => //=; apply IH.
         - move => m; case => H.
           rewrite ltnS addSn subSS.
           apply IH.
@@ -516,7 +515,7 @@ Proof.
   move => ctx ctx' tl ty H; case => H0 H1; split.
   - by apply ctxleq_preserves_typing with ctx.
   - case: ty H H0 H1 => //= tyl tyr H H0 H1 tr ctx'' H2.
-    by apply H1, ctxleq_trans with ctx'.
+    apply H1; auto.
 Qed.
 
 Lemma CR2' :
@@ -612,7 +611,7 @@ Lemma apply_lemma :
 Proof.
   move => /= ctx tl tr tyl tyr; case => H H0; case => H1 H2; split.
   - by apply typapp with tyl.
-  - apply H0 => //; apply ctxleq_refl.
+  - apply H0 => //.
 Qed.
 
 Lemma abstraction_lemma :
@@ -666,9 +665,7 @@ Proof.
     - apply typapp with ty1 => //.
       apply subject_substitute_seq => //=.
       by rewrite drop0; move: H0; apply Forall_impl => p; case.
-    - apply H2.
-      - apply ctxleq_refl.
-      - by apply IHtr.
+    - by apply H2 => //; apply IHtr.
   - move => t IHt ty ctx ctx' H H0.
     inversion H; subst => {H} /=.
     apply abstraction_lemma.
