@@ -164,6 +164,19 @@ Proof.
   - case => _; apply IH.
 Qed.
 
+Goal forall xs ys,
+  (forall n a, ctxindex xs n a -> ctxindex ys n a) -> ctxleq xs ys.
+Proof.
+  elim => //; case => [x |] xs IH.
+  - move => ys H.
+    case: ys H (H 0 x Logic.eq_refl) => // y ys H /= H0; subst; split; auto.
+    apply IH => n.
+    by apply (H n.+1).
+  - case.
+    - move => H; split => //; apply IH => n; apply (H n.+1).
+    - move => y ys H; split; auto; apply IH => n; apply (H n.+1).
+Qed.
+
 End context.
 
 Notation ctxindex xs n x := (Some x = ctxnth xs n).
