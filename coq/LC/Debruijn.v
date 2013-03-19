@@ -590,7 +590,7 @@ Lemma snorm_subst :
   forall t1 t2, SNorm (substitute 0 t2 t1) -> SNorm t1.
 Proof.
   move => t1 t2.
-  move: (Logic.eq_refl (substitute 0 t2 t1)).
+  move: (erefl (substitute 0 t2 t1)).
   move: {1 3}(substitute 0 t2 t1) => t3 H H0.
   move: t3 H0 t1 t2 H.
   refine (Acc_ind _ _) => t3 _ IH t1 t2 H; constructor => t3' H0.
