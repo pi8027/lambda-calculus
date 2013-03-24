@@ -9,7 +9,9 @@ Set Implicit Arguments.
 Notation nopts n T := (iter n option T).
 
 Inductive term (V : Type) : Type :=
-  var of V | app of term V & term V | abs of term (option V).
+  | var of V
+  | app of term V & term V
+  | abs of term (option V).
 
 Notation term' n V := (term (nopts n V)).
 
@@ -26,16 +28,54 @@ Fixpoint somenth (T : Type) (n : nat) (a : T) : nopts n T :=
     | n.+1 => Some (somenth n a)
   end.
 
-Fixpoint substitute
-  (V : Type) (n : nat) (t1 : term' n V) (t2 : term' n.+1 V) : term' n V :=
-  match t2 with
-    | var None => t1
-    | var (Some v) => var v
-    | app t2l t2r => app (substitute t1 t2l) (substitute t1 t2r)
-    | abs t2' => abs (@substitute _ n.+1 (@tmap _ _ (@Some _) t1) t2')
+Fixpoint substitute_var
+  (V : Type) (n : nat) (t : term V) : nopts n (option V) -> term' n V :=
+  match n with
+    | 0 => fun v => match v with
+        | None => t
+        | Some v => var v
+      end
+    | n.+1 => fun v => match v with
+        | None => var None
+        | Some v => tmap some (substitute_var n t v)
+      end
   end.
 
-Arguments substitute {V} n t1 t2.
+Fixpoint substitute
+  (V : Type) (n : nat) (t1 : term V) (t2 : term' n (option V)) : term' n V :=
+  match t2 with
+    | var v => substitute_var n t1 v
+    | app t2l t2r => app (substitute n t1 t2l) (substitute n t1 t2r)
+    | abs t2' => abs (substitute n.+1 t1 t2')
+  end.
+
+Fixpoint substitute_seq_var2
+  (V : Type) (ts : seq (term V)) : nopts (size ts) V -> term V :=
+  match ts with
+    | [::] => fun v => var v
+    | t :: ts => fun v => match v with
+        | None => t
+        | Some v => substitute_seq_var2 ts v
+      end
+  end.
+
+Fixpoint substitute_seq_var1
+  (V : Type) (n : nat) (ts : seq (term V)) : nopts (n + size ts) V -> term' n V :=
+  match n with
+    | 0 => fun v => substitute_seq_var2 ts v
+    | n.+1 => fun v => match v with
+        | None => var None
+        | Some v => tmap some (substitute_seq_var1 n ts v)
+      end
+  end.
+
+Fixpoint substitute_seq
+  (V : Type) (n : nat) (ts : seq (term V)) (t : term' (n + size ts) V) : term' n V :=
+  match t with
+    | var v => substitute_seq_var1 n ts v
+    | app tl tr => app (substitute_seq n ts tl) (substitute_seq n ts tr)
+    | abs t => abs (substitute_seq n.+1 ts t)
+  end.
 
 Reserved Notation "t ->1b t'" (at level 70, no associativity).
 Reserved Notation "t ->bp t'" (at level 70, no associativity).
