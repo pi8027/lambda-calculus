@@ -8,7 +8,7 @@ Ltac arith_hypo_ssrnat2coqnat :=
     | H : context [?L <= ?R] |- _ => move/leP: H => H
     | H : context [eqn ?L ?R] |- _ => move/eqnP: H => H
     | H : context [addn ?L ?R] |- _ => rewrite -plusE in H
-    | H : context [subn ?L ?R] |- _ => rewrite -subnE in H
+    | H : context [subn ?L ?R] |- _ => rewrite -minusE in H
     | H : context [muln ?L ?R] |- _ => rewrite -multE in H
     | H : context [addn_rec ?L ?R] |- _ => rewrite /addn_rec in H
     | H : context [subn_rec ?L ?R] |- _ => rewrite /subn_rec in H

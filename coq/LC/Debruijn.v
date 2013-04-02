@@ -44,17 +44,14 @@ Fixpoint substitute n t1 t2 : term :=
     | abs t2' => abs (substitute n.+1 t1 t2')
   end.
 
+Fixpoint substitute_seq_var n ts v : term :=
+  if ts is t :: ts
+    then (if v is v.+1 then substitute_seq_var n ts v else shift n 0 t)
+    else var (v + n).
+
 Fixpoint substitute_seq n ts t : term :=
   match t with
-    | var m =>
-      if leq n m
-        then
-          (fix f ts x :=
-            if ts is t :: ts
-              then (if x is x.+1 then f ts x else shift n 0 t)
-              else var (x + n))
-          ts (m - n)
-        else var m
+    | var m => if leq n m then substitute_seq_var n ts (m - n) else var m
     | app t1 t2 => app (substitute_seq n ts t1) (substitute_seq n ts t2)
     | abs t' => abs (substitute_seq n.+1 ts t')
   end.
@@ -151,7 +148,7 @@ Qed.
 Lemma substitute_seq_nil_eq : forall n t, substitute_seq n [::] t = t.
 Proof.
   move => n t; elim: t n => /=.
-  - move => n m; case: ifP => // H; rewrite addnC subnKC //.
+  - by move => n m; case: ifP => // H; rewrite addnC subnKC.
   - by move => tl IHtl tr IHtr n; f_equal.
   - by move => t H n; f_equal.
 Qed.
