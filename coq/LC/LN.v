@@ -1,5 +1,6 @@
 Require Import
-  Coq.Relations.Relations Coq.Relations.Relation_Operators Omega
+  Coq.Relations.Relations Coq.Relations.Relation_Operators Coq.Program.Program
+  Omega
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat Ssreflect.seq
   LCAC.Relations_ext.
@@ -60,7 +61,8 @@ Fixpoint substitute_seq_var2
   end.
 
 Fixpoint substitute_seq_var1
-  (V : Type) (n : nat) (ts : seq (term V)) : nopts (n + size ts) V -> term' n V :=
+  (V : Type) (n : nat) (ts : seq (term V)) :
+  nopts (n + size ts) V -> term' (n + 0) V :=
   match n with
     | 0 => fun v => substitute_seq_var2 ts v
     | n.+1 => fun v => match v with
@@ -70,12 +72,23 @@ Fixpoint substitute_seq_var1
   end.
 
 Fixpoint substitute_seq
-  (V : Type) (n : nat) (ts : seq (term V)) (t : term' (n + size ts) V) : term' n V :=
+  (V : Type) (n : nat) (ts : seq (term V)) (t : term' (n + size ts) V) :
+  term' (n + 0) V :=
   match t with
     | var v => substitute_seq_var1 n ts v
     | app tl tr => app (substitute_seq n ts tl) (substitute_seq n ts tr)
     | abs t => abs (substitute_seq n.+1 ts t)
   end.
+
+Lemma substitute_seq_nil :
+  forall V n (t : term' (n + 0) V), substitute_seq n [::] t = t.
+Proof.
+  fix IH 3 => V n; case => //=.
+  - elim: n => // {IH} n IH //=; case => // v.
+    by rewrite (IH v).
+  - move => tl tr; f_equal; apply IH.
+  - move => t; f_equal; apply IH.
+Qed.
 
 Reserved Notation "t ->1b t'" (at level 70, no associativity).
 Reserved Notation "t ->bp t'" (at level 70, no associativity).
