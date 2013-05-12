@@ -1,12 +1,13 @@
 Require Import
-  Omega Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.ssrnat.
+  Omega Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
+  Ssreflect.ssrnat.
 
 Ltac arith_hypo_ssrnat2coqnat :=
   match goal with
     | H : context [andb _ _] |- _ => let H0 := fresh in case/andP: H => H H0
     | H : context [orb _ _] |- _ => case/orP: H => H
     | H : context [?L <= ?R] |- _ => move/leP: H => H
-    | H : context [eqn ?L ?R] |- _ => move/eqnP: H => H
+    | H : context [?L == ?R] |- _ => move/eqP: H => H
     | H : context [addn ?L ?R] |- _ => rewrite -plusE in H
     | H : context [subn ?L ?R] |- _ => rewrite -minusE in H
     | H : context [muln ?L ?R] |- _ => rewrite -multE in H

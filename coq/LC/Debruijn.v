@@ -3,7 +3,7 @@ Require Import
   Omega
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat Ssreflect.seq
-  LCAC.Relations_ext LCAC.ssrnat_ext LCAC.seq_ext LCAC.context.
+  LCAC.Relations_ext LCAC.ssrnat_ext LCAC.seq_ext.
 
 Set Implicit Arguments.
 
@@ -15,43 +15,27 @@ Inductive term : Set := var of nat | app of term & term | abs of term.
 
 Fixpoint shift d c t : term :=
   match t with
-    | var n => (if leq c n then var (n + d) else var n)
+    | var n => if c <= n then var (n + d) else var n
     | app t1 t2 => app (shift d c t1) (shift d c t2)
     | abs t1 => abs (shift d c.+1 t1)
-  end.
-
-Fixpoint unshift d c t : term :=
-  match t with
-    | var n => (if leq c n then var (n - d) else var n)
-    | app t1 t2 => app (unshift d c t1) (unshift d c t2)
-    | abs t1 => abs (unshift d c.+1 t1)
-  end.
-
-Fixpoint substitute' n t1 t2 : term :=
-  match t2 with
-    | var m => (if eqn n m then t1 else var m)
-    | app t2l t2r => app (substitute' n t1 t2l) (substitute' n t1 t2r)
-    | abs t2' => abs (substitute' n.+1 (shift 1 0 t1) t2')
   end.
 
 Fixpoint substitute n t1 t2 : term :=
   match t2 with
     | var m =>
-      if leq n m
-        then (if eqn n m then shift n 0 t1 else var m.-1)
+      if n <= m
+        then (if n == m then shift n 0 t1 else var m.-1)
         else var m
     | app t2l t2r => app (substitute n t1 t2l) (substitute n t1 t2r)
     | abs t2' => abs (substitute n.+1 t1 t2')
   end.
 
-Fixpoint substitute_seq_var n ts v : term :=
-  if ts is t :: ts
-    then (if v is v.+1 then substitute_seq_var n ts v else shift n 0 t)
-    else var (v + n).
+Definition substitute_seqv ts m n : term :=
+  shift n 0 (nth (var (m - n - size ts)) ts (m - n)).
 
 Fixpoint substitute_seq n ts t : term :=
   match t with
-    | var m => if leq n m then substitute_seq_var n ts (m - n) else var m
+    | var m => if n <= m then substitute_seqv ts m n else var m
     | app t1 t2 => app (substitute_seq n ts t1) (substitute_seq n ts t2)
     | abs t' => abs (substitute_seq n.+1 ts t')
   end.
@@ -67,7 +51,7 @@ Lemma shift_add :
   shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
   move => d d' c c' t; elim: t c c' => /=.
-  - move => n c c' ?; elimif_omega.
+  - move => n c c' ?; f_equal; elimif_omega.
   - move => t1 ? t2 ? c c' ?; f_equal; auto.
   - by move => t IH c c' ?; rewrite IH // addnS !ltnS.
 Qed.
@@ -103,14 +87,14 @@ Proof.
   - by move => t1' IH n d c ?; rewrite -addnS IH.
 Qed.
 
-Lemma shift_const_subst :
+Lemma subst_shift_cancel :
   forall n t1 t2 d c, n <= d ->
-  shift d c t1 = substitute (c + n) t2 (shift d.+1 c t1).
+  substitute (c + n) t2 (shift d.+1 c t1) = shift d c t1.
 Proof.
   move => n t1 t2 d c; elim: t1 c => /=.
   - move => m c ?; elimif_omega.
   - move => t1l ? t1r ? c ?; f_equal; auto.
-  - by move => t1 IH c ?; rewrite IH.
+  - by move => t1 IH c ?; rewrite -IH.
 Qed.
 
 Lemma subst_subst_distr :
@@ -123,7 +107,7 @@ Proof.
   - case => [ | v] m t2 t3; elimif_omega.
     - by rewrite shift_subst_distr.
     - by rewrite shift_subst_distr.
-    - apply (shift_const_subst m t3 _ (m + n) 0); ssromega.
+    - by rewrite -{2}(add0n m) subst_shift_cancel // leq_addr.
   - congruence.
   - by move => t1 IH m t2 t3; rewrite -addSn IH.
 Qed.
@@ -134,58 +118,22 @@ Lemma substitute_seq_cons_eq :
 Proof.
   move => n t ts t'; elim: t' n t ts.
   - move => /= n m t ts.
-    elimif_omega.
-    - rewrite -(subnSK H).
-      elim: ts (n - m.+1) => //=.
-      - move => x; elimif_omega.
-      - move => t' ts IH; case => // {IH}.
-        by rewrite -{1}(add0n m) -shift_const_subst.
-    - by move/eqnP: H1 => H1; rewrite H1 subnn.
+    rewrite /substitute_seqv; elimif_omega.
+    - by rewrite -{1}(add0n m) subst_shift_cancel // -(subnSK H) /= subSS.
+    - by move/eqP: H1 ->; rewrite subnn /=.
   - by move => /= tl IHtl tr IHtr n t ts; f_equal.
   - by move => /= t' IH n t ts; f_equal.
 Qed.
 
 Lemma substitute_seq_nil_eq : forall n t, substitute_seq n [::] t = t.
 Proof.
-  move => n t; elim: t n => /=.
-  - by move => n m; case: ifP => // H; rewrite addnC subnKC.
-  - by move => tl IHtl tr IHtr n; f_equal.
-  - by move => t H n; f_equal.
-Qed.
-
-Lemma unshift_shift_sub :
-  forall d d' c c' t, c <= c' <= d + c -> d' <= d ->
-  unshift d' c' (shift d c t) = shift (d - d') c t.
-Proof.
-  move => d d' c c' t; elim: t c c' => /=.
-  - move => n c c' ? ?; elimif_omega.
-  - move => t1 ? t2 ? c c' ? ?; f_equal; auto.
-  - by move => t IH c c' ? ?; rewrite IH // addnS !ltnS.
-Qed.
-
-Lemma substitute_eq :
-  forall n t1 t2,
-  unshift 1 n (substitute' n (shift n.+1 0 t1) t2) = substitute n t1 t2.
-Proof.
-  move => n t1 t2; elim: t2 t1 n => /=.
-  - move => n t1 m; elimif_omega.
-    rewrite unshift_shift_sub; f_equal; ssromega.
-  - congruence.
-  - by move => t2 IH t1 n; f_equal; rewrite shift_add.
+  move => n t; elim: t n => /=; try congruence.
+  move => n m; rewrite /substitute_seqv nth_nil /= -fun_if.
+  f_equal; elimif_omega.
 Qed.
 
 Reserved Notation "t ->1b t'" (at level 70, no associativity).
 Reserved Notation "t ->bp t'" (at level 70, no associativity).
-
-Inductive betared1' : relation term :=
-  | betared1beta' : forall t1 t2,
-                    betared1' (app (abs t1) t2)
-                              (unshift 1 0 (substitute' 0 (shift 1 0 t2) t1))
-  | betared1appl' : forall t1 t1' t2,
-                    betared1' t1 t1' -> betared1' (app t1 t2) (app t1' t2)
-  | betared1appr' : forall t1 t2 t2',
-                    betared1' t2 t2' -> betared1' (app t1 t2) (app t1 t2')
-  | betared1abs'  : forall t t', betared1' t t' -> betared1' (abs t) (abs t').
 
 Inductive betared1 : relation term :=
   | betared1beta : forall t1 t2, app (abs t1) t2 ->1b substitute 0 t2 t1
@@ -215,13 +163,6 @@ Function reduce_all_redex t : term :=
     | app t1 t2 => app (reduce_all_redex t1) (reduce_all_redex t2)
     | abs t' => abs (reduce_all_redex t')
   end.
-
-Lemma betared1_eq : same_relation betared1' betared1.
-Proof.
-  split; elim; (try by constructor) => ? ?.
-  - rewrite substitute_eq; constructor.
-  - rewrite -substitute_eq; constructor.
-Qed.
 
 Lemma parred_refl : forall t, parred t t.
 Proof.
@@ -321,51 +262,6 @@ Proof.
     betared1_in_parred parred_in_betared parred_confluent).
 Qed.
 
-Fixpoint forallfv' P t n :=
-  match t with
-    | var m => if n <= m then P (m - n) else True
-    | app t1 t2 => forallfv' P t1 n /\ forallfv' P t2 n
-    | abs t => forallfv' P t n.+1
-  end.
-
-Notation forallfv P t := (forallfv' P t 0).
-
-Lemma shift_preserves_forallfv :
-  forall P t n d c, c <= n -> forallfv' P t n ->
-  forallfv' P (shift d c t) (n + d).
-Proof.
-  move => P t n d; elim: t n => /=.
-  - by move => t n c H; elimif_omega; rewrite subnDr.
-  - move => tl IHtl tr IHtr n c H; case; auto.
-  - move => t IH n c; rewrite -addSn -ltnS; auto.
-Qed.
-
-Lemma substitution_preserves_forallfv :
-  forall P t1 t2 n m,
-  forallfv' P t1 (n + m).+1 -> forallfv' P t2 n ->
-  forallfv' P (substitute m t2 t1) (n + m).
-Proof.
-  move => P; elim => /=.
-  - move => t1 t2 n m; elimif_omega.
-    - by rewrite -subn1 -subnDA add1n.
-    - move => _; exact: shift_preserves_forallfv.
-  - move => t1l IHt1l t1r IHt1r t2 n m; case; auto.
-  - move => t1 IH t2 n m; rewrite -addnS; apply IH.
-Qed.
-
-Theorem betared_preserves_forallfv :
-  forall P t1 t2, t1 ->1b t2 -> forallfv P t1 -> forallfv P t2.
-Proof.
-  move => P t1 t2 H; move: t1 t2 H 0.
-  refine (betared1_ind _ _ _ _ _).
-  - move => /= t1 t2 n; case.
-    rewrite -{1 3}(addn0 n).
-    apply substitution_preserves_forallfv.
-  - move => /= t1 t1' t2 H H0 n; case => H1 H2; split => //; exact: H0.
-  - move => /= t1 t2 t2' H H0 n; case => H1 h2; split => //; exact: H0.
-  - move => /= t t' _ H n; apply H.
-Qed.
-
 Module STLC.
 
 Inductive typ := tyvar of nat | tyfun of typ & typ.
@@ -422,26 +318,28 @@ Lemma subject_substitute_seq :
 Proof.
   elim.
   - move => /= m ty n ctx ctx'.
-    rewrite typvar_seqindex ctxnth_ctxinsert.
-    case: ifP.
-    - move/negbF; rewrite -leqNgt => H; rewrite H typvar_seqindex //.
-    - move/negbT; rewrite -leqNgt => H; rewrite H.
-      rewrite -{1 3}(subnKC H) ltn_add2l addnC.
-      move: (m - n) => {m H}.
-      elim: ctx' => //=.
-      - by move => m _; rewrite subn0; constructor.
-      - move => c' ctx' IH; case => //=.
-        - case => H _; case => H0; subst.
-          move: (subject_shift 0 (ctxinsert [::] (take n ctx) n) H).
-          rewrite /= size_ctxinsert add0n size_take minnC minKn.
+    rewrite /substitute_seqv typvar_seqindex ctxnth_ctxinsert !size_map.
+    elimif_omega.
+    - by constructor.
+    - move => H2 H3.
+      rewrite nth_map' /= -map_comp /funcomp.
+      elim: ctx' m {H} H0 H1 H2 H3 => /=.
+      - move => m H H0; ssromega.
+      - move => c' ctx' IH m; rewrite addnS ltnS => H.
+        rewrite leq_eqVlt; (case/orP; first move/eqP) => H0.
+        - subst; rewrite subnn /=; case => {H} H H0; case => H1; subst.
+          move: (subject_shift 0 (ctxinsert [::] (take m ctx) m) H).
+          rewrite size_ctxinsert /= add0n size_take minnC minKn.
           apply ctxleq_preserves_typing.
-          (* FIXME *)
-          elim: ctx n {H IH} => [| c ctx IH].
-          - elim => // n H; case => //.
-          - case => // n; case => //=; apply IH.
-        - move => m; case => H.
-          rewrite ltnS addSn subSS.
-          apply IH.
+          elim: ctx m {H H0 IH}.
+          - move => m /=; rewrite cats0; elim: m => //= m H.
+            by case => // n a; move/(H n a); rewrite nth_nil.
+          - move => c ctx IH [] // n [] //=; apply IH.
+        - case: m H H0 => // m; rewrite ltnS => H H0.
+          by rewrite subSn //= subSS; case => H1; apply IH.
+      - move => H2 H3; rewrite nth_default /=.
+        - rewrite typvar_seqindex H3; f_equal; ssromega.
+        - rewrite size_map; ssromega.
   - move => tl IHtl tr IHtr ty n ctx ctx' H H0.
     inversion H0; subst => {H0}.
     apply typapp with ty1; auto.
@@ -544,7 +442,7 @@ Proof.
       case => IHtyr1 IHtyr2; split => ctx t.
     - case => /= H H0.
       have H1: typing (ctx ++ [:: Some tyl]) (var (size ctx)) tyl
-        by rewrite typvar_seqindex ctxnth_drop' (drop_size_cat [:: Some tyl]).
+        by rewrite typvar_seqindex nth_cat ltnn subnn.
       have H2: typing (ctx ++ [:: Some tyl]) (app t (var (size ctx))) tyr
         by apply typapp with tyl => //; move: H;
           apply ctxleq_preserves_typing, ctxleq_appr.
@@ -639,14 +537,14 @@ Lemma reduce_lemma :
 Proof.
   move => ctx ctx' t ty; elim: t ty ctx ctx'.
   - move => /= n ty ctx ctx'.
-    rewrite typvar_seqindex subn0.
+    rewrite /substitute_seqv typvar_seqindex subn0 size_map shiftzero.
     elim: ctx' n => [| c' ctx' IH].
-    - move => /= n H _; rewrite addn0.
+    - move => /= n H _; rewrite nth_nil subn0.
       apply CR3 => //.
       - by constructor.
       - move => t' H0; inversion H0.
     - case => /=.
-      - by case => H; case => H0 H1; rewrite shiftzero H.
+      - by case => H; case => H0 H1; rewrite H.
       - by move => n H; case => H0 H1; apply IH.
   - move => tl IHtl tr IHtr ty ctx ctx' H H0.
     inversion H; subst => {H}.
