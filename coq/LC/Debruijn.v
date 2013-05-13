@@ -67,31 +67,31 @@ Proof.
 Qed.
 
 Lemma subst_shift_distr :
-  forall n t1 t2 d c,
+  forall n d c t1 t2,
   shift d (n + c) (substitute n t1 t2) =
   substitute n (shift d c t1) (shift d (n + c).+1 t2).
 Proof.
-  move => n t1 t2; elim: t2 n => /=.
-  - move => m n d c; elimif_omega; rewrite -shift_shift_distr //.
+  move => n d c t1 t2; elim: t2 n => /=.
+  - move => m n; elimif_omega; rewrite -shift_shift_distr //.
   - congruence.
-  - by move => t IH n d c; rewrite (IH n.+1).
+  - by move => t IH n; rewrite (IH n.+1).
 Qed.
 
 Lemma shift_subst_distr :
-  forall t1 t2 n d c, c <= n ->
+  forall n d c t1 t2, c <= n ->
   shift d c (substitute n t2 t1) = substitute (d + n) t2 (shift d c t1).
 Proof.
-  move => t1 t2; elim t1 => /=.
-  - by move => m n d c ?; elimif_omega; rewrite shift_add // addn0.
-  - move => t1l ? t1r ? n d c ?; f_equal; auto.
-  - by move => t1' IH n d c ?; rewrite -addnS IH.
+  move => n d c t1 t2; elim: t1 c n => /=.
+  - by move => v c n H; elimif_omega; rewrite shift_add // addn0.
+  - move => t1l IHl t1r IHr c n H; f_equal; auto.
+  - by move => t1 IH c n H; rewrite -addnS IH.
 Qed.
 
 Lemma subst_shift_cancel :
-  forall n t1 t2 d c, n <= d ->
+  forall n d c t1 t2, n <= d ->
   substitute (c + n) t2 (shift d.+1 c t1) = shift d c t1.
 Proof.
-  move => n t1 t2 d c; elim: t1 c => /=.
+  move => n d c t1 t2; elim: t1 c => /=.
   - move => m c ?; elimif_omega.
   - move => t1l ? t1r ? c ?; f_equal; auto.
   - by move => t1 IH c ?; rewrite -IH.
@@ -107,7 +107,7 @@ Proof.
   - case => [ | v] m t2 t3; elimif_omega.
     - by rewrite shift_subst_distr.
     - by rewrite shift_subst_distr.
-    - by rewrite -{2}(add0n m) subst_shift_cancel // leq_addr.
+    - by rewrite (subst_shift_cancel m _ 0) // leq_addr.
   - congruence.
   - by move => t1 IH m t2 t3; rewrite -addSn IH.
 Qed.
@@ -119,7 +119,7 @@ Proof.
   move => n t ts t'; elim: t' n t ts.
   - move => /= n m t ts.
     rewrite /substitute_seqv; elimif_omega.
-    - by rewrite -{1}(add0n m) subst_shift_cancel // -(subnSK H) /= subSS.
+    - by rewrite (subst_shift_cancel m _ 0) // -(subnSK H) /= subSS.
     - by move/eqP: H1 ->; rewrite subnn /=.
   - by move => /= tl IHtl tr IHtr n t ts; f_equal.
   - by move => /= t' IH n t ts; f_equal.

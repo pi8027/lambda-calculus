@@ -69,8 +69,8 @@ Theorem nth_equal :
   forall (a b : A) xs n, (size xs <= n -> a = b) -> nth a xs n = nth b xs n.
 Proof.
   move => a b; elim.
-  by move => n /= ->.
-  by move => x xs IH [].
+  - by move => n /= ->.
+  - by move => x xs IH [].
 Qed.
 
 (* context *)
