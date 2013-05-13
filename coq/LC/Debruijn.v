@@ -72,7 +72,7 @@ Lemma subst_shift_distr :
   substitute n (shift d c t1) (shift d (n + c).+1 t2).
 Proof.
   move => n d c t1 t2; elim: t2 n => /=.
-  - move => m n; elimif_omega; rewrite -shift_shift_distr //.
+  - by move => m n; elimif_omega; rewrite -shift_shift_distr.
   - congruence.
   - by move => t IH n; rewrite (IH n.+1).
 Qed.
@@ -100,8 +100,7 @@ Qed.
 Lemma subst_subst_distr :
   forall n m t1 t2 t3,
   substitute (m + n) t3 (substitute m t2 t1) =
-  substitute m (substitute n t3 t2)
-    (substitute (S (m + n)) t3 t1).
+  substitute m (substitute n t3 t2) (substitute (S (m + n)) t3 t1).
 Proof.
   move => n m t1; elim: t1 m => /=.
   - case => [ | v] m t2 t3; elimif_omega.
@@ -378,7 +377,7 @@ Notation SNorm t := (Acc (fun x y => betared1 y x) t).
 Lemma snorm_appl : forall tl tr, SNorm (app tl tr) -> SNorm tl.
 Proof.
   move => tl tr; move: tl.
-  fix IH 2 => tl; case => H; constructor => tl' H0.
+  fix IH 2 => tl [H]; constructor => tl' H0.
   by apply IH, H; constructor.
 Qed.
 
@@ -398,7 +397,7 @@ Lemma ctxleq_preserves_reducibility :
   forall ctx ctx' t ty,
   ctxleq ctx ctx' -> reducible ctx t ty -> reducible ctx' t ty.
 Proof.
-  move => ctx ctx' tl ty H; case => H0 H1; split.
+  move => ctx ctx' tl ty H [H0 H1]; split.
   - by apply ctxleq_preserves_typing with ctx.
   - case: ty H H0 H1 => //= tyl tyr H H0 H1 tr ctx'' H2.
     apply H1; auto.
@@ -407,14 +406,14 @@ Qed.
 Lemma CR2' :
   forall ctx t t' ty, t ->1b t' -> reducible ctx t ty -> reducible ctx t' ty.
 Proof.
-  move => ctx t t' ty H; case => H0 H1; split.
+  move => ctx t t' ty H [H0 H1]; split.
   - by apply subject_reduction1 with t.
   - elim: ty ctx t t' H H1 {H0}.
-    - move => /= n ctx t1 t2 H; case => H0; exact: H0.
+    - by move => /= n ctx t1 t2 H []; apply.
     - move => /= tyl IHtyl tyr IHtyr ctx t1 t2 H H0 t3 ctx' H1 H2.
       apply IHtyr with (app t1 t3).
       - by constructor.
-      - exact: H0.
+      - by apply H0.
 Qed.
 
 Lemma CR2 :
@@ -435,8 +434,7 @@ Proof.
   - move => n; split => /= ctx t.
     - firstorder.
     - move => H H0 H1; split; last constructor; firstorder.
-  - move => tyl; case => IHtyl1 IHtyl2 tyr;
-      case => IHtyr1 IHtyr2; split => ctx t.
+  - move => tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2]; split => ctx t.
     - case => /= H H0.
       have H1: typing (ctx ++ [:: Some tyl]) (var (size ctx)) tyl
         by rewrite typvar_seqindex nth_cat ltnn subnn.
@@ -490,15 +488,6 @@ Proof.
   by subst; apply subst_betared1.
 Qed.
 
-Lemma apply_lemma :
-  forall ctx tl tr tyl tyr,
-  reducible ctx tl (tyfun tyl tyr) ->
-  reducible ctx tr tyl -> reducible ctx (app tl tr) tyr.
-Proof.
-  move => /= ctx tl tr tyl tyr; case => H H0; case => H1 H2; split; auto.
-  by apply typapp with tyl.
-Qed.
-
 Lemma abstraction_lemma :
   forall ctx t1 tyl tyr,
   typing ctx (abs t1) (tyfun tyl tyr) ->
@@ -522,7 +511,7 @@ Proof.
       - by apply subject_reduction1 with (abs t1) => //; constructor.
       - move => t'' ctx'' H7 H9.
         apply CR2' with (substitute 0 t'' t1); auto.
-        exact: subst_betared1.
+        by apply subst_betared1.
     - by apply H2 => //; apply CR2' with t2.
 Qed.
 
@@ -544,7 +533,7 @@ Proof.
     - by move => n H [H0 H1]; apply IH.
   - move => tl IHtl tr IHtr ty ctx ctx' H H0.
     inversion H; subst => {H}.
-    move: (IHtl (tyfun ty1 ty) ctx ctx'); case => //= H1 H2; split; auto.
+    case: (IHtl (tyfun ty1 ty) ctx ctx') => //= H1 H2; split; auto.
     apply typapp with ty1 => //.
     apply subject_substitute_seq => //.
     by rewrite drop0; move: H0; apply Forall_impl => p [].
@@ -553,7 +542,7 @@ Proof.
     apply abstraction_lemma.
     - constructor.
       apply subject_substitute_seq => //.
-      by rewrite /= drop0; move: H0; apply Forall_impl => p; case.
+      by rewrite /= drop0; move: H0; apply Forall_impl => p [].
     - move => t2 ctx2 H H1.
       rewrite substitute_seq_cons_eq.
       apply (IHt ty2 ctx2 ((t2, ty1) :: ctx')) => /=.
@@ -561,7 +550,7 @@ Proof.
         move: H; apply (ctxleq_appl (Some ty1 :: _)).
       - split => //.
         move: H0; apply Forall_impl => p.
-        exact: ctxleq_preserves_reducibility.
+        by apply ctxleq_preserves_reducibility.
 Qed.
 
 Theorem typed_term_is_snorm : forall ctx t ty, typing ctx t ty -> SNorm t.
@@ -569,7 +558,7 @@ Proof.
   move => ctx t ty H.
   apply (@CR1 ctx t ty).
   move: (@reduce_lemma ctx [::] t ty H) => /=.
-  rewrite substitute_seq_nil_eq; exact.
+  by rewrite substitute_seq_nil_eq; apply.
 Qed.
 
 End STLC.
