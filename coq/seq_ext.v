@@ -163,6 +163,15 @@ Proof.
   move => P Q xs H; elim: xs; firstorder.
 Qed.
 
+Theorem Forall_nth :
+  forall (P : A -> Prop) x xs m,
+  m < size xs -> Forall P xs -> P (nth x xs m).
+Proof.
+  move => P x0; elim => // x xs IH [].
+  - by move => _ /= [].
+  - by move => n; rewrite /= ltnS => H [_]; apply IH.
+Qed.
+
 End Seq.
 
 Notation ctxindex xs n x := (Some x = nth None xs n).

@@ -119,7 +119,7 @@ Proof.
   move => n t ts t'; elim: t' n t ts.
   - move => /= n m t ts.
     rewrite /substitute_seqv; elimif_omega.
-    - by rewrite (subst_shift_cancel m _ 0) // -(subnSK H) /= subSS.
+    - by rewrite (subst_shift_cancel m _ 0) // -(subnSK H) subSS.
     - by move/eqP: H1 ->; rewrite subnn /=.
   - by move => /= tl IHtl tr IHtr n t ts; f_equal.
   - by move => /= t' IH n t ts; f_equal.
@@ -293,7 +293,7 @@ Proof.
   - move => ctx2 tl tr tyl tyr H H0 H1 H2 ctx1 H3.
     apply typapp with tyl; auto.
   - move => ctx2 t tyl tyr H H0 ctx1 H1.
-    constructor; apply H0; case => //.
+    by constructor; apply H0; case.
 Qed.
 
 Lemma subject_shift :
@@ -321,25 +321,22 @@ Proof.
     rewrite /substitute_seqv typvar_seqindex ctxnth_ctxinsert !size_map.
     elimif_omega.
     - by constructor.
-    - move => H2 H3.
-      rewrite nth_map' /= -map_comp /funcomp.
-      elim: ctx' m {H} H0 H1 H2 H3 => /=.
-      - move => m H H0; ssromega.
-      - move => c' ctx' IH m; rewrite addnS ltnS => H.
-        rewrite leq_eqVlt; (case/orP; first move/eqP) => H0.
-        - subst; rewrite subnn /=; case => {H} H H0; case => H1; subst.
-          move: (subject_shift 0 (ctxinsert [::] (take m ctx) m) H).
-          rewrite size_ctxinsert /= add0n size_take minnC minKn.
-          apply ctxleq_preserves_typing.
-          elim: ctx m {H H0 IH}.
-          - move => m /=; rewrite cats0; elim: m => //= m H.
-            by case => // n a; move/(H n a); rewrite nth_nil.
-          - move => c ctx IH [] // n [] //=; apply IH.
-        - case: m H H0 => // m; rewrite ltnS => H H0.
-          by rewrite subSn //= subSS; case => H1; apply IH.
-      - move => H2 H3; rewrite nth_default /=.
-        - rewrite typvar_seqindex H3; f_equal; ssromega.
-        - rewrite size_map; ssromega.
+    - move: (leq_sub2r n H0).
+      rewrite addKn subSn //.
+      move: {m H H0 H1} (m - n) => m H H0.
+      rewrite !(nth_map (var 0, tyvar 0)) //; case => H1; subst.
+      case: {ctx' H H0} (nth _ _ _) (Forall_nth _ (var 0, tyvar 0) ctx' m H H0)
+        => /= t ty H.
+      move: (subject_shift 0 (ctxinsert [::] (take n ctx) n) H).
+      rewrite size_ctxinsert /= add0n size_take minnC minKn.
+      apply ctxleq_preserves_typing.
+      elim: ctx n {m t ty H}.
+      - move => /= n m t; rewrite cats0 ctxnth_ctxinsert /= addn0 !nth_nil.
+        by case: ifP => // ->.
+      - move => c ctx IH [] //= n [] //=; apply IH.
+    - move => H2 H3; rewrite nth_default /=.
+      - rewrite typvar_seqindex H3; f_equal; ssromega.
+      - rewrite size_map; ssromega.
   - move => tl IHtl tr IHtr ty n ctx ctx' H H0.
     inversion H0; subst => {H0}.
     apply typapp with ty1; auto.
@@ -538,20 +535,19 @@ Proof.
   move => ctx ctx' t ty; elim: t ty ctx ctx'.
   - move => /= n ty ctx ctx'.
     rewrite /substitute_seqv typvar_seqindex subn0 size_map shiftzero.
-    elim: ctx' n => [| c' ctx' IH].
-    - move => /= n H _; rewrite nth_nil subn0.
+    elim: ctx' n => [| c' ctx' IH []] /=.
+    - move => n H _; rewrite nth_nil subn0.
       apply CR3 => //.
       - by constructor.
       - move => t' H0; inversion H0.
-    - case => /=.
-      - by case => H; case => H0 H1; rewrite H.
-      - by move => n H; case => H0 H1; apply IH.
+    - by case => H [H0 H1]; rewrite H.
+    - by move => n H [H0 H1]; apply IH.
   - move => tl IHtl tr IHtr ty ctx ctx' H H0.
     inversion H; subst => {H}.
     move: (IHtl (tyfun ty1 ty) ctx ctx'); case => //= H1 H2; split; auto.
     apply typapp with ty1 => //.
     apply subject_substitute_seq => //.
-    by rewrite drop0; move: H0; apply Forall_impl => p; case.
+    by rewrite drop0; move: H0; apply Forall_impl => p [].
   - move => t IHt ty ctx ctx' H H0.
     inversion H; subst => {H} /=.
     apply abstraction_lemma.
