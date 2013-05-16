@@ -1,14 +1,21 @@
 #!/bin/zsh
 
 export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
+vfiles=(coq/Relations_ext.v coq/ssrnat_ext.v coq/seq_ext.v
+        coq/CL.v coq/LC/Debruijn.v coq/LC/LN.v coq/LC/Origin.v)
+error=
 
-for f in **/*.v; do
-  tail -c 1 $f | grep -q . && echo "$f: no newline at end of file" && exit 1
-  tail -n 1 $f | grep -qv . && echo "$f: trailing empty line" && exit 1
-  grep --color=auto -H -n " * $" $f && echo "$f: trailing whitespace" && exit 1
+puterr(){
+  echo $1 >&2
+  error=1
+}
+
+for f in $vfiles; do
+  tail -c 1 $f | grep -q . && puterr "$f: no newline at end of file"
+  tail -n 1 $f | grep -qv . && puterr "$f: trailing empty line"
+  grep --color=auto -H -n " * $" $f && error=1
 done
 
-coq_makefile -R coq LCAC **/*.v > Makefile_coq
-make -f Makefile_coq || exit 1
+[[ -n $error ]] && exit 1
 
-exit 0
+make "VFILES=$vfiles"
