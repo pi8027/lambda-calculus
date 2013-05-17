@@ -170,15 +170,13 @@ Proof.
   by elim; constructor.
 Qed.
 
-Lemma betaredappl :
-  forall t1 t1' t2, t1 ->b t1' -> app t1 t2 ->b app t1' t2.
+Lemma betaredappl : forall t1 t1' t2, t1 ->b t1' -> app t1 t2 ->b app t1' t2.
 Proof.
   move => t1 t1' t2; elim => // {t1 t1'} t1 t1' t1'' ? ? ?.
   by apply rt1n_trans with (app t1' t2) => //; constructor.
 Qed.
 
-Lemma betaredappr :
-  forall t1 t2 t2', t2 ->b t2' -> app t1 t2 ->b app t1 t2'.
+Lemma betaredappr : forall t1 t2 t2', t2 ->b t2' -> app t1 t2 ->b app t1 t2'.
 Proof.
   move => t1 t2 t2'; elim => // {t2 t2'} t2 t2' t2'' ? ? ?.
   by apply rt1n_trans with (app t1 t2') => //; constructor.
@@ -209,8 +207,8 @@ Proof.
 Qed.
 
 Lemma subst_betared1 :
-  forall n t1 t2 t2', t2 ->1b t2' ->
-  substitute n t1 t2 ->1b substitute n t1 t2'.
+  forall n t1 t2 t2',
+  t2 ->1b t2' -> substitute n t1 t2 ->1b substitute n t1 t2'.
 Proof.
   move => n t1 t2 t2' H; move: t2 t2' H n.
   refine (betared1_ind _ _ _ _ _); try by constructor.
@@ -281,8 +279,8 @@ Lemma typvar_seqindex :
   forall ctx n ty, typing ctx (var n) ty <-> ctxindex ctx n ty.
 Proof.
   move => ctx n ty; split => H.
-  by inversion H.
-  by constructor.
+  - by inversion H.
+  - by constructor.
 Qed.
 
 Lemma ctxleq_preserves_typing :
@@ -448,12 +446,11 @@ Proof.
       apply snorm_appl with (size ctx).
       apply IHtyr1 with (ctx ++ [:: Some tyl]).
       apply IHtyr2 => // t' H3.
-      apply CR2' with (app t (size ctx)) => //.
-      split => //.
+      apply (CR2' H3), conj => //.
       apply H0.
       - apply ctxleq_appr.
       - apply IHtyl2 => // x H4; inversion H4.
-    - move => H H0 H1 /=; split => // tr ctx' H2 H3.
+    - move => /= H H0 H1; split => // tr ctx' H2 H3.
       have H4: SNorm tr by apply IHtyl1 with ctx'.
       move: tr H4 H2 H3; refine (Acc_ind _ _) => tr _ IH H2 H3.
       have H4: typing ctx' (app t tr) tyr.
@@ -463,7 +460,7 @@ Proof.
       apply IHtyr2 => // tr' H5.
       move: H0; inversion H5; subst => // _; split.
       - by apply subject_reduction1 with (app t tr).
-      - case: (H1 t1' H8); auto.
+      - by case: (H1 t1' H8) => _; apply.
       - by apply subject_reduction1 with (app t tr).
       - by apply IH => //; apply CR2' with tr.
 Qed.
@@ -480,8 +477,7 @@ Proof.
   move => ctx t ty; case: (CR1_and_CR3 ty); firstorder.
 Qed.
 
-Lemma snorm_subst :
-  forall t1 t2, SNorm (substitute 0 t2 t1) -> SNorm t1.
+Lemma snorm_subst : forall t1 t2, SNorm (substitute 0 t2 t1) -> SNorm t1.
 Proof.
   move => t1 t2.
   move: (erefl (substitute 0 t2 t1)).
