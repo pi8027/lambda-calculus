@@ -13,6 +13,8 @@ Local Ltac elimif_omega :=
 
 Inductive term : Set := var of nat | app of term & term | abs of term.
 
+Coercion var : nat >-> term.
+
 Fixpoint shift d c t : term :=
   match t with
     | var n => if c <= n then var (n + d) else var n
@@ -24,8 +26,8 @@ Fixpoint substitute n t1 t2 : term :=
   match t2 with
     | var m =>
       if n <= m
-        then (if n == m then shift n 0 t1 else var m.-1)
-        else var m
+        then (if n == m then shift n 0 t1 else m.-1)
+        else m
     | app t2l t2r => app (substitute n t1 t2l) (substitute n t1 t2r)
     | abs t2' => abs (substitute n.+1 t1 t2')
   end.
@@ -35,7 +37,7 @@ Definition substitute_seqv ts m n : term :=
 
 Fixpoint substitute_seq n ts t : term :=
   match t with
-    | var m => if n <= m then substitute_seqv ts m n else var m
+    | var m => if n <= m then substitute_seqv ts m n else m
     | app t1 t2 => app (substitute_seq n ts t1) (substitute_seq n ts t2)
     | abs t' => abs (substitute_seq n.+1 ts t')
   end.
@@ -265,8 +267,10 @@ Module STLC.
 
 Inductive typ := tyvar of nat | tyfun of typ & typ.
 
+Coercion tyvar : nat >-> typ.
+
 Inductive typing : context typ -> term -> typ -> Prop :=
-  | typvar : forall ctx n ty, ctxindex ctx n ty -> typing ctx (var n) ty
+  | typvar : forall ctx n ty, ctxindex ctx n ty -> typing ctx n ty
   | typapp : forall ctx t1 t2 ty1 ty2,
     typing ctx t1 (tyfun ty1 ty2) -> typing ctx t2 ty1 ->
     typing ctx (app t1 t2) ty2
@@ -436,15 +440,15 @@ Proof.
     - move => H H0 H1; split; last constructor; firstorder.
   - move => tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2]; split => ctx t.
     - case => /= H H0.
-      have H1: typing (ctx ++ [:: Some tyl]) (var (size ctx)) tyl
+      have H1: typing (ctx ++ [:: Some tyl]) (size ctx) tyl
         by rewrite typvar_seqindex nth_cat ltnn subnn.
-      have H2: typing (ctx ++ [:: Some tyl]) (app t (var (size ctx))) tyr
+      have H2: typing (ctx ++ [:: Some tyl]) (app t (size ctx)) tyr
         by apply typapp with tyl => //; move: H;
           apply ctxleq_preserves_typing, ctxleq_appr.
-      apply snorm_appl with (var (size ctx)).
+      apply snorm_appl with (size ctx).
       apply IHtyr1 with (ctx ++ [:: Some tyl]).
       apply IHtyr2 => // t' H3.
-      apply CR2' with (app t (var (size ctx))) => //.
+      apply CR2' with (app t (size ctx)) => //.
       split => //.
       apply H0.
       - apply ctxleq_appr.
