@@ -7,17 +7,24 @@ Require Import
 
 Set Implicit Arguments.
 
-Local Ltac elimif_omega :=
-  do !((try (f_equal; ssromega));
-       let hyp := fresh "H" in case: ifP => //= hyp).
-
 Inductive term : Set := var of nat | app of term & term | abs of term.
 
 Coercion var : nat >-> term.
 
+Local Ltac elimif :=
+  (case: ifP => //=; elimif; let hyp := fresh "H" in move => hyp) || idtac.
+
+Local Ltac elimif_omega :=
+  elimif;
+  try (match goal with
+    | |- var _ = var _ => f_equal
+    | |- nth ?x ?xs _ = nth ?x ?xs _ => f_equal
+    | |- _ => idtac
+  end; ssromega).
+
 Fixpoint shift d c t : term :=
   match t with
-    | var n => if c <= n then var (n + d) else var n
+    | var n => var (if c <= n then n + d else n)
     | app t1 t2 => app (shift d c t1) (shift d c t2)
     | abs t1 => abs (shift d c.+1 t1)
   end.
@@ -45,7 +52,7 @@ Fixpoint substitute_seq n ts t : term :=
 Lemma shiftzero : forall n t, shift 0 n t = t.
 Proof.
   move => n t; elim: t n => /=; try congruence.
-  by move => m n; rewrite addn0; case: ifP.
+  by move => m n; rewrite addn0 if_same.
 Qed.
 
 Lemma shift_add :
@@ -53,7 +60,7 @@ Lemma shift_add :
   shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
   move => d d' c c' t; elim: t c c' => /=.
-  - move => n c c' ?; f_equal; elimif_omega.
+  - move => n c c' ?; elimif_omega.
   - move => t1 ? t2 ? c c' ?; f_equal; auto.
   - by move => t IH c c' ?; rewrite IH // addnS !ltnS.
 Qed.
@@ -120,8 +127,8 @@ Proof.
   move => n t ts t'; elim: t' n t ts.
   - move => /= n m t ts.
     rewrite /substitute_seqv; elimif_omega.
-    - by rewrite (subst_shift_cancel m _ 0) // -(subnSK H) subSS.
-    - by move/eqP: H1 ->; rewrite subnn /=.
+    - by rewrite (subst_shift_cancel m _ 0) // -(subnSK H0) subSS.
+    - by move/eqP: H ->; rewrite subnn.
   - by move => /= tl IHtl tr IHtr n t ts; f_equal.
   - by move => /= t' IH n t ts; f_equal.
 Qed.
@@ -129,8 +136,7 @@ Qed.
 Lemma substitute_seq_nil_eq : forall n t, substitute_seq n [::] t = t.
 Proof.
   move => n t; elim: t n => /=; try congruence.
-  move => n m; rewrite /substitute_seqv nth_nil /= -fun_if.
-  f_equal; elimif_omega.
+  move => m n; rewrite /substitute_seqv nth_nil /=; elimif_omega.
 Qed.
 
 Reserved Notation "t ->1b t'" (at level 70, no associativity).
@@ -233,7 +239,7 @@ Lemma subst_parred :
 Proof.
   move => n t1 t1' t2 t2' H H0; move: t2 t2' H0 n.
   refine (parred_ind _ _ _ _ _) => /=; try constructor; auto.
-  - by move => m n; do !case: ifP => // _; apply shift_parred.
+  - by move => m n; elimif; apply shift_parred.
   - move => t2l t2l' ? ? t2r t2r' ? ? n.
     by rewrite (subst_subst_distr n 0); constructor.
 Qed.
@@ -260,8 +266,6 @@ Proof.
   apply (rtc_confluent' parred
     betared1_in_parred parred_in_betared parred_confluent).
 Qed.
-
-Module STLC.
 
 Inductive typ := tyvar of nat | tyfun of typ & typ.
 
@@ -304,7 +308,7 @@ Proof.
   move => t ty c ctx1 ctx2 H; move: ctx1 t ty H c ctx2.
   refine (typing_ind _ _ _ _).
   - move => /= ctx1 n ty H c ctx2.
-    case: ifP => ?; rewrite typvar_seqindex H ctxnth_ctxinsert; elimif_omega.
+    rewrite typvar_seqindex H ctxnth_ctxinsert; elimif_omega.
   - move => /= ctx t1 t2 ty1 ty2 H H0 H1 H2 c ctx2.
     apply typapp with ty1; auto.
   - move => /= ctx1 t ty1 ty2 H H0 c ctx2.
@@ -333,7 +337,7 @@ Proof.
       apply ctxleq_preserves_typing.
       elim: ctx n {m t ty H}.
       - move => /= n m t; rewrite cats0 ctxnth_ctxinsert /= addn0 !nth_nil.
-        by case: ifP => // ->.
+        elimif.
       - move => c ctx IH [] //= n [] //=; apply IH.
     - move => H2 H3; rewrite nth_default /=.
       - rewrite typvar_seqindex H3; f_equal; ssromega.
@@ -560,5 +564,3 @@ Proof.
   move: (@reduce_lemma ctx [::] t ty H) => /=.
   by rewrite substitute_seq_nil_eq; apply.
 Qed.
-
-End STLC.
