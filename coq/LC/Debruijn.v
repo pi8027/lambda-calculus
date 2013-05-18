@@ -326,31 +326,30 @@ Proof.
     rewrite /substitute_seqv typvar_seqindex ctxnth_ctxinsert !size_map.
     elimif_omega.
     - by constructor.
-    - move: (leq_sub2r n H0).
-      rewrite addKn subSn //.
-      move: {m H H0 H1} (m - n) => m H H0.
-      rewrite !(nth_map (var 0, tyvar 0)) //; case => H1; subst.
+    - have: (m - n < size ctx') by ssromega.
+      move: {m H H0 H1} (m - n) => m H.
+      rewrite !(nth_map (var 0, tyvar 0)) // => H0 [H1]; subst.
       case: {ctx' H H0} (nth _ _ _) (Forall_nth _ (var 0, tyvar 0) ctx' m H H0)
-        => /= t ty H.
-      move: (subject_shift 0 (ctxinsert [::] (take n ctx) n) H).
+        => /= t ty.
+      move/(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
       rewrite size_ctxinsert /= add0n size_take minnC minKn.
       apply ctxleq_preserves_typing.
-      elim: ctx n {m t ty H}.
-      - move => /= n m t; rewrite cats0 ctxnth_ctxinsert /= addn0 !nth_nil.
-        elimif.
+      elim: ctx n {m t ty}.
+      - move => /= n m t.
+        by rewrite cats0 ctxnth_ctxinsert /= !nth_nil !if_same.
       - move => c ctx IH [] //= n [] //=; apply IH.
     - move => H2 H3; rewrite nth_default /=.
       - rewrite typvar_seqindex H3; f_equal; ssromega.
       - rewrite size_map; ssromega.
   - move => tl IHtl tr IHtr ty n ctx ctx' H H0.
-    inversion H0; subst => {H0}.
+    inversion H0; subst => /= {H0}.
     apply typapp with ty1; auto.
   - move => /= t IH ty n ctx ctx' H H0.
     inversion H0; subst => {H0}.
     constructor; auto.
 Qed.
 
-Lemma subject_reduction1 :
+Lemma subject_reduction :
   forall ctx t1 t2 ty, t1 ->1b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
 Proof.
   move => ctx t1 t2 ty H; move: t1 t2 H ctx ty.
@@ -368,14 +367,6 @@ Proof.
     by apply typapp with ty1; auto.
   - move => t1 t2 H IH ctx ty H0.
     inversion H0; subst; constructor; auto.
-Qed.
-
-Lemma subject_reduction :
-  forall ctx t1 t2 ty, t1 ->b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
-Proof.
-  move => ctx t1 t2 ty; move: t1 t2.
-  exact (rtc_preservation (fun t => typing ctx t ty)
-    (fun t1 t2 => @subject_reduction1 ctx t1 t2 ty)).
 Qed.
 
 Notation SNorm t := (Acc (fun x y => betared1 y x) t).
@@ -410,63 +401,56 @@ Proof.
 Qed.
 
 Lemma CR2' :
-  forall ctx t t' ty, t ->1b t' -> reducible ctx t ty -> reducible ctx t' ty.
+  forall ctx t t' ty, t ->1b t' -> reducible' ctx t ty -> reducible' ctx t' ty.
 Proof.
-  move => ctx t t' ty H [H0 H1]; split.
-  - by apply subject_reduction1 with t.
-  - elim: ty ctx t t' H H1 {H0}.
-    - by move => /= n ctx t1 t2 H []; apply.
-    - move => /= tyl IHtyl tyr IHtyr ctx t1 t2 H H0 t3 ctx' H1 H2.
-      apply IHtyr with (app t1 t3).
-      - by constructor.
-      - by apply H0.
+  move => ctx t t' ty; elim: ty ctx t t'.
+  - by move => /= n ctx t1 t2 H []; apply.
+  - move => /= tyl IHtyl tyr IHtyr ctx t1 t2 H H0 t3 ctx' H1 H2.
+    by apply IHtyr with (app t1 t3); auto; constructor.
 Qed.
 
+Arguments CR2' [ctx t t' ty] _ _.
+
 Lemma CR2 :
-  forall ctx t t' ty, t ->b t' -> reducible ctx t ty -> reducible ctx t' ty.
+  forall ctx t t' ty, t ->1b t' -> reducible ctx t ty -> reducible ctx t' ty.
 Proof.
-  move => ctx t t' ty; move: t t'.
-  apply (rtc_preservation (fun t => reducible ctx t ty)) => t t'.
-  apply CR2'.
+  move => ctx t t' ty H [H0 H1].
+  exact (conj (subject_reduction H H0) (CR2' H H1)).
 Qed.
 
 Lemma CR1_and_CR3 :
   forall ty,
   (forall ctx t, reducible ctx t ty -> SNorm t) /\
   (forall ctx t, typing ctx t ty -> neutral t ->
-   (forall t', t ->1b t' -> reducible ctx t' ty) -> reducible ctx t ty).
+   (forall t', t ->1b t' -> reducible' ctx t' ty) -> reducible' ctx t ty).
 Proof.
   elim.
   - move => n; split => /= ctx t.
     - firstorder.
-    - move => H H0 H1; split; last constructor; firstorder.
-  - move => tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2]; split => ctx t.
-    - case => /= H H0.
-      have H1: typing (ctx ++ [:: Some tyl]) (size ctx) tyl
+    - move => H H0 H1; constructor; firstorder.
+  - move => tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2] /=.
+    split => [ctx t [H H0] | ctx t H H0 H1 tr ctx' H2 H3].
+    - have H1: typing (ctx ++ [:: Some tyl]) (size ctx) tyl
         by rewrite typvar_seqindex nth_cat ltnn subnn.
       have H2: typing (ctx ++ [:: Some tyl]) (app t (size ctx)) tyr
         by apply typapp with tyl => //; move: H;
-          apply ctxleq_preserves_typing, ctxleq_appr.
-      apply snorm_appl with (size ctx).
-      apply IHtyr1 with (ctx ++ [:: Some tyl]).
-      apply IHtyr2 => // t' H3.
-      apply (CR2' H3), conj => //.
-      apply H0.
+        apply ctxleq_preserves_typing, ctxleq_appr.
+      apply snorm_appl with (size ctx),
+        IHtyr1 with (ctx ++ [:: Some tyl]), (conj H2), IHtyr2 => // t' H3.
+      apply (CR2' H3), H0.
       - apply ctxleq_appr.
-      - apply IHtyl2 => // x H4; inversion H4.
-    - move => /= H H0 H1; split => // tr ctx' H2 H3.
-      have H4: SNorm tr by apply IHtyl1 with ctx'.
-      move: tr H4 H2 H3; refine (Acc_ind _ _) => tr _ IH H2 H3.
-      have H4: typing ctx' (app t tr) tyr.
+      - apply (conj H1), IHtyl2 => // x H4; inversion H4.
+    - have H4: SNorm tr by apply IHtyl1 with ctx'.
+      move: tr H4 H2 H3; refine (Acc_ind _ _) => tr _ IH H2 [H3 H4].
+      have H5: typing ctx' (app t tr) tyr.
         apply typapp with tyl.
         - by apply ctxleq_preserves_typing with ctx.
         - tauto.
-      apply IHtyr2 => // tr' H5.
-      move: H0; inversion H5; subst => // _; split.
-      - by apply subject_reduction1 with (app t tr).
-      - by case: (H1 t1' H8) => _; apply.
-      - by apply subject_reduction1 with (app t tr).
-      - by apply IH => //; apply CR2' with tr.
+      apply IHtyr2 => // tr' H6.
+      move: H0; inversion H6; subst => // _.
+      - by apply H1.
+      - apply IH => //.
+        by apply (conj (subject_reduction H9 H3)), CR2' with tr.
 Qed.
 
 Lemma CR1 : forall ctx t ty, reducible ctx t ty -> SNorm t.
@@ -478,18 +462,17 @@ Lemma CR3 :
   forall ctx t ty, typing ctx t ty -> neutral t ->
   (forall t', t ->1b t' -> reducible ctx t' ty) -> reducible ctx t ty.
 Proof.
-  move => ctx t ty; case: (CR1_and_CR3 ty); firstorder.
+  move => ctx t ty; case: (CR1_and_CR3 ty) => _ H H0 H1 H2.
+  apply (conj H0), H => //; apply H2.
 Qed.
 
 Lemma snorm_subst : forall t1 t2, SNorm (substitute 0 t2 t1) -> SNorm t1.
 Proof.
   move => t1 t2.
-  move: (erefl (substitute 0 t2 t1)).
-  move: {1 3}(substitute 0 t2 t1) => t3 H H0.
+  move: {1 3}(substitute 0 t2 t1) (erefl (substitute 0 t2 t1)) => t3 H H0.
   move: t3 H0 t1 t2 H.
-  refine (Acc_ind _ _) => t3 _ IH t1 t2 H; constructor => t3' H0.
-  refine (IH (substitute 0 t2 t3') _ t3' t2 _) => // {IH}.
-  by subst; apply subst_betared1.
+  refine (Acc_ind _ _) => t3 _ IH t1 t2 H; subst; constructor => t3' H0.
+  by apply (IH (substitute 0 t2 t3') (subst_betared1 0 t2 H0) t3' t2).
 Qed.
 
 Lemma abstraction_lemma :
@@ -512,11 +495,9 @@ Proof.
     inversion H7; subst => {H7}; auto.
     - inversion H11; subst => {H11}.
       apply H0 => //.
-      - by apply subject_reduction1 with (abs t1) => //; constructor.
-      - move => t'' ctx'' H7 H9.
-        apply CR2' with (substitute 0 t'' t1); auto.
-        by apply subst_betared1.
-    - by apply H2 => //; apply CR2' with t2.
+      - by apply subject_reduction with (abs t1) => //; constructor.
+      - by move => t'' ctx'' H7 H9; apply (CR2 (subst_betared1 0 t'' H8)), H4.
+    - by apply H2 => //; apply CR2 with t2.
 Qed.
 
 Lemma reduce_lemma :
