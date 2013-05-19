@@ -2,9 +2,40 @@ Require Import
   Omega Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat.
 
+Tactic Notation "find_minneq_hyp" constr(n) constr(m) :=
+  match goal with
+    | H : is_true (n <= m) |- _ => move/minn_idPl: (H)
+    | H : is_true (m <= n) |- _ => move/minn_idPr: (H)
+    | |- _ =>
+      let H0 := fresh "H" in
+      case/orP: (leq_total n m) => H0;
+      [move/minn_idPl: (H0) | move/minn_idPr: (H0)]
+  end.
+
+Tactic Notation "find_maxneq_hyp" constr(n) constr(m) :=
+  match goal with
+    | H : is_true (n <= m) |- _ => move/maxn_idPr: (H)
+    | H : is_true (m <= n) |- _ => move/maxn_idPl: (H)
+    | |- _ =>
+      let H0 := fresh "H" in
+      case/orP: (leq_total n m) => H0;
+      [move/maxn_idPr: (H0) | move/maxn_idPl: (H0)]
+  end.
+
+Ltac replace_minn_maxn :=
+  let H0 := fresh "H" in
+  match goal with
+    | H : context [minn ?n ?m] |- _ =>
+      find_minneq_hyp n m; move => H0; rewrite H0 {H0} in H
+    | H : context [maxn ?n ?m] |- _ =>
+      find_maxneq_hyp n m; move => H0; rewrite H0 {H0} in H
+    | |- context [minn ?n ?m] => find_minneq_hyp n m => ->
+    | |- context [maxn ?n ?m] => find_maxneq_hyp n m => ->
+  end.
+
 Ltac arith_hypo_ssrnat2coqnat :=
   match goal with
-    | H : context [andb _ _] |- _ => let H0 := fresh in case/andP: H => H H0
+    | H : context [andb _ _] |- _ => let H0 := fresh "H" in case/andP: H => H H0
     | H : context [orb _ _] |- _ => case/orP in H
     | H : context [?L <= ?R] |- _ => move/leP in H
     | H : context [?L == ?R] |- _ => move/eqP in H
@@ -20,6 +51,7 @@ Ltac arith_goal_ssrnat2coqnat :=
 
 Ltac ssromega :=
   do ?unfold addn, subn, muln, addn_rec, subn_rec, muln_rec in *;
-  do ?arith_hypo_ssrnat2coqnat ;
-  do ?arith_goal_ssrnat2coqnat ;
+  do ?replace_minn_maxn;
+  do ?arith_hypo_ssrnat2coqnat;
+  do ?arith_goal_ssrnat2coqnat;
   omega.
