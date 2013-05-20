@@ -23,12 +23,9 @@ Tactic Notation "find_maxneq_hyp" constr(n) constr(m) :=
   end.
 
 Ltac replace_minn_maxn :=
-  let H0 := fresh "H" in
   match goal with
-    | H : context [minn ?n ?m] |- _ =>
-      find_minneq_hyp n m; move => H0; rewrite H0 {H0} in H
-    | H : context [maxn ?n ?m] |- _ =>
-      find_maxneq_hyp n m; move => H0; rewrite H0 {H0} in H
+    | H : context [minn ?n ?m] |- _ => move: H; find_minneq_hyp n m => -> H
+    | H : context [maxn ?n ?m] |- _ => move: H; find_maxneq_hyp n m => -> H
     | |- context [minn ?n ?m] => find_minneq_hyp n m => ->
     | |- context [maxn ?n ?m] => find_maxneq_hyp n m => ->
   end.
@@ -51,7 +48,19 @@ Ltac arith_goal_ssrnat2coqnat :=
 
 Ltac ssromega :=
   do ?unfold addn, subn, muln, addn_rec, subn_rec, muln_rec in *;
+  repeat (let x := fresh "x" in move => x);
   do ?replace_minn_maxn;
   do ?arith_hypo_ssrnat2coqnat;
   do ?arith_goal_ssrnat2coqnat;
   omega.
+
+(* test codes for ssromega *)
+
+Goal forall m n, maxn m n - minn m n = (m - n) + (n - m). ssromega; fail. Abort.
+Goal forall m n, minn m n + maxn m n = m + n. ssromega; fail. Abort.
+Goal forall m n, minn (maxn m n) m = m. ssromega; fail. Abort.
+Goal forall m n, minn n (maxn m n) = n. ssromega; fail. Abort.
+Goal forall m n, maxn (minn m n) m = m. ssromega; fail. Abort.
+Goal forall m n, maxn n (minn m n) = n. ssromega; fail. Abort.
+Goal forall m n, minn m n = m <-> m <= n. split; ssromega; fail. Abort.
+Goal forall m n, maxn m n = n <-> m <= n. split; ssromega; fail. Abort.
