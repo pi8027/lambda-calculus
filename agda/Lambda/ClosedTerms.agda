@@ -56,3 +56,32 @@ closed′-unshift (tabs t) d c (tabs-Closed′ t-closed′) n≤c = cong tabs (c
 
 closed-unshift : ∀ t d c → Closed t → unshift d c t ≡ t
 closed-unshift t d c closed = closed′-unshift t d c closed z≤n
+
+beta-closed : Term → ℕ → Term → Term
+beta-closed (tvar x) v s with v ≟ x
+... | yes p = s
+... | no  p = unshift 1 v (tvar x)
+beta-closed (tapp t₁ t₂) v s = tapp (beta-closed t₁ v s) (beta-closed t₂ v s)
+beta-closed (tabs t) v s = tabs (beta-closed t (suc v) s)
+
+beta-closed-unshift-subst : ∀ t s v → Closed s → unshift 1 v (t [ v ≔ s ]) ≡ beta-closed t v s
+beta-closed-unshift-subst (tvar x) s v c with v ≟ x
+... | yes v≡x = closed-unshift s 1 v c
+... | no  v≢x = refl
+beta-closed-unshift-subst (tapp t₁ t₂) s v c = cong₂ tapp (beta-closed-unshift-subst t₁ s v c) (beta-closed-unshift-subst t₂ s v c)
+beta-closed-unshift-subst (tabs t) s v c = cong tabs (trans (cong (unshift 1 (suc v)) (cong (_[_≔_] t (suc v)) (closed-shift s 1 0 c)))
+                                                            (beta-closed-unshift-subst t s (suc v) c))
+
+→βbeta-closed : ∀ {t} {s} → Closed s → tapp (tabs t) s →β beta-closed t 0 s
+→βbeta-closed {t} {s} c rewrite sym (trans (cong (unshift 1 0) (cong (_[_≔_] t 0) (closed-shift s 1 0 c))) (beta-closed-unshift-subst t s 0 c)) = →βbeta
+
+closed′-beta-closed : ∀ {n} t v s → Closed′ n t → n ≤ v → beta-closed t v s ≡ t
+closed′-beta-closed (tvar x) v s (tvar-Closed′ x<n) n≤v with v ≟ x
+... | yes v≡x = ⊥-elim (<⇒≢ x v (≤-trans x<n n≤v) (sym v≡x))
+  where open DecTotalOrder decTotalOrder renaming (trans to ≤-trans)
+... | no  p = closed′-unshift (tvar x) 1 v (tvar-Closed′ x<n) n≤v
+closed′-beta-closed (tapp t₁ t₂) v s (tapp-Closed′ t₁-closed′ t₂-closed′) n≤v = cong₂ tapp (closed′-beta-closed t₁ v s t₁-closed′ n≤v) (closed′-beta-closed t₂ v s t₂-closed′ n≤v)
+closed′-beta-closed (tabs t) v s (tabs-Closed′ t-closed′) n≤v = cong tabs (closed′-beta-closed t (suc v) s t-closed′ (s≤s n≤v))
+
+closed-beta-closed : ∀ t v s → Closed t → beta-closed t v s ≡ t
+closed-beta-closed t v s c = closed′-beta-closed t v s c z≤n
