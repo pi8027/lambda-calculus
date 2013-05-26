@@ -10,6 +10,8 @@ open import Lambda.Core
 open import Lambda.ClosedTerms
 open import Lambda.Properties
 
+open →β⋆-Reasoning renaming (_≡⟨_⟩_ to _≅⟨_⟩_; begin_ to βbegin_; _∎ to _β∎)
+
 iter-tapp : ℕ → Term → Term → Term
 iter-tapp 0       f b = b
 iter-tapp (suc n) f b = tapp f (iter-tapp n f b)
@@ -50,24 +52,24 @@ church-+-correct : ∀ n m → tapp (tapp church-+ (church n)) (church m) →β*
 church-+-correct n m =
   βbegin
     tapp (tapp church-+ (church n)) (church m)
-      ⟶⋆⟨ return (→βappl →βbeta) ⟩
+      →β⋆⟨ return (→βappl →βbeta) ⟩
     tapp (tabs (tabs (tabs (tapp (tapp (unshift 1 3 (shift 1 0 (shift 1 0 (shift 1 0 (shift 1 0 (church n)))))) (tvar 1)) _)))) (church m)
       ≅⟨ cong₂ tapp (cong tabs (cong tabs (cong tabs (cong₂ tapp (cong₂ tapp eq₁ refl) refl)))) refl ⟩
     tapp (tabs (tabs (tabs (tapp (tapp (church n) (tvar 1)) _)))) (church m)
-      ⟶⋆⟨ return →βbeta ⟩
+      →β⋆⟨ return →βbeta ⟩
     tabs (tabs (tapp (tapp (unshift 1 (suc (suc 0)) (church n [ suc (suc 0) ≔ shift 1 0 (shift 1 0 (shift 1 0 (church m))) ])) (tvar 1))
                      (tapp (tapp (unshift 1 2 (shift 1 0 (shift 1 0 (shift 1 0 (church m))))) _) _)))
       ≅⟨ cong tabs (cong tabs (cong₂ tapp (cong₂ tapp eq₂ refl) (cong₂ tapp (cong₂ tapp eq₃ refl) refl))) ⟩
     tabs (tabs (tapp (tapp (church n) (tvar 1)) (tapp (tapp (church m) (tvar 1)) (tvar 0))))
-      ⟶⋆⟨ →βabs (→βabs (→βappl →βbeta)) ◅ (→βabs (→βabs (→βappr (→βappl →βbeta))) ◅ ε) ⟩
+      →β⋆⟨ →βabs (→βabs (→βappl →βbeta)) ◅ (→βabs (→βabs (→βappr (→βappl →βbeta))) ◅ ε) ⟩
     tabs (tabs (tapp (tabs _) (tapp (tabs _) (tvar 0))))
       ≅⟨ cong tabs (cong tabs (let a = λ k → cong tabs (trans (cong (unshift 1 1) (iter-tapp-subst k (tvar 1) (tvar 0) 1 (tvar 3))) (iter-tapp-unshift k (tvar 3) (tvar 0) 1 1)) in cong₂ tapp (a n) (cong₂ tapp (a m) refl))) ⟩
     tabs (tabs (tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) (tapp (tabs (iter-tapp m (tvar 2) (tvar 0))) (tvar 0))))
-      ⟶⋆⟨ return (→βabs (→βabs (→βappr →βbeta))) ⟩
+      →β⋆⟨ return (→βabs (→βabs (→βappr →βbeta))) ⟩
     tabs (tabs (tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) _))
       ≅⟨ cong tabs (cong tabs (cong (tapp _) (trans (cong (unshift 1 0) (iter-tapp-subst m (tvar 2) (tvar 0) 0 (tvar 1))) (iter-tapp-unshift m (tvar 2) (tvar 1) 1 0)))) ⟩
     tabs (tabs (tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) (iter-tapp m (tvar 1) (tvar 0))))
-      ⟶⋆⟨ return (→βabs (→βabs →βbeta)) ⟩
+      →β⋆⟨ return (→βabs (→βabs →βbeta)) ⟩
     tabs (tabs _)
       ≅⟨ cong tabs (cong tabs (trans (cong (unshift 1 0) (iter-tapp-subst n (tvar 2) (tvar 0) 0 (shift 1 0 (iter-tapp m (tvar 1) (tvar 0))))) (trans (iter-tapp-unshift n (tvar 2) (shift 1 0 (iter-tapp m (tvar 1) (tvar 0))) 1 0) (cong (iter-tapp n (tvar 1)) (trans (cong (unshift 1 0) (iter-tapp-shift m (tvar 1) (tvar 0) 1 0)) (iter-tapp-unshift m (tvar 2) (tvar 1) 1 0)))))) ⟩
     tabs (tabs (iter-tapp n (tvar 1) (iter-tapp m (tvar 1) (tvar 0))))
@@ -76,8 +78,7 @@ church-+-correct n m =
       ≅⟨ refl ⟩
     church (n + m)
   β∎
-  where open StarReasoning (_→β_) renaming (_≡⟨_⟩_ to _≅⟨_⟩_; begin_ to βbegin_; _∎ to _β∎)
-        open ≡-Reasoning hiding (_≅⟨_⟩_)
+  where open ≡-Reasoning hiding (_≅⟨_⟩_)
         eq₁ = begin
             (unshift 1 3 (shift 1 0 (shift 1 0 (shift 1 0 (shift 1 0 (church n))))))
               ≡⟨ cong (unshift 1 3) (trans (shiftAdd 1 1 0 (shift 1 0 (shift 1 0 (church n)))) (trans (shiftAdd 2 1 0 (shift 1 0 (church n))) (shiftAdd 3 1 0 (church n)))) ⟩

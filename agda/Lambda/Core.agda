@@ -5,6 +5,7 @@ import Level
 open import Function
 open import Data.Nat
 open import Data.Star
+open import Data.Star.Properties
 open import Relation.Nullary
 open import Relation.Binary
 
@@ -60,3 +61,5 @@ tapp (tabs t1) t2 * = unshift 1 0 (t1 * [ 0 ≔ shift 1 0 (t2 *) ])
 tapp t1 t2 * = tapp (t1 *) (t2 *)
 tabs t * = tabs (t *)
 
+module →β⋆-Reasoning where
+  open StarReasoning (_→β_) public renaming (_⟶⋆⟨_⟩_ to _→β⋆⟨_⟩_)
