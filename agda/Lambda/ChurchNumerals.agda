@@ -1,6 +1,7 @@
 
 module Lambda.ChurchNumerals where
 
+open import Function
 open import Data.Nat
 open import Data.Star
 open import Data.Star.Properties
@@ -48,29 +49,35 @@ church-+ : Term
 church-+ = tabs (tabs (tabs (tabs (tapp (tapp (tvar 3) (tvar 1))
                                         (tapp (tapp (tvar 2) (tvar 1)) (tvar 0))))))
 
-church-+-correct : ∀ n m → tapp (tapp church-+ (church n)) (church m) →β* church (n + m)
+church-+-correct : ∀ n m → tapp (tapp church-+ (church n)) (church m) →β⋆ church (n + m)
 church-+-correct n m =
   begin
     tapp (tapp church-+ (church n)) (church m)
       →β⋆⟨ return (→βappl (→βbeta-closed (church-closed n))) ⟩
     tapp (tabs (tabs (tabs (tapp (tapp (church n) (tvar 1)) _)))) (church m)
       →β⋆⟨ return (→βbeta-closed (church-closed m)) ⟩
-    tabs (tabs (tapp (tapp _ (tvar 1)) (tapp (tapp (church m) _) _)))
-      ≡⟨ cong tabs (cong tabs (cong₂ tapp (cong₂ tapp (closed-beta-closed (church n) 2 (church m) (church-closed n)) refl) refl)) ⟩
-    tabs (tabs (tapp (tapp (church n) (tvar 1)) (tapp (tapp (church m) (tvar 1)) (tvar 0))))
-      →β⋆⟨ →βabs (→βabs (→βappl →βbeta)) ◅ (→βabs (→βabs (→βappr (→βappl →βbeta))) ◅ ε) ⟩
-    tabs (tabs (tapp (tabs _) (tapp (tabs _) (tvar 0))))
-      ≡⟨ cong tabs (cong tabs (let a = λ k → cong tabs (trans (cong (unshift 1 1) (iter-tapp-subst k (tvar 1) (tvar 0) 1 (tvar 3))) (iter-tapp-unshift k (tvar 3) (tvar 0) 1 1)) in cong₂ tapp (a n) (cong₂ tapp (a m) refl))) ⟩
-    tabs (tabs (tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) (tapp (tabs (iter-tapp m (tvar 2) (tvar 0))) (tvar 0))))
-      →β⋆⟨ return (→βabs (→βabs (→βappr →βbeta))) ⟩
-    tabs (tabs (tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) _))
-      ≡⟨ cong tabs (cong tabs (cong (tapp _) (trans (cong (unshift 1 0) (iter-tapp-subst m (tvar 2) (tvar 0) 0 (tvar 1))) (iter-tapp-unshift m (tvar 2) (tvar 1) 1 0)))) ⟩
-    tabs (tabs (tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) (iter-tapp m (tvar 1) (tvar 0))))
-      →β⋆⟨ return (→βabs (→βabs →βbeta)) ⟩
-    tabs (tabs _)
-      ≡⟨ cong tabs (cong tabs (trans (cong (unshift 1 0) (iter-tapp-subst n (tvar 2) (tvar 0) 0 (shift 1 0 (iter-tapp m (tvar 1) (tvar 0))))) (trans (iter-tapp-unshift n (tvar 2) (shift 1 0 (iter-tapp m (tvar 1) (tvar 0))) 1 0) (cong (iter-tapp n (tvar 1)) (trans (cong (unshift 1 0) (iter-tapp-shift m (tvar 1) (tvar 0) 1 0)) (iter-tapp-unshift m (tvar 2) (tvar 1) 1 0)))))) ⟩
-    tabs (tabs (iter-tapp n (tvar 1) (iter-tapp m (tvar 1) (tvar 0))))
-      ≡⟨ cong tabs (cong tabs (iter-tapp-+ n m (tvar 1) (tvar 0))) ⟩
+    (tabs ∘ tabs)
+      ↘⟨ →β⋆abs ∘ →β⋆abs ⟩
+        begin
+          tapp (tapp _ (tvar 1)) (tapp (tapp (church m) _) _)
+            ≡⟨ cong₂ tapp (cong₂ tapp (closed-beta-closed (church n) 2 (church m) (church-closed n)) refl) refl ⟩
+          tapp (tapp (church n) (tvar 1)) (tapp (tapp (church m) (tvar 1)) (tvar 0))
+            →β⋆⟨ →βappl →βbeta ◅ →βappr (→βappl →βbeta) ◅ ε ⟩
+          tapp (tabs _) (tapp (tabs _) (tvar 0))
+            ≡⟨ (let a = λ k → cong tabs (trans (cong (unshift 1 1) (iter-tapp-subst k (tvar 1) (tvar 0) 1 (tvar 3))) (iter-tapp-unshift k (tvar 3) (tvar 0) 1 1)) in cong₂ tapp (a n) (cong₂ tapp (a m) refl)) ⟩
+          tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) (tapp (tabs (iter-tapp m (tvar 2) (tvar 0))) (tvar 0))
+            →β⋆⟨ return (→βappr →βbeta) ⟩
+          tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) _
+            ≡⟨ cong (tapp _) (trans (cong (unshift 1 0) (iter-tapp-subst m (tvar 2) (tvar 0) 0 (tvar 1))) (iter-tapp-unshift m (tvar 2) (tvar 1) 1 0)) ⟩
+          tapp (tabs (iter-tapp n (tvar 2) (tvar 0))) (iter-tapp m (tvar 1) (tvar 0))
+            →β⋆⟨ return →βbeta ⟩
+          _
+           ≡⟨ trans (cong (unshift 1 0) (iter-tapp-subst n (tvar 2) (tvar 0) 0 (shift 1 0 (iter-tapp m (tvar 1) (tvar 0))))) (trans (iter-tapp-unshift n (tvar 2) (shift 1 0 (iter-tapp m (tvar 1) (tvar 0))) 1 0) (cong (iter-tapp n (tvar 1)) (trans (cong (unshift 1 0) (iter-tapp-shift m (tvar 1) (tvar 0) 1 0)) (iter-tapp-unshift m (tvar 2) (tvar 1) 1 0)))) ⟩
+          iter-tapp n (tvar 1) (iter-tapp m (tvar 1) (tvar 0))
+            ≡⟨ iter-tapp-+ n m (tvar 1) (tvar 0) ⟩
+          iter-tapp (n + m) (tvar 1) (tvar 0)
+        ∎
+      ↙
     tabs (tabs (iter-tapp (n + m) (tvar 1) (tvar 0)))
       ≡⟨ refl ⟩
     church (n + m)

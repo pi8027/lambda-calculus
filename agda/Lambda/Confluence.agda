@@ -13,18 +13,6 @@ open import Relation.Binary.PropositionalEquality
 open import Lambda.Core
 open import Lambda.Properties
 
-→β*appl : ∀ {t1 t1' t2} → t1 →β* t1' → tapp t1 t2 →β* tapp t1' t2
-→β*appl ε = ε
-→β*appl (r1 ◅ r2) = →βappl r1 ◅ →β*appl r2
-
-→β*appr : ∀ {t1 t2 t2'} → t2 →β* t2' → tapp t1 t2 →β* tapp t1 t2'
-→β*appr ε = ε
-→β*appr (r1 ◅ r2) = →βappr r1 ◅ →β*appr r2
-
-→β*abs : ∀ {t t'} → t →β* t' → tabs t →β* tabs t'
-→β*abs ε = ε
-→β*abs (r1 ◅ r2) = →βabs r1 ◅ →β*abs r2
-
 parRefl : ∀ {t} → t →βP t
 parRefl {tvar _} = →βPvar
 parRefl {tapp _ _} = →βPapp parRefl parRefl
@@ -36,11 +24,11 @@ parRefl {tabs _} = →βPabs parRefl
 →β⊂→βP (→βappr r) = →βPapp parRefl (→β⊂→βP r)
 →β⊂→βP (→βabs r) = →βPabs (→β⊂→βP r)
 
-→βP⊂→β* : _→βP_ ⇒ _→β*_
-→βP⊂→β* →βPvar = ε
-→βP⊂→β* (→βPapp r1 r2) = →β*appl (→βP⊂→β* r1) ◅◅ →β*appr (→βP⊂→β* r2)
-→βP⊂→β* (→βPabs r) = →β*abs (→βP⊂→β* r)
-→βP⊂→β* (→βPbeta r1 r2) = →β*appl (→β*abs (→βP⊂→β* r1)) ◅◅ →β*appr (→βP⊂→β* r2) ◅◅ →βbeta ◅ ε
+→βP⊂→β⋆ : _→βP_ ⇒ _→β⋆_
+→βP⊂→β⋆ →βPvar = ε
+→βP⊂→β⋆ (→βPapp r1 r2) = →β⋆appl (→βP⊂→β⋆ r1) ◅◅ →β⋆appr (→βP⊂→β⋆ r2)
+→βP⊂→β⋆ (→βPabs r) = →β⋆abs (→βP⊂→β⋆ r)
+→βP⊂→β⋆ (→βPbeta r1 r2) = →β⋆appl (→β⋆abs (→βP⊂→β⋆ r1)) ◅◅ →β⋆appr (→βP⊂→β⋆ r2) ◅◅ →βbeta ◅ ε
 
 shiftConservation→β : ∀ {d c} → _→β_ ⇒ ((λ a b → a → b) on Shifted d c)
 shiftConservation→β {d} {c} {tapp (tabs t1) t2} →βbeta (sapp (sabs s1) s2) =
@@ -49,12 +37,12 @@ shiftConservation→β (→βappl p) (sapp s1 s2) = sapp (shiftConservation→β
 shiftConservation→β (→βappr p) (sapp s1 s2) = sapp s1 (shiftConservation→β p s2)
 shiftConservation→β (→βabs p) (sabs s1) = sabs (shiftConservation→β p s1)
 
-shiftConservation→β* : ∀ {d c} → _→β*_ ⇒ ((λ a b → a → b) on Shifted d c)
-shiftConservation→β* ε s = s
-shiftConservation→β* (p1 ◅ p2) s = shiftConservation→β* p2 (shiftConservation→β p1 s)
+shiftConservation→β⋆ : ∀ {d c} → _→β⋆_ ⇒ ((λ a b → a → b) on Shifted d c)
+shiftConservation→β⋆ ε s = s
+shiftConservation→β⋆ (p1 ◅ p2) s = shiftConservation→β⋆ p2 (shiftConservation→β p1 s)
 
 shiftConservation→βP : ∀ {d c t1 t2} → t1 →βP t2 → Shifted d c t1 → Shifted d c t2
-shiftConservation→βP p s = shiftConservation→β* (→βP⊂→β* p) s
+shiftConservation→βP p s = shiftConservation→β⋆ (→βP⊂→β⋆ p) s
 
 shiftLemma : ∀ {t t' d c} → t →βP t' → shift d c t →βP shift d c t'
 shiftLemma →βPvar = parRefl
@@ -192,7 +180,7 @@ confluence→βP = SemiConfluence⇒Confluence $ Diamond⇒SemiConfluence diamon
 confluence→β : Confluence _→β_
 confluence→β r1 r2 =
   proj₁ c ,
-  Data.Star.concat (Data.Star.map →βP⊂→β* (proj₁ (proj₂ c))) ,
-  Data.Star.concat (Data.Star.map →βP⊂→β* (proj₂ (proj₂ c))) where
+  Data.Star.concat (Data.Star.map →βP⊂→β⋆ (proj₁ (proj₂ c))) ,
+  Data.Star.concat (Data.Star.map →βP⊂→β⋆ (proj₂ (proj₂ c))) where
   c = confluence→βP (Data.Star.map →β⊂→βP r1) (Data.Star.map →β⊂→βP r2)
 

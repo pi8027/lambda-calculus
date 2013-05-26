@@ -45,8 +45,20 @@ data _→β_ : Rel Term Level.zero where
   →βappr : ∀ {t1 t2 t2'} → t2 →β t2' → tapp t1 t2 →β tapp t1 t2'
   →βabs  : ∀ {t t'} → t →β t' → tabs t →β tabs t'
 
-_→β*_ : Rel Term Level.zero
-_→β*_ = Star _→β_
+_→β⋆_ : Rel Term Level.zero
+_→β⋆_ = Star _→β_
+
+→β⋆appl : ∀ {t1 t1' t2} → t1 →β⋆ t1' → tapp t1 t2 →β⋆ tapp t1' t2
+→β⋆appl ε = ε
+→β⋆appl (r1 ◅ r2) = →βappl r1 ◅ →β⋆appl r2
+
+→β⋆appr : ∀ {t1 t2 t2'} → t2 →β⋆ t2' → tapp t1 t2 →β⋆ tapp t1 t2'
+→β⋆appr ε = ε
+→β⋆appr (r1 ◅ r2) = →βappr r1 ◅ →β⋆appr r2
+
+→β⋆abs : ∀ {t t'} → t →β⋆ t' → tabs t →β⋆ tabs t'
+→β⋆abs ε = ε
+→β⋆abs (r1 ◅ r2) = →βabs r1 ◅ →β⋆abs r2
 
 data _→βP_ : Rel Term Level.zero where
   →βPvar : ∀ {n} → tvar n →βP tvar n
@@ -63,3 +75,8 @@ tabs t * = tabs (t *)
 
 module →β⋆-Reasoning where
   open StarReasoning (_→β_) public renaming (_⟶⋆⟨_⟩_ to _→β⋆⟨_⟩_)
+
+  infixr 2 _↘⟨_⟩_↙_
+
+  _↘⟨_⟩_↙_ : ∀ {a} {b} {z} → (f : Term → Term) → (∀ {x} {y} → x →β⋆ y → f x →β⋆ f y) → a →β⋆ b → f b IsRelatedTo z → f a IsRelatedTo z
+  f ↘⟨ congr ⟩ a→β⋆b ↙ (relTo fb→β⋆z) = relTo (congr a→β⋆b ◅◅ fb→β⋆z)
