@@ -21,8 +21,6 @@ iter-tapp-+ : ∀ n m f b → iter-tapp n f (iter-tapp m f b) ≡ iter-tapp (n +
 iter-tapp-+ 0       m f b = refl
 iter-tapp-+ (suc n) m f b = cong (tapp f) (iter-tapp-+ n m f b)
 
---iter-tapp-* : ∀ n m f b → iter-tapp n ()
-
 iter-tapp-closed : ∀ n f b l → Closed′ l f → Closed′ l b → Closed′ l (iter-tapp n f b)
 iter-tapp-closed 0       f b l f-closed′ b-closed′ = b-closed′
 iter-tapp-closed (suc n) f b l f-closed′ b-closed′ = ctapp f-closed′ (iter-tapp-closed n f b l f-closed′ b-closed′)
