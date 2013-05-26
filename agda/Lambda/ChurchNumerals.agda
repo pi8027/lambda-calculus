@@ -21,6 +21,8 @@ iter-tapp-+ : ∀ n m f b → iter-tapp n f (iter-tapp m f b) ≡ iter-tapp (n +
 iter-tapp-+ 0       m f b = refl
 iter-tapp-+ (suc n) m f b = cong (tapp f) (iter-tapp-+ n m f b)
 
+--iter-tapp-* : ∀ n m f b → iter-tapp n ()
+
 iter-tapp-closed : ∀ n f b l → Closed′ l f → Closed′ l b → Closed′ l (iter-tapp n f b)
 iter-tapp-closed 0       f b l f-closed′ b-closed′ = b-closed′
 iter-tapp-closed (suc n) f b l f-closed′ b-closed′ = ctapp f-closed′ (iter-tapp-closed n f b l f-closed′ b-closed′)
@@ -81,4 +83,55 @@ church-+-correct n m =
     tabs (tabs (iter-tapp (n + m) (tvar 1) (tvar 0)))
       ≡⟨ refl ⟩
     church (n + m)
+  ∎
+
+-- (λ a b s. a (y s))
+church-* : Term
+church-* = tabs (tabs (tabs (tapp (tvar 2) (tapp (tvar 1) (tvar 0)))))
+
+iter-tapp-* : ∀ n m → iter-tapp n (tabs (iter-tapp m (tvar 2) (tvar 0))) (tvar 0) →β⋆ iter-tapp (n * m) (tvar 1) (tvar 0)
+iter-tapp-* 0 m = ε
+iter-tapp-* (suc n) m =
+  begin
+    tapp (tabs (iter-tapp m (tvar 2) (tvar 0))) (iter-tapp n (tabs (iter-tapp m (tvar 2) (tvar 0))) (tvar 0))
+      →β⋆⟨ →β⋆appr (iter-tapp-* n m) ⟩
+    tapp (tabs (iter-tapp m (tvar 2) (tvar 0))) (iter-tapp (n * m) (tvar 1) (tvar 0))
+      →β⋆⟨ return →βbeta ⟩
+    _
+      ≡⟨ trans (cong (unshift 1 0) (iter-tapp-subst m (tvar 2) (tvar 0) 0 _)) (trans (iter-tapp-unshift m _ _ _ _) (cong (iter-tapp m (tvar 1)) (trans (cong (unshift 1 0) (iter-tapp-shift (n * m) _ _ 1 0)) (iter-tapp-unshift (n * m) _ _ 1 0)))) ⟩
+    iter-tapp m (tvar 1) (iter-tapp (n * m) (tvar 1) (tvar 0))
+      ≡⟨ iter-tapp-+ m (n * m) (tvar 1) (tvar 0) ⟩
+    iter-tapp (m + n * m) (tvar 1) (tvar 0)
+  ∎
+
+church-*-correct : ∀ n m → (tapp (tapp church-* (church n)) (church m)) →β⋆ church (n * m)
+church-*-correct n m =
+  begin
+    tapp (tapp church-* (church n)) (church m)
+      →β⋆⟨ return (→βappl (→βbeta-closed (church-closed n))) ⟩
+    tapp (tabs (tabs (tapp (church n) (tapp (tvar 1) (tvar 0))))) (church m)
+      →β⋆⟨ return (→βbeta-closed (church-closed m)) ⟩
+    tabs
+      ↘⟨ →β⋆abs ⟩
+        begin
+          (tapp (beta-closed (church n) 1 (church m)) (tapp (church m) (tvar 0)))
+            ≡⟨ cong₂ tapp (closed-beta-closed _ _ _ (church-closed n)) refl ⟩
+          tapp (church n) (tapp (church m) (tvar 0))
+            →β⋆⟨ return (→βappr →βbeta) ⟩
+          tapp (church n) _
+            ≡⟨ cong (tapp (church n)) (cong tabs (trans (cong (unshift 1 1) (iter-tapp-subst m _ _ _ _)) (iter-tapp-unshift m _ _ _ _))) ⟩
+          tapp (church n) (tabs (iter-tapp m (tvar 1) (tvar 0)))
+            →β⋆⟨ return →βbeta ⟩
+          tabs _
+            ≡⟨ cong tabs (trans (cong (unshift 1 1) (iter-tapp-subst n _ _ _ _)) (iter-tapp-unshift n _ _ _ _)) ⟩
+          tabs (iter-tapp n (tabs _) (tvar 0))
+            ≡⟨ cong tabs (cong₂ (iter-tapp n) (cong tabs (trans (cong (unshift 1 2) (trans (shiftAdd 1 1 1 (iter-tapp m (tvar 1) (tvar 0))) (iter-tapp-shift m (tvar 1) (tvar 0) 2 1))) (iter-tapp-unshift m (tvar 3) (tvar 0) 1 2))) refl) ⟩
+          tabs (iter-tapp n (tabs (iter-tapp m (tvar 2) (tvar 0))) (tvar 0))
+            →β⋆⟨ →β⋆abs (iter-tapp-* n m) ⟩
+          tabs (iter-tapp (n * m) (tvar 1) (tvar 0))
+        ∎
+      ↙
+    tabs (tabs (iter-tapp (n * m) (tvar 1) (tvar 0)))
+      ≡⟨ refl ⟩
+    church (n * m)
   ∎
