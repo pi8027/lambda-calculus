@@ -22,7 +22,7 @@ iter-tapp-+ (suc n) m f b = cong (tapp f) (iter-tapp-+ n m f b)
 
 iter-tapp-closed : ∀ n f b l → Closed′ l f → Closed′ l b → Closed′ l (iter-tapp n f b)
 iter-tapp-closed 0       f b l f-closed′ b-closed′ = b-closed′
-iter-tapp-closed (suc n) f b l f-closed′ b-closed′ = tapp-Closed′ f-closed′ (iter-tapp-closed n f b l f-closed′ b-closed′)
+iter-tapp-closed (suc n) f b l f-closed′ b-closed′ = ctapp f-closed′ (iter-tapp-closed n f b l f-closed′ b-closed′)
 
 iter-tapp-subst : ∀ n f b v s → iter-tapp n f b [ v ≔ s ] ≡ iter-tapp n (f [ v ≔ s ]) (b [ v ≔ s ])
 iter-tapp-subst 0       f b v s = refl
@@ -41,7 +41,7 @@ church : ℕ → Term
 church n = tabs (tabs (iter-tapp n (tvar 1) (tvar 0)))
 
 church-closed : ∀ n → Closed (church n)
-church-closed n = tabs-Closed′ (tabs-Closed′ (iter-tapp-closed n (tvar 1) (tvar 0) 2 (tvar-Closed′ (s≤s (s≤s z≤n))) (tvar-Closed′ (s≤s z≤n))))
+church-closed n = ctabs (ctabs (iter-tapp-closed n (tvar 1) (tvar 0) 2 (ctvar (s≤s (s≤s z≤n))) (ctvar (s≤s z≤n))))
 
 -- (λ a b s z. a s (b s z))
 church-+ : Term
