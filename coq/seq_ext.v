@@ -30,11 +30,10 @@ Qed.
 Theorem drop_take_distr :
   forall n m (xs : seq A), drop n (take m xs) = take (m - n) (drop n xs).
 Proof.
-  elim.
-  - by move => m xs; rewrite !drop0 subn0.
-  - move => n IH [].
-    - by move => xs; rewrite sub0n !take0.
-    - by move => m [] //= _ xs; rewrite subSS IH.
+  elim => [m xs | n IH [xs | m [] //= _ xs]].
+  - by rewrite !drop0 subn0.
+  - by rewrite sub0n !take0.
+  - by rewrite subSS IH.
 Qed.
 
 Theorem take_drop_distr :
@@ -50,9 +49,9 @@ Qed.
 
 Theorem size_take : forall n (xs : seq A), size (take n xs) = minn n (size xs).
 Proof.
-  elim.
-  - by move => xs; rewrite take0 min0n.
-  - by move => n IH [] //= _ xs; rewrite IH minnSS.
+  elim => [xs | n IH [] //= _ xs].
+  - by rewrite take0 min0n.
+  - by rewrite minnSS IH.
 Qed.
 
 (* nth *)
@@ -60,43 +59,37 @@ Qed.
 Theorem nth_map' :
   forall (f : A -> B) x xs n, f (nth x xs n) = nth (f x) (map f xs) n.
 Proof.
-  move => f x; elim => /=.
-  - by move => n; rewrite !nth_nil.
-  - by move => x' xs IH [].
+  by move => f x; elim => [n | x' xs IH []] //=; rewrite !nth_nil.
 Qed.
 
 Theorem nth_equal :
   forall (a b : A) xs n, (size xs <= n -> a = b) -> nth a xs n = nth b xs n.
 Proof.
-  move => a b; elim.
-  - by move => n /= ->.
-  - by move => x xs IH [].
+  by move => a b; elim => [n /= -> | x xs IH []].
 Qed.
 
-(* context *)
+End Seq.
 
-Definition context := (seq (option A)).
+(* context *)
 
 Notation ctxindex xs n x := (Some x = nth None xs n).
 Notation ctxleq xs ys := (forall n a, ctxindex xs n a -> ctxindex ys n a).
 
-Fixpoint ctxinsert xs ys n : context :=
-  if n is n.+1
-    then head None ys :: ctxinsert xs (behead ys) n
-    else xs ++ ys.
+Section Context.
+
+Variable (A : Type).
+
+Definition context := (seq (option A)).
+
+Definition ctxinsert xs ys n : context :=
+  take n ys ++ nseq (n - size ys) None ++ xs ++ drop n ys.
 
 Theorem size_ctxinsert :
   forall xs ys n, size (ctxinsert xs ys n) = size xs + maxn n (size ys).
 Proof.
-  move => xs; elim => [| y ys IH].
-  - move => n.
-    rewrite /= maxn0.
-    elim: n xs => /=.
-    - by move => xs; rewrite cats0 addn0.
-    - by move => n IH xs; rewrite IH addnS.
-  - case.
-    - by rewrite /= size_cat max0n.
-    - by move => n; rewrite /= maxnSS addnS IH.
+  move => xs ys n.
+  rewrite /ctxinsert !size_cat size_nseq size_take size_drop.
+  ssromega.
 Qed.
 
 Theorem ctxnth_ctxinsert :
@@ -105,15 +98,14 @@ Theorem ctxnth_ctxinsert :
   if m < n then nth None ys m else
   if m < n + size xs then nth None xs (m - n) else nth None ys (m - size xs).
 Proof.
-  move => xs ys n; elim: n ys.
-  - move => /= ys m.
-    rewrite add0n subn0.
-    by elim: xs m => [| x xs IH] [].
-  - move => n IH [| y ys] [] //= m.
-    - by rewrite subSS addSn !ltnS IH !nth_nil.
-    - rewrite subSS addSn !ltnS IH.
-      (do 2 case: ifP => //) => H _.
-      rewrite subSn //; ssromega.
+  move => xs ys n m.
+  rewrite /ctxinsert !nth_cat size_take size_nseq -subnDA.
+  replace (minn n (size ys) + (n - size ys)) with n by ssromega.
+  do! case: ifP; try ssromega.
+  - by move => H H0; rewrite nth_take.
+  - move => H H0 H1; rewrite nth_nseq if_same nth_default //; ssromega.
+  - do !move => _; f_equal; ssromega.
+  - move => H _ _ _ _; rewrite nth_drop; f_equal; ssromega.
 Qed.
 
 Theorem ctxleq_refl : forall (xs : context), ctxleq xs xs.
@@ -140,39 +132,34 @@ Qed.
 
 Theorem ctxleq_appr : forall (xs ys : context), ctxleq xs (xs ++ ys).
 Proof.
-  move => xs ys; elim: xs => // x xs.
-  - by rewrite nth_nil.
-  - by move => H [].
+  by move => xs ys; elim: xs => [n a | x xs H []] //=; rewrite nth_nil.
 Qed.
 
 Theorem ctxleq_app :
   forall (xs xs' ys ys' : context), size xs = size xs' ->
   ctxleq xs xs' -> ctxleq ys ys' -> ctxleq (xs ++ ys) (xs' ++ ys').
 Proof.
-  elim => [| x xs IH]; case => //= x' xs' ys ys' [H] H0 H1; case.
-  - move => /= a H2; apply (H0 0 a H2).
-  - move => /= n a; apply IH => // m; apply (H0 m.+1).
+  elim => [| x xs IH] [] //= x' xs' ys ys' [H] H0 H1 [| n] a /=.
+  - apply (H0 0 a).
+  - apply IH => // m; apply (H0 m.+1).
 Qed.
+
+End Context.
 
 (* Forall *)
 
 Theorem Forall_impl :
-  forall (P Q : A -> Prop) xs,
+  forall (A : Type) (P Q : A -> Prop) xs,
   (forall a, P a -> Q a) -> Forall P xs -> Forall Q xs.
 Proof.
-  move => P Q xs H; elim: xs; firstorder.
+  move => A P Q xs H; elim: xs; firstorder.
 Qed.
 
 Theorem Forall_nth :
-  forall (P : A -> Prop) x xs m,
+  forall (A : Type) (P : A -> Prop) x xs m,
   m < size xs -> Forall P xs -> P (nth x xs m).
 Proof.
-  move => P x0; elim => // x xs IH [].
+  move => A P x0; elim => // x xs IH [].
   - by move => _ /= [].
   - by move => n; rewrite /= ltnS => H [_]; apply IH.
 Qed.
-
-End Seq.
-
-Notation ctxindex xs n x := (Some x = nth None xs n).
-Notation ctxleq xs ys := (forall n a, ctxindex xs n a -> ctxindex ys n a).

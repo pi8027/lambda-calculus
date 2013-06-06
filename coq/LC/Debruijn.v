@@ -333,11 +333,10 @@ Proof.
         => /= t ty.
       move/(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
       rewrite size_ctxinsert /= add0n size_take minnC minKn.
-      apply ctxleq_preserves_typing.
-      elim: ctx n {m t ty}.
-      - move => /= n m t.
-        by rewrite cats0 ctxnth_ctxinsert /= !nth_nil !if_same.
-      - move => c ctx IH [] //= n [] //=; apply IH.
+      apply ctxleq_preserves_typing => {m t ty} m ty ->.
+      rewrite !ctxnth_ctxinsert size_ctxinsert /= !add0n addn0 !subn0 nth_nil
+        size_take minnC minKn.
+      elimif; rewrite ?nth_take ?nth_drop //; f_equal; ssromega.
     - move => H2 H3; rewrite nth_default /=.
       - rewrite typvar_seqindex H3; f_equal; ssromega.
       - rewrite size_map; ssromega.
@@ -357,8 +356,9 @@ Proof.
   - move => t1 t2 ctx ty H.
     inversion H; subst; inversion H3; subst.
     rewrite -(substitute_seq_nil_eq 1 t1) substitute_seq_cons_eq.
-    apply (subject_substitute_seq 0 ctx [:: (t2, ty1)]) => //.
-    by rewrite /= drop0.
+    apply (subject_substitute_seq 0 ctx [:: (t2, ty1)]).
+    - by rewrite /= drop0.
+    - by rewrite /ctxinsert sub0n take0 drop0 /=.
   - move => t1 t1' t2 H IH ctx ty H0.
     inversion H0; subst.
     by apply typapp with ty1; auto.
@@ -520,14 +520,16 @@ Proof.
     inversion H; subst => {H}.
     case: (IHtl (tyfun ty1 ty) ctx ctx') => //= H1 H2; split; auto.
     apply typapp with ty1 => //.
-    apply subject_substitute_seq => //.
-    by rewrite drop0; move: H0; apply Forall_impl => p [].
+    apply subject_substitute_seq.
+    - by rewrite drop0; move: H0; apply Forall_impl => p [].
+    - by rewrite /ctxinsert sub0n take0 drop0 /=.
   - move => t IHt ty ctx ctx' H H0.
     inversion H; subst => {H} /=.
     apply abstraction_lemma.
     - constructor.
-      apply subject_substitute_seq => //.
-      by rewrite /= drop0; move: H0; apply Forall_impl => p [].
+      apply subject_substitute_seq.
+      - by rewrite /= drop0; move: H0; apply Forall_impl => p [].
+      - by rewrite /ctxinsert /= take0 drop0 /=.
     - move => t2 ctx2 H H1.
       rewrite substitute_seq_cons_eq.
       apply (IHt ty2 ctx2 ((t2, ty1) :: ctx')) => /=.
