@@ -4,9 +4,6 @@ Require Import
 
 Set Implicit Arguments.
 
-Fixpoint Forall A (P : A -> Prop) xs :=
-  if xs is x :: xs then P x /\ Forall P xs else True.
-
 Section Seq.
 
 Variable (A B : Type).
@@ -52,20 +49,6 @@ Proof.
   elim => [xs | n IH [] //= _ xs].
   - by rewrite take0 min0n.
   - by rewrite minnSS IH.
-Qed.
-
-(* nth *)
-
-Theorem nth_map' :
-  forall (f : A -> B) x xs n, f (nth x xs n) = nth (f x) (map f xs) n.
-Proof.
-  by move => f x; elim => [n | x' xs IH []] //=; rewrite !nth_nil.
-Qed.
-
-Theorem nth_equal :
-  forall (a b : A) xs n, (size xs <= n -> a = b) -> nth a xs n = nth b xs n.
-Proof.
-  by move => a b; elim => [n /= -> | x xs IH []].
 Qed.
 
 End Seq.
@@ -147,6 +130,9 @@ Qed.
 End Context.
 
 (* Forall *)
+
+Fixpoint Forall A (P : A -> Prop) xs :=
+  if xs is x :: xs then P x /\ Forall P xs else True.
 
 Theorem Forall_impl :
   forall (A : Type) (P Q : A -> Prop) xs,
