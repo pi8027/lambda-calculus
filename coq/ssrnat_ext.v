@@ -59,13 +59,16 @@ Ltac ssromega :=
 
 (* test codes for ssromega *)
 
-Goal forall m n, maxn m n - minn m n = (m - n) + (n - m). ssromega; fail. Abort.
-Goal forall m n, minn m n + maxn m n = m + n. ssromega; fail. Abort.
 Goal forall m n, minn (maxn m n) m = m. ssromega; fail. Abort.
 Goal forall m n, minn n (maxn m n) = n. ssromega; fail. Abort.
 Goal forall m n, maxn (minn m n) m = m. ssromega; fail. Abort.
 Goal forall m n, maxn n (minn m n) = n. ssromega; fail. Abort.
+Goal forall m n, maxn m n = m + (n - m). ssromega; fail. Abort.
+Goal forall m n, minn m n = m - (m - n). ssromega; fail. Abort.
 Goal forall m n, minn m n = m <-> m <= n. split; ssromega; fail. Abort.
 Goal forall m n, maxn m n = n <-> m <= n. split; ssromega; fail. Abort.
+Goal forall m n, maxn m n - minn m n = (m - n) + (n - m). ssromega; fail. Abort.
+Goal forall m n, minn m n - maxn m n = 0. ssromega; fail. Abort.
+Goal forall m n, minn m n + maxn m n = m + n. ssromega; fail. Abort.
 Goal forall m n, minn m n + (m - n) = m. ssromega; fail. Abort.
 Goal forall m n, maxn m n - (n - m) = m. ssromega; fail. Abort.
