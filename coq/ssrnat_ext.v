@@ -1,6 +1,5 @@
 Require Import
-  Omega Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
-  Ssreflect.ssrnat.
+  Omega Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.eqtype Ssreflect.ssrnat.
 
 Tactic Notation "find_minneq_hyp" constr(n) constr(m) :=
   match goal with
