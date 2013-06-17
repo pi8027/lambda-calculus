@@ -1,6 +1,6 @@
 Require Import
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool
-  Ssreflect.ssrnat Ssreflect.seq LCAC.ssrnat_ext.
+  Ssreflect.ssrnat Ssreflect.seq LCAC.lib.ssrnat_ext.
 
 Set Implicit Arguments.
 

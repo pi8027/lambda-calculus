@@ -3,7 +3,7 @@ Require Import
   Omega
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat Ssreflect.seq
-  LCAC.Relations_ext.
+  LCAC.lib.Relations_ext.
 
 Set Implicit Arguments.
 

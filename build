@@ -1,8 +1,9 @@
 #!/bin/zsh
 
 export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
-vfiles=(coq/Relations_ext.v coq/ssrnat_ext.v coq/seq_ext.v
-        coq/CL.v coq/LC/Debruijn.v coq/LC/LN.v coq/LC/Origin.v)
+vfiles=(coq/CL.v
+        coq/LC/Debruijn/Untyped.v coq/LC/LN/Untyped.v coq/LC/Origin/Untyped.v
+        coq/lib/Relations_ext.v coq/lib/seq_ext.v coq/lib/ssrnat_ext.v)
 error=
 
 puterr(){
