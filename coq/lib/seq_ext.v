@@ -51,6 +51,24 @@ Proof.
   - by rewrite minnSS IH.
 Qed.
 
+(* nth *)
+
+Theorem nth_map' :
+  forall (f : A -> B) x xs n, f (nth x xs n) = nth (f x) (map f xs) n.
+Proof.
+  move => f x; elim => /=.
+  - by move => n; rewrite !nth_nil.
+  - by move => x' xs IH [].
+Qed.
+
+Theorem nth_equal :
+  forall (a b : A) xs n, (size xs <= n -> a = b) -> nth a xs n = nth b xs n.
+Proof.
+  move => a b; elim.
+  by move => n /= ->.
+  by move => x xs IH [].
+Qed.
+
 End Seq.
 
 (* context *)
