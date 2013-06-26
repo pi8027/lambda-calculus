@@ -114,6 +114,9 @@ Inductive reduction1 : relation term :=
 Notation reduction := [* reduction1].
 Infix "->r" := reduction (at level 70, no associativity).
 
+Hint Resolve typvar typapp typabs typuapp typuabs
+  red1fst red1snd red1appl red1appr red1abs red1uapp red1uabs.
+
 Lemma shiftzero_ty : forall n t, shift_typ 0 n t = t.
 Proof.
   move => n t; elim: t n => /=; try congruence.
@@ -225,13 +228,10 @@ Lemma typemap_eq' :
   (forall o t, f (o + n) t = g (o + m) t) -> typemap f n t = typemap g m t.
 Proof.
   move => f g n m t H; elim: t n m H => //=.
-  - move => tl IHtl tr IHtr n m H; f_equal; auto.
-  - move => ty t IH n m H; f_equal; auto.
-    rewrite -(add0n n) -(add0n m); auto.
-  - move => t IH ty n m H; f_equal; auto.
-    rewrite -(add0n n) -(add0n m); auto.
-  - move => t IH n m H; f_equal; apply IH => o ty.
-    by rewrite -!addSnnS.
+  - by move => tl IHtl tr IHtr n m H; f_equal; auto.
+  - by move => ty t IH n m H; f_equal; auto; rewrite -(add0n n) -(add0n m).
+  - by move => t IH ty n m H; f_equal; auto; rewrite -(add0n n) -(add0n m).
+  - by move => t IH n m H; f_equal; apply IH => o ty; rewrite -!addSnnS.
 Qed.
 
 Lemma typemap_eq :
@@ -257,7 +257,7 @@ Lemma shifttyp_shifttyp_distr :
 Proof.
   move => d c d' c' t H.
   rewrite !typemap_compose; apply typemap_eq => {t} n t.
-  rewrite shift_shift_distr_ty; f_equal; ssromega.
+  by rewrite shift_shift_distr_ty ?leq_add2l // addnCA.
 Qed.
 
 Lemma shifttyp_substtyp_distr :
@@ -267,7 +267,7 @@ Lemma shifttyp_substtyp_distr :
 Proof.
   move => n d c ts t H.
   rewrite !typemap_compose; apply typemap_eq => {t} n' t.
-  rewrite shift_subst_distr_ty; f_equal; ssromega.
+  by rewrite shift_subst_distr_ty ?leq_add2l // addnCA.
 Qed.
 
 Lemma substtyp_shifttyp_distr :
@@ -536,7 +536,9 @@ Proof.
   by elim; constructor.
 Qed.
 
-Hint Resolve parred_refl.
+Hint Resolve
+  parredfst parredsnd parredvar parredapp parredabs parreduapp parreduabs
+  parred_refl.
 
 Lemma betared1_in_parred : inclusion reduction1 parred.
 Proof.
@@ -549,10 +551,10 @@ Proof.
   - move => ty t1 t1' t2 t2' H H0 H1 H2.
     apply rtc_trans' with (app (abs ty t1') t2); auto.
     apply rtc_trans' with (app (abs ty t1') t2'); auto.
-    apply rtc_step; constructor.
+    by apply rtc_step.
   - move => t t' ty H H0.
     apply rtc_trans' with (uapp (uabs t') ty); auto.
-    apply rtc_step; constructor.
+    by apply rtc_step.
   - move => t1 t1' t2 t2' H H0 H1 H2; apply rtc_trans' with (app t1 t2'); auto.
 Qed.
 
@@ -561,12 +563,9 @@ Lemma shift_parred :
 Proof.
   move => t t' d c H; move: t t' H d c.
   refine (parred_ind _ _ _ _ _ _ _ _) => //=; try by constructor.
-  - move => ty t1 t1' t2 t2' H H0 H1 H2 d c.
-    rewrite (subst_shift_distr 0).
-    by constructor.
-  - move => t t' ty H H0 d c.
-    rewrite shift_typemap_distr.
-    by constructor.
+  - by move => ty t1 t1' t2 t2' H H0 H1 H2 d c;
+      rewrite (subst_shift_distr 0) /= !add1n; auto.
+  - by move => t t' ty H H0 d c; rewrite shift_typemap_distr; auto.
 Qed.
 
 Lemma shifttyp_parred :
@@ -574,11 +573,11 @@ Lemma shifttyp_parred :
   t ->rp t' -> typemap (shift_typ d) c t ->rp typemap (shift_typ d) c t'.
 Proof.
   move => t t' d c H; move: t t' H d c.
-  refine (parred_ind _ _ _ _ _ _ _ _) => /=; try constructor; auto.
-  - move => ty t1 t1' t2 t2' H H0 H1 H2 d c.
-    by rewrite (shifttyp_subst_distr d c 0 0) add0n /=; constructor.
-  - move => t t' ty H H0 n m.
-    by rewrite -{3}(add0n m) substtyp_shifttyp_distr /= 2!add1n; constructor.
+  refine (parred_ind _ _ _ _ _ _ _ _) => /=; auto.
+  - by move => ty t1 t1' t2 t2' H H0 H1 H2 d c;
+      rewrite (shifttyp_subst_distr d c 0 0) add0n /=; auto.
+  - by move => t t' ty H H0 n m;
+      rewrite -{3}(add0n m) substtyp_shifttyp_distr /= 2!add1n; auto.
 Qed.
 
 Lemma substtyp_parred :
@@ -586,11 +585,11 @@ Lemma substtyp_parred :
   typemap (subst_typ^~ tys) n t ->rp typemap (subst_typ^~ tys) n t'.
 Proof.
   move => n tys t t' H; move: t t' H n.
-  refine (parred_ind _ _ _ _ _ _ _ _) => /=; try constructor; auto.
-  - move => ty t1 t1' t2 t2' H H0 H1 H2 n.
-    by rewrite substtyp_subst_distr // subn0; constructor.
-  - move => t t' ty H H0 n.
-    by rewrite -{3}(add0n n) substtyp_substtyp_distr /= 2!add1n; constructor.
+  refine (parred_ind _ _ _ _ _ _ _ _) => /=; auto.
+  - by move => ty t1 t1' t2 t2' H H0 H1 H2 n;
+      rewrite substtyp_subst_distr //= subn0; auto.
+  - by move => t t' ty H H0 n;
+      rewrite -{3}(add0n n) substtyp_substtyp_distr /= 2!add1n; auto.
 Qed.
 
 Lemma subst_parred :
@@ -599,10 +598,10 @@ Lemma subst_parred :
   subst_term n m [seq snd p | p <- ps] t'.
 Proof.
   move => n m ps t t' H H0; move: t t' H0 n m.
-  refine (parred_ind _ _ _ _ _ _ _ _) => /=; try constructor; auto.
-  - move => ty tl tl' tr tr' H0 H1 H2 H3 n m.
-    by rewrite (subst_subst_distr n 0 m 0) /= 2!add1n add0n; constructor.
-  - by move => t t' ty H0 H1 n m; rewrite subst_substtyp_distr //=; constructor.
+  refine (parred_ind _ _ _ _ _ _ _ _) => /=; auto.
+  - by move => ty tl tl' tr tr' H0 H1 H2 H3 n m;
+      rewrite (subst_subst_distr n 0 m 0) /= 2!add1n add0n; auto.
+  - by move => t t' ty H0 H1 n m; rewrite subst_substtyp_distr //=; auto.
   - move => v n m.
     rewrite /subst_termv !size_map.
     case: ifP => // _.
@@ -616,10 +615,8 @@ Proof with auto.
   fix 3 => t t' H; inversion H; subst => {H} /=; try by constructor; auto.
   - apply (subst_parred 0 0 [:: (t2', reduce_all_redex t2)]) => /=; auto.
   - by apply substtyp_parred; apply parred_all_lemma.
-  - destruct t1; try by constructor; auto.
-    by inversion H0; constructor; auto.
-  - destruct t0; try by constructor; auto.
-    by inversion H0; constructor; auto.
+  - by destruct t1; auto; inversion H0; auto.
+  - by destruct t0; auto; inversion H0; auto.
 Qed.
 
 Lemma parred_confluent : confluent parred.
