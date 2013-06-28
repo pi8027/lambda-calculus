@@ -2,7 +2,7 @@ Require Import
   Coq.Relations.Relations Coq.Relations.Relation_Operators
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat Ssreflect.seq
-  LCAC.lib.Relations_ext LCAC.lib.ssrnat_ext.
+  LCAC.lib.Relations_ext LCAC.lib.ssrnat_ext LCAC.lib.seq_ext.
 
 Set Implicit Arguments.
 
@@ -34,24 +34,14 @@ Fixpoint shift d c t : term :=
     | abs t1 => abs (shift d c.+1 t1)
   end.
 
-Fixpoint substitute n t1 t2 : term :=
-  match t2 with
-    | var m =>
-      if n <= m
-        then (if n == m then shift n 0 t1 else m.-1)
-        else m
-    | app t2l t2r => app (substitute n t1 t2l) (substitute n t1 t2r)
-    | abs t2' => abs (substitute n.+1 t1 t2')
-  end.
-
-Definition substitute_seqv ts m n : term :=
+Definition substitutev ts m n : term :=
   shift n 0 (nth (var (m - n - size ts)) ts (m - n)).
 
-Fixpoint substitute_seq n ts t : term :=
+Fixpoint substitute n ts t : term :=
   match t with
-    | var m => if n <= m then substitute_seqv ts m n else m
-    | app t1 t2 => app (substitute_seq n ts t1) (substitute_seq n ts t2)
-    | abs t' => abs (substitute_seq n.+1 ts t')
+    | var m => if n <= m then substitutev ts m n else m
+    | app t1 t2 => app (substitute n ts t1) (substitute n ts t2)
+    | abs t' => abs (substitute n.+1 ts t')
   end.
 
 Lemma shiftzero : forall n t, shift 0 n t = t.
@@ -64,91 +54,91 @@ Lemma shift_add :
   forall d d' c c' t, c <= c' <= d + c ->
   shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
-  move => d d' c c' t; elim: t c c' => /=.
-  - move => n c c' ?; elimif_omega.
-  - move => t1 ? t2 ? c c' ?; f_equal; auto.
-  - by move => t IH c c' ?; rewrite IH // addnS !ltnS.
+  move => d d' c c' t; move/andP => [H].
+  rewrite -(subnK H) leq_add2r => {H} H; rewrite -(subnK H).
+  move: {c' H} (c' - c) => c'; elim: {d} t c (d - c') => /=;
+    try (move: addnS; congruence); move => *; elimif_omega.
 Qed.
 
 Lemma shift_shift_distr :
   forall d c d' c' t,
   c' <= c -> shift d' c' (shift d c t) = shift d (d' + c) (shift d' c' t).
 Proof.
-  move => d c d' c' t; elim: t c c' => /=.
-  - move => n c c' ?; elimif_omega.
-  - move => t1 ? t2 ? c c' ?; f_equal; auto.
-  - by move => t' IH c c' ?; rewrite -addnS IH.
+  move => d c d' c' t H; rewrite -(subnK H); elim: t c' {c H} (c - c') => /=
+    ; try (move: addnS; congruence); move => *; elimif_omega.
 Qed.
 
 Lemma subst_shift_distr :
-  forall n d c t1 t2,
-  shift d (n + c) (substitute n t1 t2) =
-  substitute n (shift d c t1) (shift d (n + c).+1 t2).
+  forall n d c ts t,
+  shift d (n + c) (substitute n ts t) =
+  substitute n (map (shift d c) ts) (shift d (size ts + n + c) t).
 Proof.
-  move => n d c t1 t2; elim: t2 n => /=.
-  - by move => m n; elimif_omega; rewrite -shift_shift_distr.
-  - congruence.
-  - by move => t IH n; rewrite (IH n.+1).
+  move => n d c ts t; elim: t n => /=; try (move: addnS addSn; congruence).
+  move => v n; elimif_omega; rewrite /substitutev.
+  - rewrite !nth_default ?size_map /=; try ssromega.
+    rewrite !(subnAC _ n) subnK; elimif_omega.
+  - rewrite -shift_shift_distr // nth_map' /=.
+    f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 Lemma shift_subst_distr :
-  forall n d c t1 t2, c <= n ->
-  shift d c (substitute n t2 t1) = substitute (d + n) t2 (shift d c t1).
+  forall n d c ts t, c <= n ->
+  shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
 Proof.
-  move => n d c t1 t2; elim: t1 c n => /=.
-  - by move => v c n H; elimif_omega; rewrite shift_add // addn0.
-  - move => t1l IHl t1r IHr c n H; f_equal; auto.
-  - by move => t1 IH c n H; rewrite -addnS IH.
+  move => n d c ts t H; rewrite -(subnK H);
+    elim: t {n H} c (n - c) => /=; try (move: addnS; congruence).
+  move => v c n; elimif_omega.
+  by rewrite /substitutev shift_add ?addn0 ?leq_addl // !subnDA addnK.
 Qed.
 
 Lemma subst_shift_cancel :
-  forall n d c t1 t2, n <= d ->
-  substitute (c + n) t2 (shift d.+1 c t1) = shift d c t1.
+  forall n d c ts t, c <= n -> size ts + n <= d + c ->
+  substitute n ts (shift d c t) = shift (d - size ts) c t.
 Proof.
-  move => n d c t1 t2; elim: t1 c => /=.
-  - move => m c ?; elimif_omega.
-  - move => t1l ? t1r ? c ?; f_equal; auto.
-  - by move => t1 IH c ?; rewrite -IH.
+  move => n d c ts t H.
+  rewrite -(subnK H) addnA leq_add2r; move: {n H} (n - c) => n H.
+  rewrite -(subnK H) addnA (addnAC _ (size ts)) addnK.
+  elim: t {d H} c (d - (size ts + n)) => /=;
+    try (move: addnS; congruence); move => v c d; elimif_omega.
+  rewrite /substitutev nth_default /=; elimif_omega.
 Qed.
 
 Lemma subst_subst_distr :
-  forall n m t1 t2 t3,
-  substitute (m + n) t3 (substitute m t2 t1) =
-  substitute m (substitute n t3 t2) (substitute (S (m + n)) t3 t1).
+  forall n m xs ys t,
+  substitute (m + n) xs (substitute m ys t) =
+  substitute m (map (substitute n xs) ys) (substitute (size ys + m + n) xs t).
 Proof.
-  move => n m t1; elim: t1 m => /=.
-  - case => [ | v] m t2 t3; elimif_omega.
-    - by rewrite shift_subst_distr.
-    - by rewrite shift_subst_distr.
-    - by rewrite (subst_shift_cancel m _ 0) // leq_addr.
-  - congruence.
-  - by move => t1 IH m t2 t3; rewrite -addSn IH.
+  move => n m xs ys t; elim: t m => /=; try (move: addnS addSn; congruence).
+  move => v m; elimif_omega; rewrite /substitutev.
+  - rewrite (subst_shift_cancel m) // ?size_map; try ssromega.
+    rewrite nth_default /= /substitutev; elimif_omega.
+    by rewrite !(nth_map' (shift _ _)) /= subnDA addnK
+      (addnC _ m) addnAC addnK !subnDA (subnAC _ n (size ys)).
+  - rewrite size_map -shift_subst_distr // nth_map' /=.
+    f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
-Lemma substitute_seq_cons_eq :
-  forall n t ts t',
-  substitute n t (substitute_seq n.+1 ts t') = substitute_seq n (t :: ts) t'.
+Lemma subst_app :
+  forall n xs ys t,
+  substitute n xs (substitute (size xs + n) ys t) = substitute n (xs ++ ys) t.
 Proof.
-  move => n t ts t'; elim: t' n t ts.
-  - move => /= n m t ts.
-    rewrite /substitute_seqv; elimif_omega.
-    - by rewrite (subst_shift_cancel m _ 0) // -(subnSK H0) subSS.
-    - by move/eqP: H ->; rewrite subnn.
-  - by move => /= tl IHtl tr IHtr n t ts; f_equal.
-  - by move => /= t' IH n t ts; f_equal.
+  move => n xs ys t; elim: t n => /=; try (move: addnS; congruence).
+  move => v n; rewrite /substitutev nth_cat size_cat; elimif_omega.
+  - by rewrite subst_shift_cancel ?addn0 // addKn addnC !subnDA.
+  - rewrite /substitutev; f_equal; apply nth_equal; ssromega.
 Qed.
 
-Lemma substitute_seq_nil_eq : forall n t, substitute_seq n [::] t = t.
+Lemma subst_nil : forall n t, substitute n [::] t = t.
 Proof.
   move => n t; elim: t n => /=; try congruence.
-  move => m n; rewrite /substitute_seqv nth_nil /=; elimif_omega.
+  move => m n; rewrite /substitutev nth_nil /=; elimif_omega.
 Qed.
 
 Reserved Notation "t ->1b t'" (at level 70, no associativity).
 Reserved Notation "t ->bp t'" (at level 70, no associativity).
 
 Inductive betared1 : relation term :=
-  | betared1beta : forall t1 t2, app (abs t1) t2 ->1b substitute 0 t2 t1
+  | betared1beta : forall t1 t2, app (abs t1) t2 ->1b substitute 0 [:: t2] t1
   | betared1appl : forall t1 t1' t2, t1 ->1b t1' -> app t1 t2 ->1b app t1' t2
   | betared1appr : forall t1 t2 t2', t2 ->1b t2' -> app t1 t2 ->1b app t1 t2'
   | betared1abs  : forall t t', t ->1b t' -> abs t ->1b abs t'
@@ -161,7 +151,7 @@ Inductive parred : relation term :=
   | parredabs  : forall t t', t ->bp t' -> abs t ->bp abs t'
   | parredbeta : forall t1 t1' t2 t2',
                  t1 ->bp t1' -> t2 ->bp t2' ->
-                 app (abs t1) t2 ->bp substitute 0 t2' t1'
+                 app (abs t1) t2 ->bp substitute 0 [:: t2'] t1'
   where "t ->bp t'" := (parred t t').
 
 Notation betared := [* betared1].
@@ -174,7 +164,7 @@ Function reduce_all_redex t : term :=
   match t with
     | var _ => t
     | app (abs t1) t2 =>
-      substitute 0 (reduce_all_redex t2) (reduce_all_redex t1)
+      substitute 0 [:: reduce_all_redex t2] (reduce_all_redex t1)
     | app t1 t2 => app (reduce_all_redex t1) (reduce_all_redex t2)
     | abs t' => abs (reduce_all_redex t')
   end.
@@ -221,12 +211,11 @@ Proof.
 Qed.
 
 Lemma subst_betared1 :
-  forall n t1 t2 t2',
-  t2 ->1b t2' -> substitute n t1 t2 ->1b substitute n t1 t2'.
+  forall n ts t t', t ->1b t' -> substitute n ts t ->1b substitute n ts t'.
 Proof.
   move => n t1 t2 t2' H; move: t2 t2' H n.
   refine (betared1_ind _ _ _ _ _) => /=; auto => t2 t2' n.
-  by rewrite (subst_subst_distr n 0).
+  by rewrite (subst_subst_distr n 0) /= !add1n.
 Qed.
 
 Lemma shift_parred :
@@ -234,18 +223,21 @@ Lemma shift_parred :
 Proof.
   move => t t' d c H; move: t t' H d c.
   refine (parred_ind _ _ _ _ _) => //=; auto => t1 t1' t2 t2' ? ? ? ? d c.
-  rewrite (subst_shift_distr 0); auto.
+  rewrite (subst_shift_distr 0) /= !add1n; auto.
 Qed.
 
 Lemma subst_parred :
-  forall n t1 t1' t2 t2',
-  t1 ->bp t1' -> t2 ->bp t2' -> substitute n t1 t2 ->bp substitute n t1' t2'.
+  forall n ps t t', Forall (prod_curry parred) ps -> t ->bp t' ->
+  substitute n [seq fst p | p <- ps] t ->bp
+  substitute n [seq snd p | p <- ps] t'.
 Proof.
-  move => n t1 t1' t2 t2' H H0; move: t2 t2' H0 n.
+  move => n ps t t' H H0; move: t t' H0 n.
   refine (parred_ind _ _ _ _ _) => /=; auto.
-  - by move => m n; elimif; apply shift_parred.
-  - move => t2l t2l' ? ? t2r t2r' ? ? n.
-    rewrite (subst_subst_distr n 0); auto.
+  - move => v n; elimif; rewrite /substitutev !size_map; apply shift_parred.
+    elim: {v n H0} ps (v - n) H => //= [[t t']] ps IH [| v] [] //= H H0.
+    by rewrite subSS; apply IH.
+  - move => t1 t1' t2 t2' H0 H1 H2 H3 n.
+    by rewrite (subst_subst_distr n 0) /= !add1n; auto.
 Qed.
 
 Lemma parred_all_lemma : forall t t', t ->bp t' -> t' ->bp reduce_all_redex t.
@@ -254,7 +246,7 @@ Proof with auto.
   - by move => t n ? t' H; inversion H; subst.
   - move => _ t1 t2 _ ? ? t' H; inversion H; subst.
     - inversion H2; subst...
-    - apply subst_parred...
+    - apply (subst_parred 0 [:: (t2', reduce_all_redex t2)]) => /=; auto.
   - move => _ t1 t2 _ ? ? ? t' H; inversion H; subst => //...
   - move => _ t1 _ ? t2 H; inversion H; subst...
 Qed.

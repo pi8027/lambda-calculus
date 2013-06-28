@@ -54,15 +54,15 @@ Proof.
     constructor; apply (H0 c.+1).
 Qed.
 
-Lemma subject_substitute_seq :
+Lemma subject_substitute :
   forall t ty n ctx ctx',
   Forall (fun p => typing (drop n ctx) p.1 p.2) ctx' ->
   typing (ctxinsert [seq Some p.2 | p <- ctx'] ctx n) t ty ->
-  typing ctx (substitute_seq n [seq p.1 | p <- ctx'] t) ty.
+  typing ctx (substitute n [seq p.1 | p <- ctx'] t) ty.
 Proof with auto.
   elim.
   - move => /= m ty n ctx ctx'.
-    rewrite /substitute_seqv typvar_seqindex ctxnth_ctxinsert !size_map.
+    rewrite /substitutev typvar_seqindex ctxnth_ctxinsert !size_map.
     elimif_omega.
     - by constructor.
     - have: (m - n < size ctx') by ssromega.
@@ -92,8 +92,7 @@ Proof.
   refine (betared1_ind _ _ _ _ _) => //=.
   - move => t1 t2 ctx ty H.
     inversion H; subst; inversion H3; subst.
-    rewrite -(substitute_seq_nil_eq 1 t1) substitute_seq_cons_eq.
-    apply (subject_substitute_seq 0 ctx [:: (t2, ty1)]).
+    apply (subject_substitute 0 ctx [:: (t2, ty1)]).
     - by rewrite /= drop0.
     - by rewrite /ctxinsert sub0n take0 drop0 /=.
   - move => t1 t1' t2 H IH ctx ty H0.
@@ -189,28 +188,29 @@ Proof.
   apply H => //; apply H2.
 Qed.
 
-Lemma snorm_subst : forall t1 t2, SNorm (substitute 0 t2 t1) -> SNorm t1.
+Lemma snorm_subst : forall n ts t, SNorm (substitute n ts t) -> SNorm t.
 Proof.
-  move => t1 t2.
-  move: {1 3}(substitute 0 t2 t1) (erefl (substitute 0 t2 t1)) => t3 H H0.
-  move: t3 H0 t1 t2 H.
-  refine (Acc_ind _ _) => t3 _ IH t1 t2 H; subst; constructor => t3' H0.
-  by apply (IH (substitute 0 t2 t3') (subst_betared1 0 t2 H0) t3' t2).
+  move => n ts t.
+  move: {1 3}(substitute _ _ _) (erefl (substitute n ts t)) => t3 H H0.
+  move: t3 H0 n ts t H.
+  refine (Acc_ind _ _) => t3 _ IH n ts t H; subst; constructor => t' H0.
+  by apply (IH (substitute n ts t') (subst_betared1 n ts H0) n ts t').
 Qed.
 
 Lemma abstraction_lemma :
   forall ctx t1 tyl tyr,
   typing ctx (abs t1) (tyfun tyl tyr) ->
   (forall t2 ctx', ctxleq ctx ctx' -> typing ctx' t2 tyl ->
-   reducible ctx' t2 tyl -> reducible ctx' (substitute 0 t2 t1) tyr) ->
+   reducible ctx' t2 tyl -> reducible ctx' (substitute 0 [:: t2] t1) tyr) ->
   reducible ctx (abs t1) (tyfun tyl tyr).
 Proof.
   move => /= ctx t1 tyl tyr H H0 t2 ctx' H1 H2 H3.
-  have H4: (typing ctx' (substitute 0 t2 t1) tyr).
+  have H4: (typing ctx' (substitute 0 [:: t2] t1) tyr).
     apply subject_reduction with (app (abs t1) t2); auto.
     apply typapp with tyl => //.
     by move: H; apply ctxleq_preserves_typing.
-  move: (snorm_subst t1 t2 (CR1 H4 (H0 t2 ctx' H1 H2 H3))) (CR1 H2 H3) => H5 H6.
+  move: (snorm_subst 0 [:: t2] t1 (CR1 H4 (H0 t2 ctx' H1 H2 H3)))
+    (CR1 H2 H3) => H5 H6.
   move: t1 H5 t2 H6 H H0 H1 H2 H3 {H4}.
   refine (Acc_ind _ _) => t1 H H0.
   refine (Acc_ind _ _) => t2 H1 H2 H3 H4 H5 H6 H7.
@@ -223,7 +223,7 @@ Proof.
       apply H0 => //.
       - by apply subject_reduction with (abs t1); auto.
       - by move => t'' ctx'' H8 H10 H11;
-          apply (CR2 (subst_betared1 0 t'' H9)), H4.
+          apply (CR2 (subst_betared1 0 [:: t''] H9)), H4.
     - apply H2 => //.
       - by apply subject_reduction with t2.
       - by apply CR2 with t2.
@@ -233,11 +233,11 @@ Lemma reduce_lemma :
   forall ctx (ctx' : seq (term * typ)) t ty,
   typing ([seq Some p.2 | p <- ctx'] ++ ctx) t ty ->
   Forall (fun p => typing ctx p.1 p.2 /\ reducible ctx p.1 p.2) ctx' ->
-  reducible ctx (substitute_seq 0 [seq p.1 | p <- ctx'] t) ty.
+  reducible ctx (substitute 0 [seq p.1 | p <- ctx'] t) ty.
 Proof.
   move => ctx ctx' t ty; elim: t ty ctx ctx'.
   - move => /= n ty ctx ctx'.
-    rewrite /substitute_seqv typvar_seqindex subn0 size_map shiftzero.
+    rewrite /substitutev typvar_seqindex subn0 size_map shiftzero.
     elim: ctx' n => [| c' ctx' IH []] /=.
     - move => n H _; rewrite nth_nil subn0.
       apply CR3 => //; auto => t' H0; inversion H0.
@@ -246,18 +246,18 @@ Proof.
   - move => tl IHtl tr IHtr ty ctx ctx' H H0.
     inversion H; subst => {H}.
     move: (IHtl (tyfun ty1 ty) ctx ctx') => /=; apply; auto.
-    apply subject_substitute_seq.
+    apply subject_substitute.
     - rewrite drop0; move: H0; apply Forall_impl; tauto.
     - by rewrite /ctxinsert sub0n take0 drop0 /=.
   - move => t IHt ty ctx ctx' H H0.
     inversion H; subst => {H} /=.
     apply abstraction_lemma.
     - constructor.
-      apply subject_substitute_seq.
+      apply subject_substitute.
       - rewrite /= drop0; move: H0; apply Forall_impl; tauto.
       - by rewrite /ctxinsert /= take0 drop0 /=.
     - move => t2 ctx2 H H1 H2.
-      rewrite substitute_seq_cons_eq.
+      rewrite subst_app.
       apply (IHt ty2 ctx2 ((t2, ty1) :: ctx')) => /=.
       - move: H3; apply ctxleq_preserves_typing.
         move: H; apply (ctxleq_appl (Some ty1 :: _)).
@@ -272,5 +272,5 @@ Proof.
   move => ctx t ty H.
   apply (@CR1 ctx t ty) => //.
   move: (@reduce_lemma ctx [::] t ty H) => /=.
-  by rewrite substitute_seq_nil_eq; apply.
+  by rewrite subst_nil; apply.
 Qed.
