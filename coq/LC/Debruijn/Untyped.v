@@ -73,6 +73,15 @@ Proof.
     try (move: addnS; congruence); move => *; elimif_omega.
 Qed.
 
+Lemma shift_subst_distr :
+  forall n d c ts t, c <= n ->
+  shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
+Proof.
+  move => n d c ts t; elimleq; elim: t c n => /=;
+    try (move: addnS; congruence); move => v c n; elimif_omega.
+  by rewrite /substitutev shift_add ?addn0 ?leq_addl // !subnDA addnK.
+Qed.
+
 Lemma subst_shift_distr :
   forall n d c ts t,
   shift d (n + c) (substitute n ts t) =
@@ -84,15 +93,6 @@ Proof.
     rewrite !(subnAC _ n) subnK; elimif_omega.
   - rewrite -shift_shift_distr // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
-Qed.
-
-Lemma shift_subst_distr :
-  forall n d c ts t, c <= n ->
-  shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
-Proof.
-  move => n d c ts t; elimleq; elim: t c n => /=;
-    try (move: addnS; congruence); move => v c n; elimif_omega.
-  by rewrite /substitutev shift_add ?addn0 ?leq_addl // !subnDA addnK.
 Qed.
 
 Lemma subst_shift_cancel :
