@@ -23,6 +23,13 @@ Ltac elimif_omega :=
     | |- _ => idtac
   end; ssromega).
 
+Ltac elimleq :=
+  let H := fresh "H" in
+  match goal with
+    | [ |- is_true (?m <= ?n) -> _ ] =>
+      move => H; rewrite -(subnK H) ?(addnK, addKn); move: {n H} (n - m) => n
+  end.
+
 End Lambda_tactics.
 
 Import Lambda_tactics.
@@ -54,18 +61,16 @@ Lemma shift_add :
   forall d d' c c' t, c <= c' <= d + c ->
   shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
-  move => d d' c c' t; move/andP => [H].
-  rewrite -(subnK H) leq_add2r => {H} H; rewrite -(subnK H).
-  move: {c' H} (c' - c) => c'; elim: {d} t c (d - c') => /=;
-    try (move: addnS; congruence); move => *; elimif_omega.
+  move => d d' c c' t; case/andP; elimleq; rewrite leq_add2r; elimleq.
+  elim: t c d => /=; try (move: addnS; congruence); move => *; elimif_omega.
 Qed.
 
 Lemma shift_shift_distr :
   forall d c d' c' t,
   c' <= c -> shift d' c' (shift d c t) = shift d (d' + c) (shift d' c' t).
 Proof.
-  move => d c d' c' t H; rewrite -(subnK H); elim: t c' {c H} (c - c') => /=
-    ; try (move: addnS; congruence); move => *; elimif_omega.
+  move => d c d' c' t; elimleq; elim: t c' c => /=;
+    try (move: addnS; congruence); move => *; elimif_omega.
 Qed.
 
 Lemma subst_shift_distr :
@@ -85,9 +90,8 @@ Lemma shift_subst_distr :
   forall n d c ts t, c <= n ->
   shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
 Proof.
-  move => n d c ts t H; rewrite -(subnK H);
-    elim: t {n H} c (n - c) => /=; try (move: addnS; congruence).
-  move => v c n; elimif_omega.
+  move => n d c ts t; elimleq; elim: t c n => /=;
+    try (move: addnS; congruence); move => v c n; elimif_omega.
   by rewrite /substitutev shift_add ?addn0 ?leq_addl // !subnDA addnK.
 Qed.
 
@@ -95,11 +99,8 @@ Lemma subst_shift_cancel :
   forall n d c ts t, c <= n -> size ts + n <= d + c ->
   substitute n ts (shift d c t) = shift (d - size ts) c t.
 Proof.
-  move => n d c ts t H.
-  rewrite -(subnK H) addnA leq_add2r; move: {n H} (n - c) => n H.
-  rewrite -(subnK H) addnA (addnAC _ (size ts)) addnK.
-  elim: t {d H} c (d - (size ts + n)) => /=;
-    try (move: addnS; congruence); move => v c d; elimif_omega.
+  move => n d c ts t; elimleq; rewrite addnA leq_add2r; elimleq.
+  elim: t c d => /=; try (move: addnS; congruence); move => v c d; elimif_omega.
   rewrite /substitutev nth_default /=; elimif_omega.
 Qed.
 
@@ -176,19 +177,19 @@ Qed.
 
 Lemma betaredappl : forall t1 t1' t2, t1 ->b t1' -> app t1 t2 ->b app t1' t2.
 Proof.
-  move => t1 t1' t2; elim => // {t1 t1'} t1 t1' t1'' ? ? ?.
+  move => t1 t1' t2; elim => // {t1 t1'} t1 t1' t1'' H H0 H1.
   apply rt1n_trans with (app t1' t2) => //; auto.
 Qed.
 
 Lemma betaredappr : forall t1 t2 t2', t2 ->b t2' -> app t1 t2 ->b app t1 t2'.
 Proof.
-  move => t1 t2 t2'; elim => // {t2 t2'} t2 t2' t2'' ? ? ?.
+  move => t1 t2 t2'; elim => // {t2 t2'} t2 t2' t2'' H H0 H1.
   apply rt1n_trans with (app t1 t2') => //; auto.
 Qed.
 
 Lemma betaredabs : forall t t', t ->b t' -> abs t ->b abs t'.
 Proof.
-  move => t t'; elim => // {t t'} t t' t'' ? ? ?.
+  move => t t'; elim => // {t t'} t t' t'' H H0 H1.
   apply rt1n_trans with (abs t') => //; auto.
 Qed.
 
@@ -202,9 +203,9 @@ Qed.
 Lemma parred_in_betared : inclusion parred betared.
 Proof.
   apply parred_ind => //.
-  - move => t1 t1' t2 t2' ? ? ? ?; apply rtc_trans' with (app t1' t2); auto.
+  - move => t1 t1' t2 t2' H H0 H1 H2; apply rtc_trans' with (app t1' t2); auto.
   - auto.
-  - move => t1 t1' t2 t2' ? ? ? ?.
+  - move => t1 t1' t2 t2' H H0 H1 H2.
     apply rtc_trans' with (app (abs t1') t2); auto.
     apply rtc_trans' with (app (abs t1') t2'); auto.
     by apply rtc_step.
@@ -222,7 +223,7 @@ Lemma shift_parred :
   forall t t' d c, t ->bp t' -> shift d c t ->bp shift d c t'.
 Proof.
   move => t t' d c H; move: t t' H d c.
-  refine (parred_ind _ _ _ _ _) => //=; auto => t1 t1' t2 t2' ? ? ? ? d c.
+  refine (parred_ind _ _ _ _ _) => //=; auto => t1 t1' t2 t2' H H0 H1 H2 d c.
   rewrite (subst_shift_distr 0) /= !add1n; auto.
 Qed.
 
@@ -243,17 +244,17 @@ Qed.
 Lemma parred_all_lemma : forall t t', t ->bp t' -> t' ->bp reduce_all_redex t.
 Proof with auto.
   move => t; elim/reduce_all_redex_ind: {t}_.
-  - by move => t n ? t' H; inversion H; subst.
-  - move => _ t1 t2 _ ? ? t' H; inversion H; subst.
-    - inversion H2; subst...
+  - by move => t n H t' H0; inversion H0; subst.
+  - move => _ t1 t2 _ H H0 t' H1; inversion H1; subst.
+    - inversion H4; subst...
     - apply (subst_parred 0 [:: (t2', reduce_all_redex t2)]) => /=; auto.
-  - move => _ t1 t2 _ ? ? ? t' H; inversion H; subst => //...
-  - move => _ t1 _ ? t2 H; inversion H; subst...
+  - move => _ t1 t2 _ H H0 H1 t' H2; inversion H2; subst => //...
+  - move => _ t1 _ H t2 H0; inversion H0; subst...
 Qed.
 
 Lemma parred_confluent : confluent parred.
 Proof.
-  by move => t1 t2 t3 ? ?;
+  by move => t1 t2 t3 H H0;
     exists (reduce_all_redex t1); split; apply parred_all_lemma.
 Qed.
 
