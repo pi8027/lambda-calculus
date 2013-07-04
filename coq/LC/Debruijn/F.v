@@ -659,6 +659,32 @@ Proof.
       by do 2 f_equal; rewrite (shift_shift_distr_ty d c).
 Qed.
 
+Lemma substtyp_preserves_typing :
+  forall n tys ctx t ty,
+  typing ctx t ty ->
+  typing (map (omap (subst_typ n tys)) ctx)
+    (typemap (subst_typ^~ tys) n t) (subst_typ n tys ty).
+Proof.
+  move => n tys ctx t ty H; move: ctx t ty H n.
+  refine (typing_ind _ _ _ _ _ _) => /=.
+  - move => ctx n ty H v; constructor.
+    by rewrite -(nth_map' (omap (subst_typ v tys)) None) -H.
+  - move => ctx t1 t2 ty1 ty2 _ H _ H0 n.
+    by apply typapp with (subst_typ n tys ty1); auto.
+  - by constructor.
+  - move => ctx t ty1 ty2 _ H n.
+    rewrite -{4}(add0n n) subst_subst_distr_ty /= !add1n.
+    by constructor.
+  - move => ctx t ty _ H n; constructor.
+    move: {H} (H n.+1); rewrite -!map_comp /funcomp.
+    set ctx1 := map _ _.
+    set ctx2 := map _ _.
+    have -> //: ctx1 = ctx2.
+      rewrite {}/ctx1 {}/ctx2.
+      elim: ctx {t ty} => //= [[ty |]] ctx -> //=.
+      by rewrite shift_subst_distr_ty.
+Qed.
+
 Lemma subject_shift :
   forall t ty c ctx1 ctx2,
   typing ctx1 t ty ->
@@ -725,7 +751,7 @@ Proof.
     - by rewrite map_ctxinsert -!map_comp.
 Qed.
 
-Lemma subject_reduction :
+Theorem subject_reduction :
   forall ctx t t' ty, t ->r1 t' -> typing ctx t ty -> typing ctx t' ty.
 Proof.
   move => ctx t t' ty H; move: t t' H ctx ty.
@@ -736,8 +762,14 @@ Proof.
     - by rewrite drop0.
     - by rewrite /ctxinsert take0 drop0.
   - move => t ty' ctx ty H.
-    inversion H; subst => {H}.
-    admit.
+    inversion H; subst => {H}; inversion H4; subst => {H4}.
+    move: {H2} (substtyp_preserves_typing 0 [:: ty'] H2).
+    rewrite -map_comp /funcomp.
+    set ctx' := map _ _.
+    have -> //: ctx = ctx'.
+      rewrite {}/ctx'.
+      elim: ctx {t ty1} => //= [[ty |]] ctx {1}-> //=.
+      by rewrite subst_shift_cancel_ty //= subnn shift_zero_ty.
   - move => t1 t1' t2 H IH ctx ty H0; inversion H0; subst; eauto.
   - move => t1 t2 t2' H IH ctx ty H0; inversion H0; subst; eauto.
   - move => ty' t t' H IH ctx ty H0; inversion H0; subst; eauto.
