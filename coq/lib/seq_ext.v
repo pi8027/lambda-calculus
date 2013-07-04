@@ -75,26 +75,44 @@ End Seq.
 
 Notation ctxindex xs n x := (Some x = nth None xs n).
 Notation ctxleq xs ys := (forall n a, ctxindex xs n a -> ctxindex ys n a).
+Infix "<=c" := ctxleq (at level 70, no associativity).
+
+Definition context A := (seq (option A)).
+
+Definition ctxinsert A xs ys n : context A :=
+  take n ys ++ nseq (n - size ys) None ++ xs ++ drop n ys.
 
 Section Context.
 
-Variable (A : Type).
+Variable (A B : Type).
 
-Definition context := (seq (option A)).
-
-Definition ctxinsert xs ys n : context :=
-  take n ys ++ nseq (n - size ys) None ++ xs ++ drop n ys.
+Theorem ctxindex_map :
+  forall (f : A -> B) xs n x,
+  ctxindex xs n x -> ctxindex (map (omap f) xs) n (f x).
+Proof.
+  by move => f; elim => [| x xs IH] [] //= x' <-.
+Qed.
 
 Theorem size_ctxinsert :
-  forall xs ys n, size (ctxinsert xs ys n) = size xs + maxn n (size ys).
+  forall (xs ys : context A) n,
+  size (ctxinsert xs ys n) = size xs + maxn n (size ys).
 Proof.
   move => xs ys n.
   rewrite /ctxinsert !size_cat size_nseq size_take size_drop.
   ssromega.
 Qed.
 
-Theorem ctxnth_ctxinsert :
-  forall xs ys n m,
+Theorem map_ctxinsert :
+  forall (f : A -> B) xs ys n,
+  map (omap f) (ctxinsert xs ys n) =
+  ctxinsert (map (omap f) xs) (map (omap f) ys) n.
+Proof.
+  move => f xs ys n.
+  by rewrite /ctxinsert !map_cat map_take map_nseq size_map map_drop.
+Qed.
+
+Theorem nth_ctxinsert :
+  forall (xs ys : context A) n m,
   nth None (ctxinsert xs ys n) m =
   if m < n then nth None ys m else
   if m < n + size xs then nth None xs (m - n) else nth None ys (m - size xs).
@@ -109,35 +127,35 @@ Proof.
   - move => H _ _ _ _; rewrite nth_drop; f_equal; ssromega.
 Qed.
 
-Theorem ctxleq_refl : forall (xs : context), ctxleq xs xs.
+Theorem ctxleq_refl : forall (xs : context A), ctxleq xs xs.
 Proof.
   done.
 Qed.
 
 Theorem ctxleq_trans :
-  forall (xs ys zs : context), ctxleq xs ys -> ctxleq ys zs -> ctxleq xs zs.
+  forall (xs ys zs : context A), ctxleq xs ys -> ctxleq ys zs -> ctxleq xs zs.
 Proof.
   auto.
 Qed.
 
-Theorem ctxleq_nil : forall (xs : context), ctxleq [::] xs.
+Theorem ctxleq_nil : forall (xs : context A), ctxleq [::] xs.
 Proof.
   by move => xs n a; rewrite nth_nil.
 Qed.
 
 Theorem ctxleq_appl :
-  forall (xs ys zs : context), ctxleq ys zs -> ctxleq (xs ++ ys) (xs ++ zs).
+  forall (xs ys zs : context A), ctxleq ys zs -> ctxleq (xs ++ ys) (xs ++ zs).
 Proof.
   by elim => // x xs IH ys zs H [] //=; apply IH.
 Qed.
 
-Theorem ctxleq_appr : forall (xs ys : context), ctxleq xs (xs ++ ys).
+Theorem ctxleq_appr : forall (xs ys : context A), ctxleq xs (xs ++ ys).
 Proof.
   by move => xs ys; elim: xs => [n a | x xs H []] //=; rewrite nth_nil.
 Qed.
 
 Theorem ctxleq_app :
-  forall (xs xs' ys ys' : context), size xs = size xs' ->
+  forall (xs xs' ys ys' : context A), size xs = size xs' ->
   ctxleq xs xs' -> ctxleq ys ys' -> ctxleq (xs ++ ys) (xs' ++ ys').
 Proof.
   elim => [| x xs IH] [] //= x' xs' ys ys' [H] H0 H1 [| n] a /=.
@@ -146,6 +164,15 @@ Proof.
 Qed.
 
 End Context.
+
+Theorem ctxleq_map :
+  forall A B (f : A -> B) xs ys,
+  ctxleq xs ys -> ctxleq (map (omap f) xs) (map (omap f) ys).
+Proof.
+  move => A B f xs ys H n y; move: {H} (H n).
+  rewrite -!(nth_map' (omap f) None).
+  by case: (nth None xs n) => // a H; rewrite -(H a).
+Qed.
 
 (* Forall *)
 
@@ -157,6 +184,13 @@ Theorem Forall_impl :
   (forall a, P a -> Q a) -> Forall P xs -> Forall Q xs.
 Proof.
   move => A P Q xs H; elim: xs; firstorder.
+Qed.
+
+Theorem Forall_map :
+  forall (A B : Type) (f : A -> B) (P : B -> Prop) xs,
+  Forall P (map f xs) <-> Forall (P \o f) xs.
+Proof.
+  by move => A B f P; elim => //= x xs ->.
 Qed.
 
 Theorem Forall_nth :

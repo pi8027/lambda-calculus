@@ -30,8 +30,7 @@ Proof.
 Qed.
 
 Lemma ctxleq_preserves_typing :
-  forall ctx1 ctx2 t ty,
-  ctxleq ctx1 ctx2 -> typing ctx1 t ty -> typing ctx2 t ty.
+  forall ctx1 ctx2 t ty, ctx1 <=c ctx2 -> typing ctx1 t ty -> typing ctx2 t ty.
 Proof.
   move => ctx1 ctx2 t ty H H0; move: ctx1 t ty H0 ctx2 H.
   refine (typing_ind _ _ _ _).
@@ -48,7 +47,7 @@ Proof.
   move => t ty c ctx1 ctx2 H; move: ctx1 t ty H c ctx2.
   refine (typing_ind _ _ _ _).
   - move => /= ctx1 n ty H c ctx2.
-    rewrite typvar_seqindex H ctxnth_ctxinsert; elimif_omega.
+    rewrite typvar_seqindex H nth_ctxinsert; elimif_omega.
   - simpl; eauto.
   - move => /= ctx1 t ty1 ty2 H H0 c ctx2.
     constructor; apply (H0 c.+1).
@@ -62,7 +61,7 @@ Lemma subject_substitute :
 Proof with auto.
   elim.
   - move => /= m ty n ctx ctx'.
-    rewrite /substitutev typvar_seqindex ctxnth_ctxinsert !size_map.
+    rewrite /substitutev typvar_seqindex nth_ctxinsert !size_map.
     elimif_omega.
     - by constructor.
     - have: (m - n < size ctx') by ssromega.
@@ -73,7 +72,7 @@ Proof with auto.
       move/(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
       rewrite size_ctxinsert /= add0n size_take minnC minKn.
       apply ctxleq_preserves_typing => {m t ty} m ty ->.
-      rewrite !ctxnth_ctxinsert size_ctxinsert /= !add0n addn0 !subn0 nth_nil
+      rewrite !nth_ctxinsert size_ctxinsert /= !add0n addn0 !subn0 nth_nil
         size_take minnC minKn.
       elimif; rewrite ?nth_take ?nth_drop //; f_equal; ssromega.
     - move => H2 H3; rewrite nth_default /=.
@@ -86,7 +85,7 @@ Proof with auto.
 Qed.
 
 Lemma subject_reduction :
-  forall ctx t1 t2 ty, t1 ->1b t2 -> typing ctx t1 ty -> typing ctx t2 ty.
+  forall ctx t1 t2 ty, t1 ->b1 t2 -> typing ctx t1 ty -> typing ctx t2 ty.
 Proof.
   move => ctx t1 t2 ty H; move: t1 t2 H ctx ty.
   refine (betared1_ind _ _ _ _ _) => //=.
@@ -116,7 +115,7 @@ Fixpoint reducible (ctx : context typ) (t : term) (ty : typ) : Prop :=
   match ty with
     | tyvar n => SNorm t
     | tyfun ty1 ty2 => forall t1 ctx',
-        ctxleq ctx ctx' -> typing ctx' t1 ty1 -> reducible ctx' t1 ty1 ->
+        ctx <=c ctx' -> typing ctx' t1 ty1 -> reducible ctx' t1 ty1 ->
         reducible ctx' (app t t1) ty2
   end.
 
@@ -124,13 +123,13 @@ Definition neutral t := (if t is abs _ then False else True).
 
 Lemma ctxleq_preserves_reducibility :
   forall ctx ctx' t ty,
-  ctxleq ctx ctx' -> reducible ctx t ty -> reducible ctx' t ty.
+  ctx <=c ctx' -> reducible ctx t ty -> reducible ctx' t ty.
 Proof.
   move => ctx ctx' t [] //=; auto.
 Qed.
 
 Lemma CR2 :
-  forall ctx t t' ty, t ->1b t' -> reducible ctx t ty -> reducible ctx t' ty.
+  forall ctx t t' ty, t ->b1 t' -> reducible ctx t ty -> reducible ctx t' ty.
 Proof.
   move => ctx t t' ty; elim: ty ctx t t'.
   - by move => /= _ _ t t' H []; apply.
@@ -144,7 +143,7 @@ Lemma CR1_and_CR3 :
   forall ty,
   (forall ctx t, typing ctx t ty -> reducible ctx t ty -> SNorm t) /\
   (forall ctx t, typing ctx t ty -> neutral t ->
-   (forall t', t ->1b t' -> reducible ctx t' ty) -> reducible ctx t ty).
+   (forall t', t ->b1 t' -> reducible ctx t' ty) -> reducible ctx t ty).
 Proof.
   elim.
   - move => n; split => /= ctx t.
@@ -182,7 +181,7 @@ Qed.
 
 Lemma CR3 :
   forall ctx t ty, typing ctx t ty -> neutral t ->
-  (forall t', t ->1b t' -> reducible ctx t' ty) -> reducible ctx t ty.
+  (forall t', t ->b1 t' -> reducible ctx t' ty) -> reducible ctx t ty.
 Proof.
   move => ctx t ty; case: (CR1_and_CR3 ty) => _ H H0 H1 H2.
   apply H => //; apply H2.
@@ -200,7 +199,7 @@ Qed.
 Lemma abstraction_lemma :
   forall ctx t1 tyl tyr,
   typing ctx (abs t1) (tyfun tyl tyr) ->
-  (forall t2 ctx', ctxleq ctx ctx' -> typing ctx' t2 tyl ->
+  (forall t2 ctx', ctx <=c ctx' -> typing ctx' t2 tyl ->
    reducible ctx' t2 tyl -> reducible ctx' (substitute 0 [:: t2] t1) tyr) ->
   reducible ctx (abs t1) (tyfun tyl tyr).
 Proof.

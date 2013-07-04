@@ -89,8 +89,7 @@ Lemma subst_shift_distr :
 Proof.
   move => n d c ts t; elim: t n => /=; try (move: addnS addSn; congruence).
   move => v n; elimif_omega; rewrite /substitutev.
-  - rewrite !nth_default ?size_map /=; try ssromega.
-    rewrite !(subnAC _ n) subnK; elimif_omega.
+  - rewrite !nth_default ?size_map /= ?(subnAC _ n) ?subnK; elimif_omega.
   - rewrite -shift_shift_distr // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
@@ -135,15 +134,15 @@ Proof.
   move => m n; rewrite /substitutev nth_nil /=; elimif_omega.
 Qed.
 
-Reserved Notation "t ->1b t'" (at level 70, no associativity).
+Reserved Notation "t ->b1 t'" (at level 70, no associativity).
 Reserved Notation "t ->bp t'" (at level 70, no associativity).
 
 Inductive betared1 : relation term :=
-  | betared1beta : forall t1 t2, app (abs t1) t2 ->1b substitute 0 [:: t2] t1
-  | betared1appl : forall t1 t1' t2, t1 ->1b t1' -> app t1 t2 ->1b app t1' t2
-  | betared1appr : forall t1 t2 t2', t2 ->1b t2' -> app t1 t2 ->1b app t1 t2'
-  | betared1abs  : forall t t', t ->1b t' -> abs t ->1b abs t'
-  where "t ->1b t'" := (betared1 t t').
+  | betared1beta : forall t1 t2, app (abs t1) t2 ->b1 substitute 0 [:: t2] t1
+  | betared1appl : forall t1 t1' t2, t1 ->b1 t1' -> app t1 t2 ->b1 app t1' t2
+  | betared1appr : forall t1 t2 t2', t2 ->b1 t2' -> app t1 t2 ->b1 app t1 t2'
+  | betared1abs  : forall t t', t ->b1 t' -> abs t ->b1 abs t'
+  where "t ->b1 t'" := (betared1 t t').
 
 Inductive parred : relation term :=
   | parredvar  : forall n, var n ->bp var n
@@ -212,7 +211,7 @@ Proof.
 Qed.
 
 Lemma subst_betared1 :
-  forall n ts t t', t ->1b t' -> substitute n ts t ->1b substitute n ts t'.
+  forall n ts t t', t ->b1 t' -> substitute n ts t ->b1 substitute n ts t'.
 Proof.
   move => n t1 t2 t2' H; move: t2 t2' H n.
   refine (betared1_ind _ _ _ _ _) => /=; auto => t2 t2' n.
