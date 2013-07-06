@@ -80,10 +80,10 @@ Fixpoint substitute_seq
     | abs t => abs (substitute_seq n.+1 ts t)
   end.
 
-Lemma substitute_seq_nil :
-  forall V n (t : term' (n + 0) V), substitute_seq n [::] t = t.
+Lemma substitute_seq_nil V n (t : term' (n + 0) V) :
+  substitute_seq n [::] t = t.
 Proof.
-  fix IH 3 => V n; case => //=.
+  move: n t; fix IH 2 => n; case => //=.
   - elim: n => // {IH} n IH //=; case => // v.
     by rewrite (IH v).
   - move => tl tr; f_equal; apply IH.
@@ -94,26 +94,20 @@ Reserved Notation "t ->1b t'" (at level 70, no associativity).
 Reserved Notation "t ->bp t'" (at level 70, no associativity).
 
 Inductive betared1 : forall V, relation (term V) :=
-  | betared1beta :
-    forall V (t1 : term (option V)) (t2 : term V),
+  | betared1beta V (t1 : term (option V)) (t2 : term V) :
     app (abs t1) t2 ->1b substitute 0 t2 t1
-  | betared1appl :
-    forall V (t1 t1' t2 : term V), t1 ->1b t1' -> app t1 t2 ->1b app t1' t2
-  | betared1appr :
-    forall V (t1 t2 t2' : term V), t2 ->1b t2' -> app t1 t2 ->1b app t1 t2'
-  | betared1abs  :
-    forall V (t t' : term (option V)), t ->1b t' -> abs t ->1b abs t'
+  | betared1appl V (t1 t1' t2 : term V) :
+    t1 ->1b t1' -> app t1 t2 ->1b app t1' t2
+  | betared1appr V (t1 t2 t2' : term V) :
+    t2 ->1b t2' -> app t1 t2 ->1b app t1 t2'
+  | betared1abs V (t t' : term (option V)) : t ->1b t' -> abs t ->1b abs t'
   where "t ->1b t'" := (betared1 t t').
 
 Inductive parred : forall V, relation (term V) :=
-  | parredvar  :
-    forall V (x : V), var x ->bp var x
-  | parredapp  :
-    forall V (t1 t1' t2 t2' : term V),
+  | parredvar V (x : V) : var x ->bp var x
+  | parredapp V (t1 t1' t2 t2' : term V) :
     t1 ->bp t1' -> t2 ->bp t2' -> app t1 t2 ->bp app t1' t2'
-  | parredabs  :
-    forall V (t t' : term (option V)), t ->bp t' -> abs t ->bp abs t'
-  | parredbeta :
-    forall V (t1 t1' : term (option V)) (t2 t2' : term V),
+  | parredabs V (t t' : term (option V)) : t ->bp t' -> abs t ->bp abs t'
+  | parredbeta V (t1 t1' : term (option V)) (t2 t2' : term V) :
     t1 ->bp t1' -> t2 ->bp t2' -> app (abs t1) t2 ->bp substitute 0 t2' t1'
   where "t ->bp t'" := (parred t t').

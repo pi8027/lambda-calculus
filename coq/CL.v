@@ -12,7 +12,7 @@ Inductive clterm : Set :=
   | clapp of clterm & clterm
   | clatoms | clatomk | clatomi.
 
-Lemma eq_clterm_dec : forall (t1 t2 : clterm), {t1 = t2}+{t1 <> t2}.
+Lemma eq_clterm_dec (t1 t2 : clterm) : {t1 = t2}+{t1 <> t2}.
 Proof.
   do ?decide equality.
 Qed.
@@ -33,11 +33,9 @@ Fixpoint cl_length (t : clterm) : nat :=
 (* Definition 2.4: Binary relation "occurs in" on CL-terms *)
 
 Inductive cl_occurs : relation clterm :=
-  | cl_occurs_refl  : forall (t : clterm), cl_occurs t t
-  | cl_occurs_left  : forall (t1 t2 t3 : clterm),
-    cl_occurs t1 t2 -> cl_occurs t1 (t2 @ t3)
-  | cl_occurs_right : forall (t1 t2 t3 : clterm),
-    cl_occurs t1 t3 -> cl_occurs t1 (t2 @ t3).
+  | cl_occurs_refl t : cl_occurs t t
+  | cl_occurs_left t1 t2 t3 : cl_occurs t1 t2 -> cl_occurs t1 (t2 @ t3)
+  | cl_occurs_right t1 t2 t3 : cl_occurs t1 t3 -> cl_occurs t1 (t2 @ t3).
 
 (* Definition 2.6, Exercise 2.8: Substitution *)
 
@@ -68,40 +66,36 @@ Eval compute in substitute [:: (1, clatoms @ clatomk); (0, clatomk @ clatomi)]
 (* Definition 2.9: Weak reduction *)
 
 Inductive cl_weakred : relation clterm :=
-  | weakred_left  : forall (t1 t2 t3 : clterm),
-    cl_weakred t1 t2 -> cl_weakred (t1 @ t3) (t2 @ t3)
-  | weakred_right : forall (t1 t2 t3 : clterm),
-    cl_weakred t1 t2 -> cl_weakred (t3 @ t1) (t3 @ t2)
-  | weakred_s     : forall (t1 t2 t3 : clterm),
+  | weakred_left t1 t2 t3 : cl_weakred t1 t2 -> cl_weakred (t1 @ t3) (t2 @ t3)
+  | weakred_right t1 t2 t3 : cl_weakred t1 t2 -> cl_weakred (t3 @ t1) (t3 @ t2)
+  | weakred_s t1 t2 t3 :
     cl_weakred (clatoms @ t1 @ t2 @ t3) (t1 @ t3 @ (t2 @ t3))
-  | weakred_k     : forall (t1 t2 : clterm), cl_weakred (clatomk @ t1 @ t2) t1
-  | weakred_i     : forall (t : clterm), cl_weakred (clatomi @ t) t.
+  | weakred_k t1 t2 : cl_weakred (clatomk @ t1 @ t2) t1
+  | weakred_i t : cl_weakred (clatomi @ t) t.
 
 Notation cl_weakred_rtc := (clos_refl_trans_1n clterm cl_weakred).
 
 Infix "->1w" := cl_weakred (at level 50, no associativity).
 Infix "->w" := cl_weakred_rtc (at level 50, no associativity).
 
-Lemma weakred_rtc_left :
-  forall t1 t2 t3, t1 ->w t2 -> t1 @ t3 ->w t2 @ t3.
+Lemma weakred_rtc_left t1 t2 t3 : t1 ->w t2 -> t1 @ t3 ->w t2 @ t3.
 Proof.
-  move => t1 t2 t3; elim => // {t1 t2} t1 t2 t2' H H0 H1.
+  elim => // {t1 t2} t1 t2 t2' H H0 H1.
   by apply rt1n_trans with (t2 @ t3) => //; constructor.
 Qed.
 
-Lemma weakred_rtc_right :
-  forall t1 t2 t3, t1 ->w t2 -> t3 @ t1 ->w t3 @ t2.
+Lemma weakred_rtc_right t1 t2 t3 : t1 ->w t2 -> t3 @ t1 ->w t3 @ t2.
 Proof.
-  move => t1 t2 t3; elim => // {t1 t2} t1 t1' t2 H H0 H1.
+  elim => // {t1 t2} t1 t1' t2 H H0 H1.
   by apply rt1n_trans with (t3 @ t1') => //; constructor.
 Qed.
 
 Hint Resolve weakred_rtc_left weakred_rtc_right.
 
-Lemma weakred_rtc_app : forall t1 t1' t2 t2',
+Lemma weakred_rtc_app t1 t1' t2 t2' :
   t1 ->w t1' -> t2 ->w t2' -> (t1 @ t2) ->w (t1' @ t2').
 Proof.
-  move => t1 t1' t2 t2' H H0; apply rtc_trans' with (t1 @ t2'); auto.
+  move => H H0; apply rtc_trans' with (t1 @ t2'); auto.
 Qed.
 
 Hint Resolve weakred_rtc_app.
@@ -115,10 +109,8 @@ Definition cl_weaknf_of (t1 t2 : clterm) : Prop := t2 ->w t1 /\ cl_weaknf t1.
 
 Definition cl_comb_b : clterm := clatoms @ (clatomk @ clatoms) @ clatomk.
 
-Example example_2_11 : forall t1 t2 t3,
-  cl_comb_b @ t1 @ t2 @ t3 ->w t1 @ (t2 @ t3).
+Example example_2_11 t1 t2 t3 : cl_comb_b @ t1 @ t2 @ t3 ->w t1 @ (t2 @ t3).
 Proof.
-  move => t1 t2 t3.
   rewrite /cl_comb_b.
   apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
   apply: rt1n_trans ;
@@ -132,10 +124,8 @@ Qed.
 Definition cl_comb_c : clterm :=
   clatoms @ (cl_comb_b @ cl_comb_b @ clatoms) @ (clatomk @ clatomk).
 
-Example example_2_12 :
-  forall t1 t2 t3, cl_comb_c @ t1 @ t2 @ t3 ->w t1 @ t3 @ t2.
+Example example_2_12 t1 t2 t3 : cl_comb_c @ t1 @ t2 @ t3 ->w t1 @ t3 @ t2.
 Proof.
-  move => t1 t2 t3.
   rewrite /cl_comb_c.
   apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
   apply: rtc_trans'; first (do 3 apply weakred_rtc_left; apply example_2_11).
@@ -152,10 +142,10 @@ Qed.
 
 (* Lemma 2.14: Substitution lemma for ->w *)
 
-Lemma substlemma_a' : forall t1 t2 v,
+Lemma substlemma_a' t1 t2 v :
   t1 ->1w t2 -> cl_occurs (clvar v) t2 -> cl_occurs (clvar v) t1.
 Proof.
-  move => t1 t2 v H H0.
+  move => H H0.
   induction H.
   inversion H0.
   apply cl_occurs_left, IHcl_weakred, H3.
@@ -172,50 +162,47 @@ Proof.
   apply cl_occurs_right, H0.
 Qed.
 
-Lemma substlemma_a : forall t1 t2 v,
+Lemma substlemma_a t1 t2 v :
   t1 ->w t2 -> cl_occurs (clvar v) t2 -> cl_occurs (clvar v) t1.
 Proof.
-  move => t1 t2 v; elim => // x y z H H0 H1 H2.
+  elim => // x y z H H0 H1 H2.
   apply: substlemma_a'; eauto.
 Qed.
 
-Lemma substlemma_b : forall t1 t2 t3 v,
+Lemma substlemma_b t1 t2 t3 v :
   t1 ->w t2 -> substitute [:: (v, t1)] t3 ->w substitute [:: (v, t2)] t3.
 Proof.
-  move => t1 t2 t3 v H; elim: t3 => //=.
+  move => H; elim: t3 => //=.
   - by move => n; case: ifP.
   - auto.
 Qed.
 
-Lemma substlemma_c : forall t1 t2 l,
-  t1 ->1w t2 -> substitute l t1 ->1w substitute l t2.
+Lemma substlemma_c t1 t2 l : t1 ->1w t2 -> substitute l t1 ->1w substitute l t2.
 Proof.
-  move => t1 t2 l; elim => /=; constructor => //.
+  by elim => /=; constructor.
 Qed.
 
 (* Theorem 2.15: Church-Rosser theorem for ->w *)
 
 Inductive cl_parred : relation clterm :=
-  | parred_app   : forall (t1 t1' t2 t2' : clterm),
+  | parred_app t1 t1' t2 t2' :
     cl_parred t1 t1' -> cl_parred t2 t2' -> cl_parred (t1 @ t2) (t1' @ t2')
-  | parred_s     : forall (t1 t1' t2 t2' t3 t3' t3'' : clterm),
+  | parred_s t1 t1' t2 t2' t3 t3' t3'' :
     cl_parred t1 t1' -> cl_parred t2 t2' ->
     cl_parred t3 t3' -> cl_parred t3 t3'' ->
     cl_parred (clatoms @ t1 @ t2 @ t3) (t1' @ t3' @ (t2' @ t3''))
-  | parred_k     : forall (t1 t1' t2 : clterm),
-    cl_parred t1 t1' -> cl_parred (clatomk @ t1 @ t2) t1'
-  | parred_i     : forall (t1 t1' : clterm),
-    cl_parred t1 t1' -> cl_parred (clatomi @ t1) t1'
-  | parred_var   : forall (n : nat), cl_parred (clvar n) (clvar n)
+  | parred_k t1 t1' t2 : cl_parred t1 t1' -> cl_parred (clatomk @ t1 @ t2) t1'
+  | parred_i t1 t1' : cl_parred t1 t1' -> cl_parred (clatomi @ t1) t1'
+  | parred_var n : cl_parred (clvar n) (clvar n)
   | parred_atoms : cl_parred clatoms clatoms
   | parred_atomk : cl_parred clatomk clatomk
   | parred_atomi : cl_parred clatomi clatomi.
 
 Infix "->p" := cl_parred (at level 50, no associativity).
 
-Lemma cl_parred_refl : forall t, t ->p t.
+Lemma cl_parred_refl t : t ->p t.
 Proof.
-  by elim; constructor.
+  by elim: t; constructor.
 Qed.
 
 Hint Resolve cl_parred_refl.
@@ -248,9 +235,9 @@ Function cl_parred_all (t : clterm) : clterm :=
     | _ => t
   end.
 
-Lemma cl_parred_all_lemma : forall t1 t2, t1 ->p t2 -> t2 ->p cl_parred_all t1.
+Lemma cl_parred_all_lemma t1 t2 : t1 ->p t2 -> t2 ->p cl_parred_all t1.
 Proof.
-  intros; induction H; try by do ?constructor.
+  move => H; induction H; try by do ?constructor.
   destruct t1; try by constructor.
   - destruct t1_1; try by constructor.
     - destruct t1_1_1; try by constructor.
@@ -276,23 +263,23 @@ Qed.
 
 (* Corollary 2.15.1: Uniqueness of nf *)
 
-Corollary cl_weaknf_uniqueness : forall t1 t2 t3,
+Corollary cl_weaknf_uniqueness t1 t2 t3 :
   cl_weaknf_of t2 t1 -> cl_weaknf_of t3 t1 -> t2 = t3.
 Proof.
-  move => t1 t2 t3; case => H H0; case => H1 H2.
+  case => H H0; case => H1 H2.
   case: (cl_weakred_confluent H H1) => [t4 [H3 H4]].
   inversion H3.
-  inversion H4.
-  auto.
-  apply False_ind, H2; eauto.
-  apply False_ind, H0; eauto.
+  - inversion H4.
+    - auto.
+    - apply False_ind, H2; eauto.
+  - apply False_ind, H0; eauto.
 Qed.
 
 (* Exercise 2.16 *)
 
-Lemma exercise_2_16 : forall t, clatoms @ clatomk @ clatomk @ t ->w t.
+Lemma exercise_2_16 t : clatoms @ clatomk @ clatomk @ t ->w t.
 Proof.
-  move => t; apply: rt1n_trans.
+  apply: rt1n_trans.
   - apply weakred_s.
   - apply rtc_step, weakred_k.
 Qed.

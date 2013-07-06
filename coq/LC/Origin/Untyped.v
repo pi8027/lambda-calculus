@@ -10,7 +10,7 @@ Inductive lcterm : Set :=
   | lclam of lcterm
   | lcapp of lcterm & lcterm.
 
-Lemma eq_lcterm_dec : forall (t1 t2 : lcterm), {t1 = t2}+{t1 <> t2}.
+Lemma eq_lcterm_dec (t1 t2 : lcterm) : {t1 = t2}+{t1 <> t2}.
 Proof.
   do !decide equality.
 Qed.
@@ -45,12 +45,9 @@ Fixpoint lc_length (t : lcterm) : nat :=
 (* Definition 1.7: Binary relation "occurs in" on lambda-terms *)
 
 Inductive lc_occurs : relation lcterm :=
-  | lc_occurs_refl  : forall (t : lcterm), lc_occurs t t
-  | lc_occurs_left  : forall (t1 t2 t3 : lcterm),
-    lc_occurs t1 t2 -> lc_occurs t1 (t2 @ t3)
-  | lc_occurs_right : forall (t1 t2 t3 : lcterm),
-    lc_occurs t1 t3 -> lc_occurs t1 (t2 @ t3)
-  | lc_occurs_lam   : forall (t1 t2 : lcterm),
-    lc_occurs t1 t2 -> lc_occurs t1 (lclam t2).
+  | lc_occurs_refl t         : lc_occurs t t
+  | lc_occurs_left t1 t2 t3  : lc_occurs t1 t2 -> lc_occurs t1 (t2 @ t3)
+  | lc_occurs_right t1 t2 t3 : lc_occurs t1 t3 -> lc_occurs t1 (t2 @ t3)
+  | lc_occurs_lam t1 t2      : lc_occurs t1 t2 -> lc_occurs t1 (lclam t2).
 
 (* Definition 1.12: Substitution *)
