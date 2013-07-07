@@ -109,8 +109,7 @@ Inductive reduction1 : relation term :=
 Notation reduction := [* reduction1].
 Infix "->r" := reduction (at level 70, no associativity).
 
-Hint Resolve typvar typapp typabs typuapp typuabs
-  red1fst red1snd red1appl red1appr red1abs red1uapp red1uabs.
+Hint Constructors typing reduction1.
 
 Lemma shift_zero_ty n t : shift_typ 0 n t = t.
 Proof.
@@ -495,9 +494,8 @@ Proof.
   by elim: t; constructor.
 Qed.
 
-Hint Resolve
-  parredfst parredsnd parredvar parredapp parredabs parreduapp parreduabs
-  parred_refl.
+Hint Constructors parred.
+Hint Resolve parred_refl.
 
 Lemma betared1_in_parred : inclusion reduction1 parred.
 Proof.
@@ -598,8 +596,7 @@ Lemma ctxleq_preserves_typing ctx1 ctx2 t ty :
 Proof.
   move => H H0; move: ctx1 t ty H0 ctx2 H.
   refine (typing_ind _ _ _ _ _ _); eauto.
-  - by move => ctx t ty1 ty2 _ H ctx2 H0; constructor; apply H; case.
-  - by move => ctx t ty _ H ctx2 H0; constructor; apply H, ctxleq_map.
+  by move => ctx t ty1 ty2 _ H ctx2 H0; constructor; apply H; case.
 Qed.
 
 Lemma shifttyp_preserves_typing d c ctx t ty :
@@ -679,7 +676,7 @@ Proof.
       elim: ctx' v H0 => //= [| [t ty'] ctx' IH] [| v] //= [H H0].
       - case => {H0 IH} H0; subst.
         rewrite shifttyp_zero.
-        move: {H} (subject_shift 0 (ctxinsert [::] (take n ctx) n) H).
+        move/(subject_shift 0 (ctxinsert [::] (take n ctx) n)): H.
         rewrite size_ctxinsert size_take minnC minKn /= add0n.
         apply ctxleq_preserves_typing.
         rewrite /ctxinsert take0 drop0 take_minn minnn

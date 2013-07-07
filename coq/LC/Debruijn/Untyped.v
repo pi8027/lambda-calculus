@@ -39,7 +39,7 @@ Inductive betared1 : relation term :=
 Notation betared := [* betared1].
 Infix "->b" := betared (at level 70, no associativity).
 
-Hint Resolve betared1beta betared1appl betared1appr betared1abs.
+Hint Constructors betared1.
 
 Module Lambda_tactics.
 
@@ -164,7 +164,7 @@ Inductive parred : relation term :=
     t1 ->bp t1' -> t2 ->bp t2' -> app (abs t1) t2 ->bp substitute 0 [:: t2'] t1'
   where "t ->bp t'" := (parred t t').
 
-Hint Resolve parredvar parredapp parredabs parredbeta.
+Hint Constructors parred.
 
 Function reduce_all_redex t : term :=
   match t with
@@ -243,7 +243,7 @@ Proof with auto.
   - by move => t n H t' H0; inversion H0; subst.
   - move => _ t1 t2 _ H H0 t' H1; inversion H1; subst.
     - inversion H4; subst...
-    - apply (subst_parred 0 [:: (t2', reduce_all_redex t2)]) => /=; auto.
+    - apply (subst_parred 0 [:: (t2', reduce_all_redex t2)]) => /=...
   - move => _ t1 t2 _ H H0 H1 t' H2; inversion H2; subst => //...
   - move => _ t1 _ H t2 H0; inversion H0; subst...
 Qed.

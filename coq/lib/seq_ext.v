@@ -128,24 +128,34 @@ Proof.
   by move => n a; rewrite nth_nil.
 Qed.
 
-Theorem ctxleq_appl (xs ys zs : context A) :
-  ctxleq ys zs -> ctxleq (xs ++ ys) (xs ++ zs).
+Theorem ctxleq_cons x y (xs ys : context A) :
+  ctxleq (x :: xs) (y :: ys) <->
+  ((forall z, Some z = x -> Some z = y) /\ ctxleq xs ys).
 Proof.
-  by elim: xs ys zs => // x xs IH ys zs H [] //=; apply IH.
-Qed.
-
-Theorem ctxleq_appr (xs ys : context A) : ctxleq xs (xs ++ ys).
-Proof.
-  by elim: xs => [n a | x xs H []] //=; rewrite nth_nil.
+  split.
+  - move => H; split.
+    - apply (H 0).
+    - move => n; apply (H n.+1).
+  - move => [H H0] [| n] //=; apply H0.
 Qed.
 
 Theorem ctxleq_app (xs xs' ys ys' : context A) :
   size xs = size xs' -> ctxleq xs xs' -> ctxleq ys ys' ->
   ctxleq (xs ++ ys) (xs' ++ ys').
 Proof.
-  elim: xs xs' ys ys' => [| x xs IH] [] //= x' xs' ys ys' [H] H0 H1 [| n] a /=.
-  - apply (H0 0 a).
-  - apply IH => // m; apply (H0 m.+1).
+  elim: xs xs' ys ys' => [| x xs IH] [] //= x' xs' ys ys' [H].
+  by rewrite !ctxleq_cons => [[H0 H1] H2]; split; auto; apply IH.
+Qed.
+
+Theorem ctxleq_appl (xs ys zs : context A) :
+  ctxleq ys zs -> ctxleq (xs ++ ys) (xs ++ zs).
+Proof.
+  by move => H; apply ctxleq_app.
+Qed.
+
+Theorem ctxleq_appr (xs ys : context A) : ctxleq xs (xs ++ ys).
+Proof.
+  by elim: xs => [n a | x xs H []] //=; rewrite nth_nil.
 Qed.
 
 End Context.
@@ -157,6 +167,9 @@ Proof.
   rewrite -!(nth_map' (omap f) None).
   by case: (nth None xs n) => // a H; rewrite -(H a).
 Qed.
+
+Hint Resolve ctxleq_nil ctxleq_cons
+  ctxleq_app ctxleq_appl ctxleq_appr ctxleq_map.
 
 (* Forall *)
 
