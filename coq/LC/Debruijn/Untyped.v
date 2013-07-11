@@ -58,7 +58,8 @@ Ltac elimleq :=
   let H := fresh "H" in
   match goal with
     | [ |- is_true (?m <= ?n) -> _ ] =>
-      move => H; rewrite -(subnK H) ?(addnK, addKn); move: {n H} (n - m) => n
+      move => H; rewrite -(subnKC H) ?(addnK, addKn, addnA);
+      move: {n H} (n - m) => n
   end.
 
 End Lambda_tactics.
@@ -72,25 +73,25 @@ Proof.
 Qed.
 
 Lemma shift_add d d' c c' t :
-  c <= c' <= d + c -> shift d' c' (shift d c t) = shift (d' + d) c t.
+  c <= c' <= c + d -> shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
-  case/andP; elimleq; rewrite leq_add2r; elimleq.
-  elim: t c d => /=; try (move: addnS; congruence); move => *; elimif_omega.
+  case/andP; elimleq; rewrite leq_add2l; elimleq.
+  elim: t c d => /=; try (move: addSn; congruence); move => *; elimif_omega.
 Qed.
 
 Lemma shift_shift_distr d c d' c' t :
   c' <= c -> shift d' c' (shift d c t) = shift d (d' + c) (shift d' c' t).
 Proof.
-  elimleq; elim: t c' c => /=; try (move: addnS; congruence);
+  elimleq; elim: t c' c => /=; try (move: addSn addnS; congruence);
     move => *; elimif_omega.
 Qed.
 
 Lemma shift_subst_distr n d c ts t :
   c <= n -> shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
 Proof.
-  elimleq; elim: t c n => /=; try (move: addnS; congruence);
+  elimleq; elim: t c n => /=; try (move: addSn addnS; congruence);
     move => v c n; elimif_omega.
-  by rewrite /substitutev shift_add ?addn0 ?leq_addl // !subnDA addnK.
+  by rewrite /substitutev shift_add ?add0n ?leq_addr // !subnDA addnK addnA.
 Qed.
 
 Lemma subst_shift_distr n d c ts t :
@@ -100,8 +101,8 @@ Lemma subst_shift_distr n d c ts t :
 Proof.
   elimleq; elim: t n => /=; try (move: addnS addSn; congruence).
   move => v n; elimif_omega; rewrite /substitutev.
-  - rewrite !nth_default ?size_map /= ?(subnAC _ n) ?subnK; elimif_omega.
-  - rewrite addnC -shift_shift_distr // nth_map' /=.
+  - rewrite !nth_default ?size_map /= 1?subnAC ?subnK; elimif_omega.
+  - rewrite -shift_shift_distr // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
@@ -109,8 +110,8 @@ Lemma subst_shift_cancel n d c ts t :
   c <= n -> size ts + n <= d + c ->
   substitute n ts (shift d c t) = shift (d - size ts) c t.
 Proof.
-  elimleq; rewrite addnA leq_add2r; elimleq; elim: t c d => /=;
-    try (move: addnS; congruence); move => v c d; elimif_omega.
+  elimleq; rewrite addnAC leq_add2r; elimleq; elim: t c d => /=;
+    try (move: addSn addnS; congruence); move => v c d; elimif_omega.
   rewrite /substitutev nth_default /=; elimif_omega.
 Qed.
 
@@ -123,8 +124,8 @@ Proof.
     move => v m; elimif_omega; rewrite /substitutev.
   - rewrite (subst_shift_cancel m) // ?size_map; try ssromega.
     rewrite nth_default /= /substitutev; elimif_omega.
-    by rewrite !subnDA (subnAC _ n) addKn addnK 2!(subnAC _ m).
-  - rewrite size_map addnC -shift_subst_distr // nth_map' /=.
+    by rewrite !subnDA -addnA addnK addKn (subnAC _ m).
+  - rewrite size_map -shift_subst_distr // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 

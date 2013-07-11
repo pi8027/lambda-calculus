@@ -60,7 +60,7 @@ Proof with auto.
     rewrite /substitutev typvar_seqindex nth_ctxinsert !size_map.
     elimif_omega.
     - by constructor.
-    - move: H H0 {H1}; elimleq; rewrite addnC ltn_add2l => H.
+    - move: H H0 {H1}; elimleq; rewrite ltn_add2l => H.
       rewrite !(nth_map (var 0, tyvar 0)) // => H0 [H1]; subst.
       case: {ctx' H H0} (nth _ _ _) (Forall_nth _ (var 0, tyvar 0) ctx' m H H0)
         => /= t ty.
