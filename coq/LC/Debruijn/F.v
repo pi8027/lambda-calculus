@@ -171,7 +171,7 @@ Proof.
     move => v m; elimif_omega; rewrite /subst_typv.
   - rewrite (subst_shift_cancel_ty m) // ?size_map; last ssromega.
     rewrite -{1}addnA addKn nth_default /= /subst_typv; elimif_omega.
-    by rewrite !subnDA addnK (subnAC _ m).
+    by rewrite !subnDA addnK (subnAC v).
   - rewrite size_map -shift_subst_distr_ty // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
@@ -182,7 +182,7 @@ Proof.
   elim: t n => /=; try (move: addnS; congruence);
     move => v n; elimif_omega; rewrite /subst_typv.
   - rewrite subst_shift_cancel_ty ?addn0 //
-      size_cat nth_cat !subnDA addKn (subnAC _ (size xs)); elimif_omega.
+      size_cat nth_cat !subnDA addKn (subnAC v); elimif_omega.
   - rewrite nth_cat; f_equal; elimif_omega; apply nth_equal; ssromega.
 Qed.
 
@@ -355,7 +355,7 @@ Proof.
   elimleq; elim: t n m => /=; try (move: addSn addnS; congruence);
     move => v n m; rewrite /subst_termv size_map; elimif_omega.
   - rewrite shift_typemap_distr !nth_default ?size_map /=; try ssromega.
-    rewrite (subnAC _ n) subnK; elimif_omega.
+    rewrite (subnAC v) subnK; elimif_omega.
   - rewrite shift_typemap_distr -shift_shift_distr // nth_map' /=.
     do 2 f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.

@@ -124,7 +124,7 @@ Proof.
     move => v m; elimif_omega; rewrite /substitutev.
   - rewrite (subst_shift_cancel m) // ?size_map; try ssromega.
     rewrite nth_default /= /substitutev; elimif_omega.
-    by rewrite !subnDA -addnA addnK addKn (subnAC _ m).
+    by rewrite !subnDA addnK -addnA addKn (subnAC v).
   - rewrite size_map -shift_subst_distr // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
