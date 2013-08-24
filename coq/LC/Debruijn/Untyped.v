@@ -142,7 +142,7 @@ Lemma subst_nil n t : substitute n [::] t = t.
 Proof.
   elim: t n => /=; try congruence; move => m n;
     rewrite /substitutev nth_nil /=; elimif_omega.
-Qed.
+Defined.
 
 Lemma subst_betared1 n ts t t' :
   t ->b1 t' -> substitute n ts t ->b1 substitute n ts t'.
@@ -262,3 +262,51 @@ Proof.
 Qed.
 
 End confluence_proof.
+
+Module evaluation_strategies.
+
+Definition cbn_lr t : {t' | t ->b1 t'} + ({t' | t ->b1 t'} -> False).
+Proof.
+  elim: t.
+  - right; case => t H; inversion H.
+  - case.
+    - move => n _ t [].
+      - case => t' IH; left; exists (app n t'); auto.
+      - move => IH; right; case => t' H; inversion H; first inversion H3; subst.
+        by apply IH; exists t2'.
+    - move => tll tlr [[tl' IHtl] | IHtl] tr.
+      - move => IHtr; left; exists (app tl' tr); auto.
+      - move => [[tr' IHtr] | IHtr].
+        - left; exists (app (app tll tlr) tr'); auto.
+        - right; case => t' H; inversion H; subst.
+          - by apply IHtl; exists t1'.
+          - by apply IHtr; exists t2'.
+    - by move => tl IHtl tr IHtr; left; exists (substitute 0 [:: tr] tl).
+  - move => t [[t' IH] | IH].
+    - left; exists (abs t'); auto.
+    - right; case => t' H; inversion H; subst; apply IH; exists t'0; auto.
+Defined.
+
+Definition cbn_rl t : {t' | t ->b1 t'} + ({t' | t ->b1 t'} -> False).
+Proof.
+  elim: t.
+  - right; case => t H; inversion H.
+  - case.
+    - move => n _ t [].
+      - case => t' IH; left; exists (app n t'); auto.
+      - move => IH; right; case => t' H; inversion H; first inversion H3; subst.
+        by apply IH; exists t2'.
+    - move => tll tlr IHtl tr [[tr' IHtr] | IHtr].
+      - left; exists (app (app tll tlr) tr'); auto.
+      - case: IHtl => [[tl' IHtl] | IHtl].
+        - left; exists (app tl' tr); auto.
+        - right; case => t' H; inversion H; subst.
+          - by apply IHtl; exists t1'.
+          - by apply IHtr; exists t2'.
+    - by move => tl IHtl tr IHtr; left; exists (substitute 0 [:: tr] tl).
+  - move => t [[t' IH] | IH].
+    - left; exists (abs t'); auto.
+    - right; case => t' H; inversion H; subst; apply IH; exists t'0; auto.
+Defined.
+
+End evaluation_strategies.

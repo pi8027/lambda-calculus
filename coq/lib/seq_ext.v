@@ -181,7 +181,7 @@ Theorem Forall_impl :
   (forall a, P a -> Q a) -> Forall P xs -> Forall Q xs.
 Proof.
   move => A P Q xs H; elim: xs; firstorder.
-Qed.
+Defined.
 
 Theorem Forall_map (A B : Type) (f : A -> B) P xs :
   Forall P (map f xs) <-> Forall (P \o f) xs.

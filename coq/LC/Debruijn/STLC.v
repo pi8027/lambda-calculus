@@ -109,7 +109,7 @@ Proof.
   move: tl.
   fix IH 2 => tl [H]; constructor => tl' H0.
   by apply IH, H; constructor.
-Qed.
+Defined.
 
 Fixpoint reducible (ctx : context typ) (t : term) (ty : typ) : Prop :=
   match ty with
@@ -134,7 +134,7 @@ Proof.
   - by move => /= _ _ t t' H []; apply.
   - move => /= tyl IHtyl tyr IHtyr ctx t1 t2 H H0 t3 ctx' H1 H2 H3.
     by apply IHtyr with (app t1 t3); auto; constructor.
-Qed.
+Defined.
 
 Arguments CR2 [ctx t t' ty] _ _.
 
@@ -160,19 +160,19 @@ Proof.
       have H5: typing ctx' (app tl tr) tyr by eauto.
       apply IHtyr2 => // t' H6.
       move: H0; inversion H6; subst => // _; eauto.
-Qed.
+Defined.
 
 Lemma CR1 ctx t ty : typing ctx t ty -> reducible ctx t ty -> SNorm t.
 Proof.
   case: (CR1_and_CR3 ty); eauto.
-Qed.
+Defined.
 
 Lemma CR3 ctx t ty :
   typing ctx t ty -> neutral t ->
   (forall t', t ->b1 t' -> reducible ctx t' ty) -> reducible ctx t ty.
 Proof.
   case: (CR1_and_CR3 ty); auto.
-Qed.
+Defined.
 
 Lemma snorm_subst n ts t : SNorm (substitute n ts t) -> SNorm t.
 Proof.
@@ -180,7 +180,7 @@ Proof.
   move: t3 H0 n ts t H.
   refine (Acc_ind _ _) => t3 _ IH n ts t H; subst; constructor => t' H0.
   by apply (IH (substitute n ts t') (subst_betared1 n ts H0) n ts t').
-Qed.
+Defined.
 
 Lemma abstraction_lemma ctx t1 tyl tyr :
   typing ctx (abs t1) (tyfun tyl tyr) ->
@@ -200,7 +200,7 @@ Proof.
   inversion H12; subst => {H12}.
   apply H0 => //; eauto => t'' ctx'' H8 H10 H11.
   by apply (CR2 (subst_betared1 0 [:: t''] H9)), H4.
-Qed.
+Defined.
 
 Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
   typing ([seq Some p.2 | p <- ctx'] ++ ctx) t ty ->
@@ -233,7 +233,7 @@ Proof.
       - move: H3; apply ctxleq_preserves_typing.
         move: H; apply (ctxleq_appl (Some ty1 :: _)).
       - split => //; move: H0; apply Forall_impl => p []; eauto.
-Qed.
+Defined.
 
 Theorem typed_term_is_snorm ctx t ty : typing ctx t ty -> SNorm t.
 Proof.
@@ -241,6 +241,32 @@ Proof.
   apply (@CR1 ctx t ty) => //.
   move: (@reduce_lemma ctx [::] t ty H) => /=.
   by rewrite subst_nil; apply.
-Qed.
+Defined.
 
 End strong_normalization_proof.
+
+Module evaluator.
+
+Definition eval
+  (strategy : forall t, {t' | t ->b1 t'} + ({t' | t ->b1 t'} -> False))
+  ctx t ty (typed : typing ctx t ty) : term :=
+    @Fix_F
+      term (fun t1 t2 => betared1 t2 t1) (fun _ => term)
+      (fun t f =>
+        match strategy t with
+          | inl (exist t' H) => f t' H
+          | inr _ => t
+        end)
+      t (strong_normalization_proof.typed_term_is_snorm typed).
+
+Module test.
+
+Goal typing [:: Some (tyvar 0)] (app (abs 0) 0) 0.
+  do !econstructor.
+Qed.
+
+Eval compute in (eval evaluation_strategies.cbn_lr Unnamed_thm).
+
+End test.
+
+End evaluator.
