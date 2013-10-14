@@ -781,7 +781,7 @@ Module strong_normalization_proof.
 
 Import subject_reduction_proof.
 
-Notation SNorm t := (Acc (fun x y => reduction1 y x) t).
+Definition SNorm (t : term) : Prop := Acc (fun x y => reduction1 y x) t.
 
 
 

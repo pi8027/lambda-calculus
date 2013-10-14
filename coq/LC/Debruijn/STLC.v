@@ -14,7 +14,7 @@ Inductive term := var of nat | app of term & term & typ | abs of term.
 Coercion tyvar : nat >-> typ.
 Coercion var : nat >-> term.
 
-Notation "t @[ t' \: ty ]" := (app t t' ty) (at level 60, no associativity).
+Notation "t @{ t' \: ty }" := (app t t' ty) (at level 60, no associativity).
 
 Fixpoint eqtyp t1 t2 :=
   match t1, t2 with
@@ -38,7 +38,7 @@ Canonical typ_eqType := Eval hnf in EqType typ typ_eqMixin.
 Fixpoint eqterm t1 t2 :=
   match t1, t2 with
     | var n, var m => n == m
-    | t1l @[t1r \: ty1], t2l @[t2r \: ty2] =>
+    | t1l @{t1r \: ty1}, t2l @{t2r \: ty2} =>
       [&& eqterm t1l t2l, eqterm t1r t2r & (ty1 == ty2)]
     | abs t1, abs t2 => eqterm t1 t2
     | _, _ => false
@@ -61,7 +61,7 @@ Canonical term_eqType := Eval hnf in EqType term term_eqMixin.
 Fixpoint shift d c t : term :=
   match t with
     | var n => var (if c <= n then n + d else n)
-    | t1 @[t2 \: ty] => shift d c t1 @[shift d c t2 \: ty]
+    | t1 @{t2 \: ty} => shift d c t1 @{shift d c t2 \: ty}
     | abs t1 => abs (shift d c.+1 t1)
   end.
 
@@ -71,18 +71,18 @@ Definition substitutev ts m n : term :=
 Fixpoint substitute n ts t : term :=
   match t with
     | var m => if n <= m then substitutev ts m n else m
-    | t1 @[t2 \: ty] => substitute n ts t1 @[substitute n ts t2 \: ty]
+    | t1 @{t2 \: ty} => substitute n ts t1 @{substitute n ts t2 \: ty}
     | abs t' => abs (substitute n.+1 ts t')
   end.
 
 Reserved Notation "t ->b1 t'" (at level 70, no associativity).
 
 Inductive betared1 : relation term :=
-  | betared1beta t1 t2 ty : abs t1 @[t2 \: ty] ->b1 substitute 0 [:: t2] t1
+  | betared1beta t1 t2 ty : abs t1 @{t2 \: ty} ->b1 substitute 0 [:: t2] t1
   | betared1appl t1 t1' t2 ty :
-      t1 ->b1 t1' -> t1 @[t2 \: ty] ->b1 t1' @[t2 \: ty]
+      t1 ->b1 t1' -> t1 @{t2 \: ty} ->b1 t1' @{t2 \: ty}
   | betared1appr t1 t2 t2' ty :
-      t2 ->b1 t2' -> t1 @[t2 \: ty] ->b1 t1 @[t2' \: ty]
+      t2 ->b1 t2' -> t1 @{t2 \: ty} ->b1 t1 @{t2' \: ty}
   | betared1abs t t' : t ->b1 t' -> abs t ->b1 abs t'
   where "t ->b1 t'" := (betared1 t t').
 
@@ -94,7 +94,7 @@ Hint Constructors betared1.
 Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
   match t, ty with
     | var n, _ => ctxindex ctx n ty
-    | tl @[tr \: ty'], _ => typing ctx tl (tyfun ty' ty) && typing ctx tr ty'
+    | tl @{tr \: ty'}, _ => typing ctx tl (tyfun ty' ty) && typing ctx tr ty'
     | abs t, tyfun tyl tyr => typing (Some tyl :: ctx) t tyr
     | _, _ => false
   end.
@@ -276,9 +276,9 @@ Module strong_normalization_proof.
 
 Import subject_reduction_proof.
 
-Notation SNorm t := (Acc (fun x y => betared1 y x) t).
+Definition SNorm (t : term) : Prop := Acc (fun x y => betared1 y x) t.
 
-Lemma snorm_appl tl tr ty : SNorm (tl @[tr \: ty]) -> SNorm tl.
+Lemma snorm_appl tl tr ty : SNorm (tl @{tr \: ty}) -> SNorm tl.
 Proof.
   move: tl.
   fix IH 2 => tl [H]; constructor => tl' H0.
@@ -290,7 +290,7 @@ Fixpoint reducible (ctx : context typ) (t : term) (ty : typ) : Prop :=
     | tyvar n => SNorm t
     | tyfun ty1 ty2 => forall t1 ctx',
         ctx <=c ctx' -> typing ctx' t1 ty1 -> reducible ctx' t1 ty1 ->
-        reducible ctx' (t @[t1 \: ty1]) ty2
+        reducible ctx' (t @{t1 \: ty1}) ty2
   end.
 
 Definition neutral t := (if t is abs _ then false else true).
@@ -308,7 +308,7 @@ Proof.
   elim: ty ctx t t'.
   - by move => /= _ _ t t' H []; apply.
   - move => /= tyl IHtyl tyr IHtyr ctx t1 t2 H H0 t3 ctx' H1 H2 H3.
-    by apply IHtyr with (t1 @[t3 \: tyl]); auto.
+    by apply IHtyr with (t1 @{t3 \: tyl}); auto.
 Qed.
 
 Hint Resolve ctxleq_preserves_reducibility CR2.
@@ -323,14 +323,14 @@ Proof.
   split => [ctx t H H0 | ctx tl H H0 H1 tr ctx' H2 H3 H4].
   - have H1: ctxindex (ctx ++ [:: Some tyl]) (size ctx) tyl
       by rewrite nth_cat ltnn subnn.
-    have H2: typing (ctx ++ [:: Some tyl]) (t @[size ctx \: tyl]) tyr
+    have H2: typing (ctx ++ [:: Some tyl]) (t @{size ctx \: tyl}) tyr
       by rewrite /= H1 andbT; eauto.
     apply snorm_appl with (size ctx) tyl, (IHtyr1 _ _ H2), IHtyr2 => // t' H3.
     apply (CR2 H3), H0; auto.
     apply IHtyl2 => // x H4; inversion H4.
   - have H5: SNorm tr by apply IHtyl1 with ctx'.
     move: tr H5 H2 H3 H4; refine (Acc_ind _ _) => tr _ IH H2 H3 H4.
-    have H5: typing ctx' (tl @[tr \: tyl]) tyr by rewrite /= H3 andbT; eauto.
+    have H5: typing ctx' (tl @{tr \: tyl}) tyr by rewrite /= H3 andbT; eauto.
     apply IHtyr2 => // t' H6.
     move: H0; inversion H6; subst => // _; eauto.
 Qed.
@@ -435,7 +435,8 @@ Definition eval
 
 Module test.
 
-Goal typing [:: Some (tyvar 0)] (abs 0 @[0 \: 0]) 0.
+Goal typing [:: Some (tyvar 0)] (abs 0 @{0 \: 0}) 0.
+Proof.
   by [].
 Defined.
 
