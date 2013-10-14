@@ -1,6 +1,10 @@
 Require Import
   Relations.Relations
-  ssreflect ssrnat Relations_ext.
+  Ssreflect.ssreflect Ssreflect.ssrnat LCAC.lib.Relations_ext.
+
+Set Implicit Arguments.
+Unset Strict Implicit.
+Import Prenex Implicits.
 
 (* Definition 1.1: Lambda-terms *)
 

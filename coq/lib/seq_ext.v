@@ -1,8 +1,10 @@
 Require Import
-  Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool
+  Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat Ssreflect.seq LCAC.lib.ssrnat_ext.
 
 Set Implicit Arguments.
+Unset Strict Implicit.
+Import Prenex Implicits.
 
 Section Seq.
 
@@ -10,19 +12,19 @@ Variable (A B : Type).
 
 (* drop and take *)
 
-Theorem drop_addn n m (xs : seq A) : drop n (drop m xs) = drop (n + m) xs.
+Lemma drop_addn n m (xs : seq A) : drop n (drop m xs) = drop (n + m) xs.
 Proof.
   elim: m xs => [| m IH] [] // x xs.
   - by rewrite addn0.
   - by rewrite addnS /= IH.
 Qed.
 
-Theorem take_minn n m (xs : seq A) : take n (take m xs) = take (minn n m) xs.
+Lemma take_minn n m (xs : seq A) : take n (take m xs) = take (minn n m) xs.
 Proof.
   by elim: n m xs => [| n IH] [| m] [] // x xs; rewrite minnSS /= IH.
 Qed.
 
-Theorem drop_take_distr n m (xs : seq A) :
+Lemma drop_take_distr n m (xs : seq A) :
   drop n (take m xs) = take (m - n) (drop n xs).
 Proof.
   elim: n m xs => [m xs | n IH [xs | m [] //= _ xs]].
@@ -31,18 +33,18 @@ Proof.
   - by rewrite subSS IH.
 Qed.
 
-Theorem take_drop_distr n m (xs : seq A) :
+Lemma take_drop_distr n m (xs : seq A) :
   take n (drop m xs) = drop m (take (n + m) xs).
 Proof.
   by rewrite drop_take_distr addnK.
 Qed.
 
-Theorem drop_take_nil n (xs : seq A) : drop n (take n xs) = [::].
+Lemma drop_take_nil n (xs : seq A) : drop n (take n xs) = [::].
 Proof.
   by rewrite drop_take_distr subnn take0.
 Qed.
 
-Theorem size_take n (xs : seq A) : size (take n xs) = minn n (size xs).
+Lemma size_take n (xs : seq A) : size (take n xs) = minn n (size xs).
 Proof.
   elim: n xs => [xs | n IH [] //= _ xs].
   - by rewrite take0 min0n.
@@ -51,12 +53,12 @@ Qed.
 
 (* nth *)
 
-Theorem nth_map' (f : A -> B) x xs n : f (nth x xs n) = nth (f x) (map f xs) n.
+Lemma nth_map' (f : A -> B) x xs n : f (nth x xs n) = nth (f x) (map f xs) n.
 Proof.
   by elim: xs n => [n | x' xs IH []] //=; rewrite !nth_nil.
 Qed.
 
-Theorem nth_equal (a b : A) xs n :
+Lemma nth_equal (a b : A) xs n :
   (size xs <= n -> a = b) -> nth a xs n = nth b xs n.
 Proof.
   by elim: xs n => [n /= -> | x xs IH []].
@@ -71,34 +73,144 @@ Definition context A := (seq (option A)).
 Definition ctxinsert A xs ys n : context A :=
   take n ys ++ nseq (n - size ys) None ++ xs ++ drop n ys.
 
-Notation ctxindex xs n x := (Some x = nth None xs n).
-Notation ctxleq xs ys := (forall n a, ctxindex xs n a -> ctxindex ys n a).
-Infix "<=c" := ctxleq (at level 70, no associativity).
+Notation ctxindex xs n x := (Some x == nth None xs n).
 Notation ctxmap f xs := (map (omap f) xs).
 
-Section Context.
+Section Context1.
+
+Variable (A : eqType).
+
+Fixpoint ctxleq_rec (xs ys : context A) : bool :=
+  match xs, ys with
+    | [::], _ => true
+    | (None :: xs), [::] => ctxleq_rec xs [::]
+    | (None :: xs), (_ :: ys) => ctxleq_rec xs ys
+    | (Some _ :: _), [::] => false
+    | (Some x :: xs), (Some y :: ys) => (x == y) && ctxleq_rec xs ys
+    | (Some _ :: _), (None :: _) => false
+  end.
+
+Definition ctxleq := nosimpl ctxleq_rec.
+
+Infix "<=c" := ctxleq (at level 70, no associativity).
+
+Lemma ctxleqE xs ys :
+  (xs <=c ys) =
+  ((head None xs == head None ys) || (head None xs == None)) &&
+    (behead xs <=c behead ys).
+Proof.
+  move: xs ys => [| [x |] xs] [| [y |] ys] //=.
+  by case/boolP: (Some x == None) => // _; rewrite orbF.
+Qed.
+
+Lemma ctxleq0l xs : [::] <=c xs.
+Proof. done. Qed.
+
+Lemma ctxleql0 ys : (ys <=c [::]) = (ys == nseq (size ys) None).
+Proof. by elim: ys => //=; case. Qed.
+
+Lemma ctxleqnl xs ys : (None :: xs <=c ys) = (xs <=c behead ys).
+Proof. by case: ys. Qed.
+
+Lemma ctxleqln xs ys :
+  (xs <=c None :: ys) = (head None xs == None) && (behead xs <=c ys).
+Proof. by move: xs => [] //= []. Qed.
+
+Lemma ctxleqsl x xs ys :
+  (Some x :: xs <=c ys) = (Some x == head None ys) && (xs <=c behead ys).
+Proof. by move: ys => [] //= []. Qed.
+
+Lemma ctxleqls xs y ys :
+  (xs <=c Some y :: ys) =
+  ((head None xs == None) || (head None xs == Some y)) && (behead xs <=c ys).
+Proof. by move: xs => [] //= []. Qed.
+
+Lemma ctxleqss x xs y ys :
+  (Some x :: xs <=c Some y :: ys) = (x == y) && (xs <=c ys).
+Proof. by rewrite ctxleqsl. Qed.
+
+Lemma ctxleqcc x xs y ys :
+  (x :: xs <=c y :: ys) = ((x == y) || (x == None)) && (xs <=c ys).
+Proof. by rewrite ctxleqE. Qed.
+
+Lemma ctxleqcl x xs ys :
+  (x :: xs <=c ys) = ((x == head None ys) || (x == None)) && (xs <=c behead ys).
+Proof. by rewrite ctxleqE. Qed.
+
+Lemma ctxleqlc xs y ys :
+  (xs <=c y :: ys) =
+  ((head None xs == y) || (head None xs == None)) && (behead xs <=c ys).
+Proof. by rewrite ctxleqE. Qed.
+
+Lemma ctxleqP (xs ys : context A) :
+  reflect (forall n a, ctxindex xs n a -> ctxindex ys n a) (ctxleq xs ys).
+Proof.
+  apply: (iffP idP); elim: xs ys => [| x xs IH].
+  - by move => ys _ n a; rewrite nth_nil.
+  - by case => [| y ys]; rewrite ctxleqcl /=; case/andP; case/orP;
+      move/eqP => ?; subst => H [] //= n a; move/(IH _ H) => //;
+      rewrite nth_nil.
+  - by move => ys; rewrite ctxleq0l.
+  - by case => [| y ys]; rewrite ctxleqcl /= => H; apply/andP;
+      (apply conj;
+       [ case: x H; rewrite ?eqxx ?orbT // => x H; rewrite (H 0 x) |
+         apply IH => n a; move/(H n.+1 a) ]).
+Qed.
+
+Lemma ctxleqxx (xs : context A) : xs <=c xs.
+Proof.
+  by apply/ctxleqP.
+Qed.
+
+Lemma ctxleq_trans (xs ys zs : context A) :
+  xs <=c ys -> ys <=c zs -> xs <=c zs.
+Proof.
+  do 2 move/ctxleqP => ?; apply/ctxleqP; auto.
+Qed.
+
+Lemma ctxleq_app (xs xs' ys ys' : context A) :
+  size xs = size xs' ->
+  (xs ++ ys) <=c (xs' ++ ys') = (xs <=c xs') && (ys <=c ys').
+Proof.
+  elim: xs xs' => [| x xs IH] [] //= x' xs' [].
+  by rewrite !ctxleqcc; move/IH => ->; rewrite andbA.
+Qed.
+
+Lemma ctxleq_appl (xs ys zs : context A) :
+  (xs ++ ys <=c xs ++ zs) = (ys <=c zs).
+Proof.
+  by rewrite ctxleq_app // ctxleqxx.
+Qed.
+
+Lemma ctxleq_appr (xs ys : context A) : xs <=c (xs ++ ys).
+Proof.
+  by rewrite -{1}(cats0 xs) ctxleq_appl ctxleq0l.
+Qed.
+
+End Context1.
+
+Hint Resolve ctxleq0l ctxleql0 ctxleqnl ctxleqln ctxleqsl ctxleqls ctxleqss
+             ctxleqcc ctxleqcl ctxleqlc.
+
+Infix "<=c" := ctxleq (at level 70, no associativity).
+
+Section Context2.
 
 Variable (A B : Type).
 
-Theorem ctxindex_map (f : A -> B) xs n x :
-  ctxindex xs n x -> ctxindex (ctxmap f xs) n (f x).
-Proof.
-  by elim: xs n x => [| x xs IH] [] //= x' <-.
-Qed.
-
-Theorem size_ctxinsert (xs ys : context A) n :
+Lemma size_ctxinsert (xs ys : context A) n :
   size (ctxinsert xs ys n) = size xs + maxn n (size ys).
 Proof.
   rewrite /ctxinsert !size_cat size_nseq size_take size_drop; ssromega.
 Qed.
 
-Theorem map_ctxinsert (f : A -> B) xs ys n :
+Lemma map_ctxinsert (f : A -> B) xs ys n :
   ctxmap f (ctxinsert xs ys n) = ctxinsert (ctxmap f xs) (ctxmap f ys) n.
 Proof.
   by rewrite /ctxinsert !map_cat map_take map_nseq size_map map_drop.
 Qed.
 
-Theorem nth_ctxinsert (xs ys : context A) n m :
+Lemma nth_ctxinsert (xs ys : context A) n m :
   nth None (ctxinsert xs ys n) m =
   if m < n then nth None ys m else
   if m < n + size xs then nth None xs (m - n) else nth None ys (m - size xs).
@@ -112,87 +224,65 @@ Proof.
   - move => H _ _ _ _; rewrite nth_drop; f_equal; ssromega.
 Qed.
 
-Theorem ctxleq_refl (xs : context A) : ctxleq xs xs.
+End Context2.
+
+Section Context3.
+
+Variable (A B : eqType).
+
+Lemma ctxindex_map (f : A -> B) xs n x :
+  ctxindex xs n x -> ctxindex (ctxmap f xs) n (f x).
 Proof.
-  done.
+  by elim: xs n x => [| x xs IH] [] //= x'; move/eqP <-.
 Qed.
 
-Theorem ctxleq_trans (xs ys zs : context A) :
-  ctxleq xs ys -> ctxleq ys zs -> ctxleq xs zs.
+Lemma ctxleq_map (f : A -> B) xs ys :
+  xs <=c ys -> ctxmap f xs <=c ctxmap f ys.
 Proof.
-  auto.
-Qed.
-
-Theorem ctxleq_nil (xs : context A) : ctxleq [::] xs.
-Proof.
-  by move => n a; rewrite nth_nil.
-Qed.
-
-Theorem ctxleq_cons x y (xs ys : context A) :
-  ctxleq (x :: xs) (y :: ys) <->
-  ((forall z, Some z = x -> Some z = y) /\ ctxleq xs ys).
-Proof.
-  split.
-  - move => H; split.
-    - apply (H 0).
-    - move => n; apply (H n.+1).
-  - move => [H H0] [| n] //=; apply H0.
-Qed.
-
-Theorem ctxleq_app (xs xs' ys ys' : context A) :
-  size xs = size xs' -> ctxleq xs xs' -> ctxleq ys ys' ->
-  ctxleq (xs ++ ys) (xs' ++ ys').
-Proof.
-  elim: xs xs' ys ys' => [| x xs IH] [] //= x' xs' ys ys' [H].
-  by rewrite !ctxleq_cons => [[H0 H1] H2]; split; auto; apply IH.
-Qed.
-
-Theorem ctxleq_appl (xs ys zs : context A) :
-  ctxleq ys zs -> ctxleq (xs ++ ys) (xs ++ zs).
-Proof.
-  by move => H; apply ctxleq_app.
-Qed.
-
-Theorem ctxleq_appr (xs ys : context A) : ctxleq xs (xs ++ ys).
-Proof.
-  by elim: xs => [n a | x xs H []] //=; rewrite nth_nil.
-Qed.
-
-End Context.
-
-Theorem ctxleq_map A B (f : A -> B) xs ys :
-  ctxleq xs ys -> ctxleq (ctxmap f xs) (ctxmap f ys).
-Proof.
-  move => H n y; move: {H} (H n).
+  move/ctxleqP => H; apply/ctxleqP => n a.
+  move: (H n).
   rewrite -!(nth_map' (omap f) None).
-  by case: (nth None xs n) => // a H; rewrite -(H a).
+  case: (nth None xs n) => //= a' H0.
+  by move/eqP: (H0 a' (eqxx _)) => <- /=.
 Qed.
 
-Hint Resolve ctxleq_nil ctxleq_cons
-  ctxleq_app ctxleq_appl ctxleq_appr ctxleq_map.
+End Context3.
+
+Hint Resolve ctxindex_map ctxleqxx ctxleq_trans ctxleq_app
+             ctxleq_appl ctxleq_appr ctxleq_map.
 
 (* Forall *)
 
 Fixpoint Forall A (P : A -> Prop) xs :=
   if xs is x :: xs then P x /\ Forall P xs else True.
 
-Theorem Forall_impl :
+Lemma Forall_impl :
   forall (A : Type) (P Q : A -> Prop) xs,
   (forall a, P a -> Q a) -> Forall P xs -> Forall Q xs.
 Proof.
   move => A P Q xs H; elim: xs; firstorder.
-Defined.
+Qed.
 
-Theorem Forall_map (A B : Type) (f : A -> B) P xs :
+Lemma Forall_map (A B : Type) (f : A -> B) P xs :
   Forall P (map f xs) <-> Forall (P \o f) xs.
 Proof.
   by elim: xs => //= x xs ->.
 Qed.
 
-Theorem Forall_nth (A : Type) (P : A -> Prop) x xs m :
-  m < size xs -> Forall P xs -> P (nth x xs m).
+Lemma Forall_nth (A : Type) (P : A -> Prop) xs :
+  Forall P xs <-> (forall x m, m < size xs -> P (nth x xs m)).
 Proof.
-  elim: xs m => // x' xs IH [].
-  - by move => _ /= [].
-  - by move => n; rewrite /= ltnS => H [_]; apply IH.
+  elim: xs => //= x' xs [] IH IH'; split.
+  - by case => H H0 x [] //= n; rewrite ltnS; apply IH.
+  - move => H; split.
+    + by apply (H x' 0).
+    + by apply IH' => x m; apply (H x m.+1).
+Qed.
+
+Lemma allP' (A : eqType) (P : pred A) xs :
+  reflect (Forall P xs) (all P xs).
+Proof.
+  apply (iffP idP); elim: xs => //= x xs IH.
+  - by case/andP => ->; move/IH.
+  - by case => -> /=.
 Qed.

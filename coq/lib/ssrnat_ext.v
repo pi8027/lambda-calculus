@@ -1,6 +1,10 @@
 Require Import
   Omega Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.eqtype Ssreflect.ssrnat.
 
+Set Implicit Arguments.
+Unset Strict Implicit.
+Import Prenex Implicits.
+
 Tactic Notation "find_minneq_hyp" constr(n) constr(m) :=
   match goal with
     | H : is_true (n <= m) |- _ => move/minn_idPl: (H)
@@ -55,6 +59,14 @@ Ltac ssromega :=
   do ?arith_hypo_ssrnat2coqnat;
   do ?arith_goal_ssrnat2coqnat;
   omega.
+
+Ltac elimleq :=
+  let H := fresh "H" in
+  match goal with
+    | [ |- is_true (?m <= ?n) -> _ ] =>
+      move => H; rewrite -(subnKC H) ?(addnK, addKn, addnA);
+      move: {n H} (n - m) => n
+  end.
 
 (* test codes for ssromega *)
 

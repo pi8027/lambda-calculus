@@ -5,6 +5,8 @@ Require Import
   LCAC.lib.Relations_ext LCAC.lib.ssrnat_ext LCAC.lib.seq_ext.
 
 Set Implicit Arguments.
+Unset Strict Implicit.
+Import Prenex Implicits.
 
 Inductive term : Set := var of nat | app of term & term | abs of term.
 
@@ -53,14 +55,6 @@ Ltac elimif_omega :=
     | |- nth ?x ?xs _ = nth ?x ?xs _ => f_equal
     | |- _ => idtac
   end; ssromega).
-
-Ltac elimleq :=
-  let H := fresh "H" in
-  match goal with
-    | [ |- is_true (?m <= ?n) -> _ ] =>
-      move => H; rewrite -(subnKC H) ?(addnK, addKn, addnA);
-      move: {n H} (n - m) => n
-  end.
 
 End Lambda_tactics.
 
@@ -122,7 +116,7 @@ Lemma subst_subst_distr n m xs ys t :
 Proof.
   elimleq; elim: t m => /=; try (move: addnS addSn; congruence);
     move => v m; elimif_omega; rewrite /substitutev.
-  - rewrite (subst_shift_cancel m) // ?size_map; try ssromega.
+  - rewrite (@subst_shift_cancel m) // ?size_map; try ssromega.
     rewrite nth_default /= /substitutev; elimif_omega.
     by rewrite !subnDA addnK -addnA addKn (subnAC v).
   - rewrite size_map -shift_subst_distr // nth_map' /=.
@@ -142,13 +136,13 @@ Lemma subst_nil n t : substitute n [::] t = t.
 Proof.
   elim: t n => /=; try congruence; move => m n;
     rewrite /substitutev nth_nil /=; elimif_omega.
-Defined.
+Qed.
 
 Lemma subst_betared1 n ts t t' :
   t ->b1 t' -> substitute n ts t ->b1 substitute n ts t'.
 Proof.
   move => H; move: t t' H n.
-  refine (betared1_ind _ _ _ _ _) => /=; auto => t t' n.
+  refine (betared1_ind _ _ _ _) => /=; auto => t t' n.
   by rewrite subst_subst_distr //= add1n subn0.
 Qed.
 
@@ -220,7 +214,7 @@ Qed.
 Lemma shift_parred t t' d c : t ->bp t' -> shift d c t ->bp shift d c t'.
 Proof.
   move => H; move: t t' H d c.
-  refine (parred_ind _ _ _ _ _) => //=; auto => t1 t1' t2 t2' H H0 H1 H2 d c.
+  refine (parred_ind _ _ _ _) => //=; auto => t1 t1' t2 t2' H H0 H1 H2 d c.
   rewrite subst_shift_distr //= add1n subn0; auto.
 Qed.
 
@@ -230,7 +224,7 @@ Lemma subst_parred n ps t t' :
   substitute n [seq snd p | p <- ps] t'.
 Proof.
   move => H H0; move: t t' H0 n.
-  refine (parred_ind _ _ _ _ _) => /=; auto.
+  refine (parred_ind _ _ _ _) => /=; auto.
   - move => v n; elimif; rewrite /substitutev !size_map; apply shift_parred.
     elim: {v n H0} ps (v - n) H => //= [[t t']] ps IH [| v] [] //= H H0.
     by rewrite subSS; apply IH.
@@ -243,8 +237,8 @@ Proof with auto.
   elim/reduce_all_redex_ind: {t}_ t'.
   - by move => t n H t' H0; inversion H0; subst.
   - move => _ t1 t2 _ H H0 t' H1; inversion H1; subst.
-    - inversion H4; subst...
-    - apply (subst_parred 0 [:: (t2', reduce_all_redex t2)]) => /=...
+    + inversion H4; subst...
+    + apply (@subst_parred 0 [:: (t2', reduce_all_redex t2)]) => /=...
   - move => _ t1 t2 _ H H0 H1 t' H2; inversion H2; subst => //...
   - move => _ t1 _ H t2 H0; inversion H0; subst...
 Qed.
@@ -257,7 +251,7 @@ Qed.
 
 Theorem betared_confluent : confluent betared.
 Proof.
-  apply (rtc_confluent' parred
+  apply (rtc_confluent'
     betared1_in_parred parred_in_betared parred_confluent).
 Qed.
 
@@ -270,21 +264,21 @@ Proof.
   elim: t.
   - right; case => t H; inversion H.
   - case.
-    - move => n _ t [].
-      - case => t' IH; left; exists (app n t'); auto.
-      - move => IH; right; case => t' H; inversion H; first inversion H3; subst.
+    + move => n _ t [].
+      * case => t' IH; left; exists (app n t'); auto.
+      * move => IH; right; case => t' H; inversion H; first inversion H3; subst.
         by apply IH; exists t2'.
-    - move => tll tlr [[tl' IHtl] | IHtl] tr.
-      - move => IHtr; left; exists (app tl' tr); auto.
-      - move => [[tr' IHtr] | IHtr].
+    + move => tll tlr [[tl' IHtl] | IHtl] tr.
+      * move => IHtr; left; exists (app tl' tr); auto.
+      * move => [[tr' IHtr] | IHtr].
         - left; exists (app (app tll tlr) tr'); auto.
         - right; case => t' H; inversion H; subst.
-          - by apply IHtl; exists t1'.
-          - by apply IHtr; exists t2'.
-    - by move => tl IHtl tr IHtr; left; exists (substitute 0 [:: tr] tl).
+          + by apply IHtl; exists t1'.
+          + by apply IHtr; exists t2'.
+    + by move => tl IHtl tr IHtr; left; exists (substitute 0 [:: tr] tl).
   - move => t [[t' IH] | IH].
-    - left; exists (abs t'); auto.
-    - right; case => t' H; inversion H; subst; apply IH; exists t'0; auto.
+    + left; exists (abs t'); auto.
+    + right; case => t' H; inversion H; subst; apply IH; exists t'0; auto.
 Defined.
 
 Definition cbn_rl t : {t' | t ->b1 t'} + ({t' | t ->b1 t'} -> False).
@@ -292,21 +286,21 @@ Proof.
   elim: t.
   - right; case => t H; inversion H.
   - case.
-    - move => n _ t [].
-      - case => t' IH; left; exists (app n t'); auto.
-      - move => IH; right; case => t' H; inversion H; first inversion H3; subst.
+    + move => n _ t [].
+      * case => t' IH; left; exists (app n t'); auto.
+      * move => IH; right; case => t' H; inversion H; first inversion H3; subst.
         by apply IH; exists t2'.
-    - move => tll tlr IHtl tr [[tr' IHtr] | IHtr].
-      - left; exists (app (app tll tlr) tr'); auto.
-      - case: IHtl => [[tl' IHtl] | IHtl].
+    + move => tll tlr IHtl tr [[tr' IHtr] | IHtr].
+      * left; exists (app (app tll tlr) tr'); auto.
+      * case: IHtl => [[tl' IHtl] | IHtl].
         - left; exists (app tl' tr); auto.
         - right; case => t' H; inversion H; subst.
-          - by apply IHtl; exists t1'.
-          - by apply IHtr; exists t2'.
-    - by move => tl IHtl tr IHtr; left; exists (substitute 0 [:: tr] tl).
+          + by apply IHtl; exists t1'.
+          + by apply IHtr; exists t2'.
+    + by move => tl IHtl tr IHtr; left; exists (substitute 0 [:: tr] tl).
   - move => t [[t' IH] | IH].
-    - left; exists (abs t'); auto.
-    - right; case => t' H; inversion H; subst; apply IH; exists t'0; auto.
+    + left; exists (abs t'); auto.
+    + right; case => t' H; inversion H; subst; apply IH; exists t'0; auto.
 Defined.
 
 End evaluation_strategies.

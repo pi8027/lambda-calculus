@@ -4,6 +4,8 @@ Require Import
   Ssreflect.seq LCAC.lib.Relations_ext.
 
 Set Implicit Arguments.
+Unset Strict Implicit.
+Import Prenex Implicits.
 
 (* Definition 2.1: Combinatory logic terms, or CL-terms *)
 
@@ -218,8 +220,8 @@ Proof.
   apply cl_parred_ind => //=; auto.
   - move => t1 t1' t2 t2' t3 t3' t3'' H H0 H1 H2 H3 H4 H5 H6.
     apply rt1n_trans with (t1 @ t3 @ (t2 @ t3)).
-    - constructor.
-    - auto.
+    + constructor.
+    + auto.
   - move => t1 t1' t2 H H0; apply rt1n_trans with t1 => //=; constructor.
   - move => t1 t1' H H0; apply rt1n_trans with t1 => //=; constructor.
 Qed.
@@ -240,11 +242,11 @@ Proof.
   move => H; induction H; try by do ?constructor.
   destruct t1; try by constructor.
   - destruct t1_1; try by constructor.
-    - destruct t1_1_1; try by constructor.
+    + destruct t1_1_1; try by constructor.
       inversion H; inversion H3; inversion H8 ;subst.
       inversion IHcl_parred1; subst; simpl in *.
       by inversion H6; apply parred_s.
-    - inversion H; inversion H3; subst.
+    + inversion H; inversion H3; subst.
       by inversion IHcl_parred1; apply parred_k.
   - inversion H; subst.
     by inversion IHcl_parred1; apply parred_i.
@@ -257,7 +259,7 @@ Qed.
 
 Theorem cl_weakred_confluent : confluent cl_weakred_rtc.
 Proof.
-  apply (rtc_confluent' _
+  apply (rtc_confluent'
     cl_weakred_in_parred cl_parred_in_weakred_rtc cl_parred_confluent).
 Qed.
 
@@ -270,8 +272,8 @@ Proof.
   case: (cl_weakred_confluent H H1) => [t4 [H3 H4]].
   inversion H3.
   - inversion H4.
-    - auto.
-    - apply False_ind, H2; eauto.
+    + auto.
+    + apply False_ind, H2; eauto.
   - apply False_ind, H0; eauto.
 Qed.
 
