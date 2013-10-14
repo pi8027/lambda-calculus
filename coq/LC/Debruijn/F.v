@@ -783,6 +783,19 @@ Import subject_reduction_proof.
 
 Definition SNorm (t : term) : Prop := Acc (fun x y => reduction1 y x) t.
 
+Definition neutral (t : term) : bool :=
+  match t with
+    | abs _ => false
+    | uabs _ => false
+    | _ => true
+  end.
 
+Record RC ctx ty (P : term -> Prop) : Prop :=
+  reducibility_candidate {
+    rc_typed : forall t, P t -> typing ctx t ty ;
+    rc_cr1   : forall t, P t -> SNorm t ;
+    rc_cr2   : forall t t', t ->r1 t' -> P t -> P t' ;
+    rc_cr3   : forall t, neutral t -> (forall t', t ->r1 t' -> P t') -> P t
+  }.
 
 End strong_normalization_proof.
