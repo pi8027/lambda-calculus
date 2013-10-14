@@ -20,13 +20,14 @@ Inductive term
 Coercion tyvar : nat >-> typ.
 Coercion var : nat >-> term.
 
+Notation "ty :->: ty'" := (tyfun ty ty') (at level 70, no associativity).
 Notation "t @{ t' \: ty }" := (app t t' ty) (at level 60, no associativity).
 Notation "{ t \: ty }@ ty'" := (uapp t ty ty') (at level 60, no associativity).
 
 Fixpoint eqtyp t1 t2 :=
   match t1, t2 with
     | tyvar n, tyvar m => n == m
-    | tyfun t1l t1r, tyfun t2l t2r => eqtyp t1l t2l && eqtyp t1r t2r
+    | t1l :->: t1r, t2l :->: t2r => eqtyp t1l t2l && eqtyp t1r t2r
     | tyabs tl, tyabs tr => eqtyp tl tr
     | _, _ => false
   end.
@@ -78,7 +79,7 @@ Canonical term_eqType := Eval hnf in EqType term term_eqMixin.
 Fixpoint shift_typ d c t :=
   match t with
     | tyvar n => tyvar (if c <= n then n + d else n)
-    | tyfun tl tr => tyfun (shift_typ d c tl) (shift_typ d c tr)
+    | tl :->: tr => shift_typ d c tl :->: shift_typ d c tr
     | tyabs t => tyabs (shift_typ d c.+1 t)
   end.
 
@@ -88,7 +89,7 @@ Definition subst_typv ts m n :=
 Fixpoint subst_typ n ts t :=
   match t with
     | tyvar m => if n <= m then subst_typv ts m n else m
-    | tyfun tl tr => tyfun (subst_typ n ts tl) (subst_typ n ts tr)
+    | tl :->: tr => subst_typ n ts tl :->: subst_typ n ts tr
     | tyabs t => tyabs (subst_typ n.+1 ts t)
   end.
 
@@ -127,8 +128,8 @@ Fixpoint subst_term n n' ts t :=
 Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
   match t, ty with
     | var n, _ => ctxindex ctx n ty
-    | tl @{tr \: ty'}, _ => typing ctx tl (tyfun ty' ty) && typing ctx tr ty'
-    | abs t, tyfun tyl tyr => typing (Some tyl :: ctx) t tyr
+    | tl @{tr \: ty'}, _ => typing ctx tl (ty' :->: ty) && typing ctx tr ty'
+    | abs t, tyl :->: tyr => typing (Some tyl :: ctx) t tyr
     | {t \: ty1}@ ty2, _ =>
       (ty == subst_typ 0 [:: ty2] ty1) && typing ctx t (tyabs ty1)
     | uabs t, tyabs ty => typing (ctxmap (shift_typ 1 0) ctx) t ty
@@ -797,5 +798,7 @@ Record RC ctx ty (P : term -> Prop) : Prop :=
     rc_cr2   : forall t t', t ->r1 t' -> P t -> P t' ;
     rc_cr3   : forall t, neutral t -> (forall t', t ->r1 t' -> P t') -> P t
   }.
+
+
 
 End strong_normalization_proof.

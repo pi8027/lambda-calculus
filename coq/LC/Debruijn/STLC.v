@@ -14,12 +14,13 @@ Inductive term := var of nat | app of term & term & typ | abs of term.
 Coercion tyvar : nat >-> typ.
 Coercion var : nat >-> term.
 
+Notation "ty :->: ty'" := (tyfun ty ty') (at level 70, no associativity).
 Notation "t @{ t' \: ty }" := (app t t' ty) (at level 60, no associativity).
 
 Fixpoint eqtyp t1 t2 :=
   match t1, t2 with
     | tyvar n, tyvar m => n == m
-    | tyfun t1l t1r, tyfun t2l t2r => eqtyp t1l t2l && eqtyp t1r t2r
+    | t1l :->: t1r, t2l :->: t2r => eqtyp t1l t2l && eqtyp t1r t2r
     | _, _ => false
   end.
 
@@ -94,8 +95,8 @@ Hint Constructors betared1.
 Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
   match t, ty with
     | var n, _ => ctxindex ctx n ty
-    | tl @{tr \: ty'}, _ => typing ctx tl (tyfun ty' ty) && typing ctx tr ty'
-    | abs t, tyfun tyl tyr => typing (Some tyl :: ctx) t tyr
+    | tl @{tr \: ty'}, _ => typing ctx tl (ty' :->: ty) && typing ctx tr ty'
+    | abs t, tyl :->: tyr => typing (Some tyl :: ctx) t tyr
     | _, _ => false
   end.
 
@@ -288,7 +289,7 @@ Qed.
 Fixpoint reducible (ctx : context typ) (t : term) (ty : typ) : Prop :=
   match ty with
     | tyvar n => SNorm t
-    | tyfun ty1 ty2 => forall t1 ctx',
+    | ty1 :->: ty2 => forall t1 ctx',
         ctx <=c ctx' -> typing ctx' t1 ty1 -> reducible ctx' t1 ty1 ->
         reducible ctx' (t @{t1 \: ty1}) ty2
   end.
@@ -356,10 +357,10 @@ Proof.
 Qed.
 
 Lemma abstraction_lemma ctx t1 tyl tyr :
-  typing ctx (abs t1) (tyfun tyl tyr) ->
+  typing ctx (abs t1) (tyl :->: tyr) ->
   (forall t2 ctx', ctx <=c ctx' -> typing ctx' t2 tyl ->
    reducible ctx' t2 tyl -> reducible ctx' (substitute 0 [:: t2] t1) tyr) ->
-  reducible ctx (abs t1) (tyfun tyl tyr).
+  reducible ctx (abs t1) (tyl :->: tyr).
 Proof.
   move => /= H H0 t2 ctx' H1 H2 H3.
   have H4: typing ctx' (substitute 0 [:: t2] t1) tyr
@@ -394,7 +395,7 @@ Proof.
     + move/eqP; case => ->; tauto.
     + by move => n H; case/andP => _ H0 [_]; apply IH.
   - move => tl IHtl tr IHtr tty ty ctx ctx' /=; case/andP => H H0 H1 H2.
-    move: (IHtl (tyfun tty ty) ctx ctx') => /=; apply; auto.
+    move: (IHtl (tty :->: ty) ctx ctx') => /=; apply; auto.
     by apply subject_subst0.
   - move => t IHt [] //= tyl tyr ctx ctx' H H0 H1.
     apply abstraction_lemma.
