@@ -34,12 +34,12 @@ Fixpoint eqtyp t1 t2 :=
 
 Lemma eqtypP : Equality.axiom eqtyp.
 Proof.
-  move => t1 t2; apply: (iffP idP) => [| <-].
-  - elim: t1 t2 => [n | t1l IHt1l t1r IHt1r | t1 IHt1] [m | t2l t2r | t2] //=.
-    + by move/eqP => ->.
-    + by case/andP; move/IHt1l => ->; move/IHt1r => ->.
-    + by move/IHt1 => ->.
-  - by elim: t1 => //= t1l ->.
+  elim => [n | ty1l IHl ty1r IHr | ty1 IH];
+    case => //= [m | ty2l ty2r | ty2]; try by constructor.
+  - case_eq (n == m); move/eqP; constructor; congruence.
+  - case_eq (eqtyp ty1l ty2l); move/IHl; case_eq (eqtyp ty1r ty2r); move/IHr;
+      constructor; congruence.
+  - case_eq (eqtyp ty1 ty2); move/IH; constructor; congruence.
 Defined.
 
 Canonical typ_eqMixin := EqMixin eqtypP.
@@ -59,18 +59,15 @@ Fixpoint eqterm t1 t2 :=
 
 Lemma eqtermP : Equality.axiom eqterm.
 Proof.
-  move => t1 t2; apply: (iffP idP) => [| <-].
-  - elim: t1 t2 =>
-      [n | t1l IHt1l t1r IHt1r ty1 | t1 IHt1 | t1 IHt1 ty1l ty1r | t1 IHt1]
-      [m | t2l t2r ty2 | t2 | t2 ty2l ty2r | t2] //=.
-    + by move/eqP => ->.
-    + by case/and3P; move/IHt1l => ->; move/IHt1r => ->; move/eqP => ->.
-    + by move/IHt1 => ->.
-    + by case/and3P; move/IHt1 => ->; move/eqP => ->; move/eqP => ->.
-    + by move/IHt1 => ->.
-  - elim: t1 => //=.
-    + by move => t1l -> t1r -> /=.
-    + by move => t1 -> ty1 ty2; rewrite !eqxx.
+  elim => [n | t1l IHl t1r IHr ty1 | t1 IH | t1 IH ty1l ty1r | t1 IH];
+    case => //= [m | t2l t2r ty2 | t2 | t2 ty2l ty2r | t2]; try by constructor.
+  - case_eq (n == m); move/eqP; constructor; congruence.
+  - case_eq (eqterm t1l t2l); move/IHl; case_eq (eqterm t1r t2r); move/IHr;
+      case_eq (ty1 == ty2); move/eqP; constructor; congruence.
+  - case_eq (eqterm t1 t2); move/IH; constructor; congruence.
+  - case_eq (eqterm t1 t2); move/IH; case_eq (ty1l == ty2l); move/eqP;
+      case_eq (ty1r == ty2r); move/eqP; constructor; congruence.
+  - case_eq (eqterm t1 t2); move/IH; constructor; congruence.
 Defined.
 
 Canonical term_eqMixin := EqMixin eqtermP.
@@ -135,6 +132,51 @@ Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
     | uabs t, tyabs ty => typing (ctxmap (shift_typ 1 0) ctx) t ty
     | _, _ => false
   end.
+
+(*
+Record tterm ctx ty : Set :=
+  typed_term {
+    term_of_tterm :> term ;
+    _ : typing ctx term_of_tterm ty
+  }.
+
+Arguments typed_term [ctx ty] term_of_tterm _.
+
+Canonical tterm_subType ctx ty := [subType for @term_of_tterm ctx ty].
+Definition tterm_eqMixin ctx ty := Eval hnf in [eqMixin of tterm ctx ty by <:].
+Canonical tterm_eqType ctx ty :=
+  Eval hnf in EqType (tterm ctx ty) (tterm_eqMixin ctx ty).
+
+Definition var_tterm ctx ty n (H : ctxindex ctx n ty) : tterm ctx ty :=
+  typed_term n H.
+
+Definition app_tterm ctx tyl tyr
+  (tl : tterm ctx (tyl :->: tyr)) (tr : tterm ctx tyl) : tterm ctx tyr :=
+  match tl with typed_term tl Hl =>
+    match tr with typed_term tr Hr =>
+      typed_term (tl @{tr \: tyl}) (introT andP (conj Hl Hr))
+    end
+  end.
+
+Definition abs_tterm ctx tyl tyr
+  (t : tterm (Some tyl :: ctx) tyr) : tterm ctx (tyl :->: tyr) :=
+  match t with typed_term t H =>
+    @typed_term ctx (tyl :->: tyr) (abs t) H
+  end.
+
+Definition uapp_tterm ctx tyl
+  (t : tterm ctx (tyabs tyl)) tyr : tterm ctx (subst_typ 0 [:: tyr] tyl) :=
+  match t with typed_term t H =>
+    @typed_term ctx (subst_typ 0 [:: tyr] tyl) ({t \: tyl}@ tyr)
+                (introT andP (conj (eq_refl _) H))
+  end.
+
+Definition uabs_tterm ctx ty
+  (t : tterm (ctxmap (shift_typ 1 0) ctx) ty) : tterm ctx (tyabs ty) :=
+  match t with typed_term t H =>
+    @typed_term ctx (tyabs ty) (uabs t) H
+  end.
+*)
 
 Reserved Notation "t ->r1 t'" (at level 70, no associativity).
 
@@ -784,6 +826,13 @@ Import subject_reduction_proof.
 
 Definition SNorm (t : term) : Prop := Acc (fun x y => reduction1 y x) t.
 
+Lemma snorm_appl tl tr ty : SNorm (tl @{tr \: ty}) -> SNorm tl.
+Proof.
+  move: tl.
+  fix IH 2 => tl [H]; constructor => tl' H0.
+  by apply IH, H; constructor.
+Qed.
+
 Definition neutral (t : term) : bool :=
   match t with
     | abs _ => false
@@ -791,13 +840,55 @@ Definition neutral (t : term) : bool :=
     | _ => true
   end.
 
-Record RC ctx ty (P : term -> Prop) : Prop :=
+Definition CR1 ctx ty (P : forall t, typing ctx t ty -> Prop) :=
+  forall t (H : typing ctx t ty), P t H -> SNorm t.
+
+Definition CR2 ctx ty (P : forall t, typing ctx t ty -> Prop) :=
+  forall t t' (H : typing ctx t ty) (H' : typing ctx t' ty),
+    t ->r1 t' -> P t H -> P t' H'.
+
+Definition CR3 ctx ty (P : forall t, typing ctx t ty -> Prop) :=
+  forall t (H : typing ctx t ty), neutral t ->
+    (forall t' (H' : t ->r1 t'), P t' (subject_reduction H' H)) -> P t H.
+
+Record RC ctx ty (P : forall t, typing ctx t ty -> Prop) : Prop :=
   reducibility_candidate {
-    rc_typed : forall t, P t -> typing ctx t ty ;
-    rc_cr1   : forall t, P t -> SNorm t ;
-    rc_cr2   : forall t t', t ->r1 t' -> P t -> P t' ;
-    rc_cr3   : forall t, neutral t -> (forall t', t ->r1 t' -> P t') -> P t
+    rc_cr1 : CR1 P ;
+    rc_cr2 : CR2 P ;
+    rc_cr3 : CR3 P
   }.
+
+Lemma CR4
+  ctx ty (P : forall t, typing ctx t ty -> Prop) t (H : typing ctx t ty) :
+  RC P -> neutral t -> (forall t', ~ t ->r1 t') -> P t H.
+Proof. by case => _ _ H0 H1 H2; apply H0 => // t' H3; move: (H2 _ H3). Qed.
+
+Lemma CR4' ctx ty (P : forall t, typing ctx t ty -> Prop)
+  v (H : ctxindex ctx v ty) : RC P -> P v H.
+Proof. move/CR4; apply => // t' H0; inversion H0. Qed.
+
+Lemma rcfun_isrc ctx tyl tyr
+  (P : forall t, typing ctx t tyl -> Prop)
+  (Q : forall t, typing ctx t tyr -> Prop)
+  t (H : typing ctx t tyl) :
+  RC P -> RC Q -> P t H ->
+  RC (fun u H' => forall v H'', P v H'' ->
+    Q (u @{v \: tyl}) (introT andP (conj H' H''))).
+Proof.
+  move => [CR1l CR2l CR3l] [CR1r CR2r CR3r] Ht; constructor.
+  - by move => /= f Hf; move/(_ t H Ht)/CR1r/snorm_appl.
+  - by move => /= t1 t2 H0 H1 H2 H3 t3 H4; move/H3; apply CR2r; constructor.
+  - move => /= t1 H0 H1 H2 t2 H3 H4.
+    move: (CR1l t2 H3 H4) => H5; move: t2 H5 H3 H4.
+    refine (Acc_ind _ _) => t2 _ H3 H4 H5.
+    apply CR3r => // t3 H6; move: H1;
+      inversion H6; subst => //= H7; apply CR3r => // t' H8.
+    + by apply (CR2r (t1' @{t2 \: tyl}) t'
+        (introT andP (conj (subject_reduction H10 H0) H4)) _ H8), H2.
+    + by apply (CR2r (t1 @{t2' \: tyl}) t'
+        (introT andP (conj H0 (subject_reduction H10 H4))) _ H8),
+        (H3 _ H10), (CR2l t2 t2' H4 (subject_reduction H10 H4) H10).
+Qed.
 
 
 
