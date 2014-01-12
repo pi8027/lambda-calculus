@@ -71,8 +71,37 @@ Fixpoint betared1' (t1 t2 : term) : bool :=
               ((t1l == t2l) && betared1' t1r t2r)
          else false)
     | abs t1' =>
-      (if t2 is abs t2' then betared1' t1' t2' else false)
+      if t2 is abs t2' then betared1' t1' t2' else false
   end.
+
+Lemma betared1P t1 t2 : reflect (betared1 t1 t2) (betared1' t1 t2).
+Proof.
+  move: t1 t2; fix IH 1.
+  case => [n | t1l t1r | t1].
+  - move => t2; constructor => H; inversion H.
+  - move => t2; case: t2 {1}t2 (erefl t2) => [m | t2l t2r | t2'] t2 /= H;
+      rewrite -H; case: t1l {1}t1l (erefl t1l) => [n | t1ll t1lr | t1l'] t1l H0;
+      rewrite -H0 /=;
+      try (case_eq (t2 == substitute 0 [:: t1r] t1l'); move/eqP => H1);
+      try ((case_eq (betared1' t1l t2l && (t1r == t2r));
+              [case/andP => H2; move/eqP => H3 | move => H2]);
+           (case_eq ((t1l == t2l) && betared1' t1r t2r);
+              [case/andP; move/eqP => H4 H5 | move => H4]));
+      constructor; subst t2;
+      try (by (subst t2l || subst t2r); constructor; apply/IH);
+      try (rewrite H0; move => H6; inversion H6;
+        (congruence ||
+         (by inversion H1) ||
+         (by move: H1 H2 H4; rewrite -?H0;
+            move/IH => ->; subst; rewrite eqxx) ||
+         (by move: H3 H2 H4; rewrite -?H0;
+            move/IH => ->; subst; rewrite eqxx)));
+      subst; rewrite H1; constructor.
+  - case => /= [m | t2l t2r | t2]; try by constructor => H; inversion H.
+    case_eq (betared1' t1 t2); move/IH; constructor.
+    + by constructor.
+    + by move => H; inversion H.
+Qed.
 
 Notation betared := [* betared1].
 Infix "->b" := betared (at level 70, no associativity).
