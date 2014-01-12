@@ -133,6 +133,8 @@ Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
     | _, _ => false
   end.
 
+(* tterm: typed term *)
+
 (*
 Record tterm ctx ty : Set :=
   typed_term {
@@ -876,13 +878,12 @@ Lemma rcfun_isrc ctx tyl tyr
     Q (u @{v \: tyl}) (introT andP (conj H' H''))).
 Proof.
   move => [CR1l CR2l CR3l] [CR1r CR2r CR3r] Ht; constructor.
-  - by move => /= f Hf; move/(_ t H Ht)/CR1r/snorm_appl.
-  - by move => /= t1 t2 H0 H1 H2 H3 t3 H4; move/H3; apply CR2r; constructor.
-  - move => /= t1 H0 H1 H2 t2 H3 H4.
-    move: (CR1l t2 H3 H4) => H5; move: t2 H5 H3 H4.
-    refine (Acc_ind _ _) => t2 _ H3 H4 H5.
-    apply CR3r => // t3 H6; move: H1;
-      inversion H6; subst => //= H7; apply CR3r => // t' H8.
+  - by move => f Hf; move/(_ t H Ht)/CR1r/snorm_appl.
+  - by move => t1 t2 H0 H1 H2 H3 t3 H4; move/H3; apply CR2r; constructor.
+  - move => t1 H0 H1 H2 t2 H3 H4; move: (CR1l t2 H3 H4) => H5;
+      move: t2 H5 H3 H4; refine (Acc_ind _ _) => t2 _ H3 H4 H5;
+      apply CR3r => // t3 H6; move: H1; inversion H6; subst => //= H7;
+      apply CR3r => // t' H8.
     + by apply (CR2r (t1' @{t2 \: tyl}) t'
         (introT andP (conj (subject_reduction H10 H0) H4)) _ H8), H2.
     + by apply (CR2r (t1 @{t2' \: tyl}) t'
@@ -890,6 +891,47 @@ Proof.
         (H3 _ H10), (CR2l t2 t2' H4 (subject_reduction H10 H4) H10).
 Qed.
 
+Lemma snorm_isrc ctx ty :
+  RC (fun t (H : typing ctx t ty) => SNorm t).
+Proof.
+  constructor; move => /=; auto.
+  - by move => t t' _ _ H []; move/(_ t' H).
+  - by constructor.
+Qed.
 
+Fixpoint reducible
+  ctx ty (preds : list (term -> Prop)) t : Prop :=
+  match ty with
+    | tyvar v => nth (fun t => SNorm t) preds v t
+    | tyfun tyl tyr =>
+      forall t', reducible ctx tyl preds t' ->
+                 reducible ctx tyr preds (t @{t' \: tyl})
+    | tyabs ty =>
+      forall ty' P, RC (fun t (_ : typing ctx t ty') => P t) ->
+                    reducible ctx ty (P :: preds) ({t \: ty}@ ty')
+  end.
+
+Lemma reducible_isrc
+  ctx ty (preds : list (typ * (term -> Prop))) :
+  Forall (fun p => RC (fun t (_ : typing ctx t p.1) => p.2 t)) preds ->
+  RC (fun t (_ : typing ctx t (subst_typ 0 (map (@fst _ _) preds) ty)) =>
+          reducible ctx ty (map (@snd _ _) preds) t).
+Proof.
+  elim: ty ctx preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] ctx preds H.
+  - elim: preds n H => /= [| [ty P] preds IHp [| n] /= [[H H0 H1] H2]].
+    + move => n _; constructor; move => /=.
+      * by move => t; rewrite nth_nil.
+      * by move => t t' _ _; rewrite !nth_nil => H; case; move/(_ t' H).
+      * by move => t _ _ H; rewrite nth_nil;
+          constructor => t'; move/H; rewrite nth_nil.
+    + constructor.
+      * by move => /= t H3; apply H;
+          move: H3; rewrite /subst_typv /= shift_zero_ty.
+      * move => /= t t'; rewrite /subst_typv /= shift_zero_ty; apply H0.
+      * move => /= t; rewrite /subst_typv /= shift_zero_ty; apply H1.
+    + by move: (IHp n H2); rewrite /subst_typv /= subn0 subSS.
+  -
+  -
+Abort.
 
 End strong_normalization_proof.
