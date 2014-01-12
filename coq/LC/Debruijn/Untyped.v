@@ -71,16 +71,16 @@ Fixpoint betared1' (t1 t2 : term) : bool :=
               ((t1l == t2l) && betared1' t1r t2r)
          else false)
     | abs t1' =>
-      if t2 is abs t2' then betared1' t1' t2' else false
+      if t2 is abs t2'
+        then betared1' t1' t2'
+        else false
   end.
 
 Lemma betared1P t1 t2 : reflect (betared1 t1 t2) (betared1' t1 t2).
 Proof.
-  move: t1 t2; fix IH 1.
-  case => [n | t1l t1r | t1].
-  - move => t2; constructor => H; inversion H.
-  - move => t2;
-      case: t2 {1}t2 (erefl t2) => [m | t2l t2r | t2'] t2 /= H; rewrite -H;
+  move: t1 t2; fix IH 1; case => [n t2 | t1l t1r t2 | t1].
+  - constructor => H; inversion H.
+  - case: t2 {1}t2 (erefl t2) => [m | t2l t2r | t2'] t2 /= H; rewrite -H;
       (case: t1l {1}t1l (erefl t1l) (IH t1l) (IH t1r) =>
         [n | t1ll t1lr | t1l'] t1l H0; last move: (IH t1l') => IHl');
       move => IHl IHr {IH}; rewrite -H0;
@@ -90,10 +90,10 @@ Proof.
       try (case_eq ((t1l == t2l) && betared1' t1r t2r);
         [case/andP; move/eqP => H4 H5 | move => H4]);
       constructor; subst; try rewrite {}H1; subst;
-      try (by constructor; (apply/IHl || apply/IHr));
-      try (move => H6; inversion H6; subst;
+      try (by constructor; apply/IHl || apply/IHr);
+      move => H6; inversion H6; subst;
         (congruence || (by inversion H0) ||
-         by move: H0 H2 H4; (move/IHl || move/IHr) => ->; rewrite eqxx)).
+         by move: H0 H2 H4; (move/IHl || move/IHr) => ->; rewrite eqxx).
   - case => /= [m | t2l t2r | t2]; try by constructor => H; inversion H.
     case_eq (betared1' t1 t2); move/IH; constructor.
     + by constructor.
@@ -105,8 +105,6 @@ Infix "->b" := betared (at level 70, no associativity).
 
 Hint Constructors betared1.
 
-Module Lambda_tactics.
-
 Ltac elimif :=
   (case: ifP => //=; elimif; let hyp := fresh "H" in move => hyp) || idtac.
 
@@ -117,10 +115,6 @@ Ltac elimif_omega :=
     | |- nth ?x ?xs _ = nth ?x ?xs _ => f_equal
     | |- _ => idtac
   end; ssromega).
-
-End Lambda_tactics.
-
-Import Lambda_tactics.
 
 Lemma shiftzero n t : shift 0 n t = t.
 Proof.
