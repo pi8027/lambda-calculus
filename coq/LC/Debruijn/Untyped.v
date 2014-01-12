@@ -12,6 +12,27 @@ Inductive term : Set := var of nat | app of term & term | abs of term.
 
 Coercion var : nat >-> term.
 
+Fixpoint eqterm t1 t2 :=
+  match t1, t2 with
+    | var n, var m => n == m
+    | app t1l t1r, app t2l t2r => eqterm t1l t2l && eqterm t1r t2r
+    | abs t1, abs t2 => eqterm t1 t2
+    | _, _ => false
+  end.
+
+Lemma eqtermP : Equality.axiom eqterm.
+Proof.
+  elim => [n | t1l IHl t1r IHr | t1 IH] [m | t2l t2r | t2] /=;
+    try by constructor.
+  - case_eq (n == m); move/eqP; constructor; congruence.
+  - case_eq (eqterm t1l t2l); move/IHl;
+      case_eq (eqterm t1r t2r); move/IHr; constructor; congruence.
+  - case_eq (eqterm t1 t2); move/IH; constructor; congruence.
+Defined.
+
+Canonical term_eqMixin := EqMixin eqtermP.
+Canonical term_eqType := Eval hnf in EqType term term_eqMixin.
+
 Fixpoint shift d c t : term :=
   match t with
     | var n => var (if c <= n then n + d else n)
@@ -37,6 +58,21 @@ Inductive betared1 : relation term :=
   | betared1appr t1 t2 t2' : t2 ->b1 t2' -> app t1 t2 ->b1 app t1 t2'
   | betared1abs t t'       : t ->b1 t' -> abs t ->b1 abs t'
   where "t ->b1 t'" := (betared1 t t').
+
+Fixpoint betared1' (t1 t2 : term) : bool :=
+  match t1 with
+    | var _ => false
+    | app t1l t1r =>
+      (if t1l is abs t1l'
+         then t2 == substitute 0 [:: t1r] t1l'
+         else false) ||
+      (if t2 is app t2l t2r
+         then (betared1' t1l t2l && (t1r == t2r)) ||
+              ((t1l == t2l) && betared1' t1r t2r)
+         else false)
+    | abs t1' =>
+      (if t2 is abs t2' then betared1' t1' t2' else false)
+  end.
 
 Notation betared := [* betared1].
 Infix "->b" := betared (at level 70, no associativity).
