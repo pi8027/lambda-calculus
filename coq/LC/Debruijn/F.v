@@ -889,8 +889,7 @@ Proof.
   - by constructor.
 Qed.
 
-Fixpoint reducible
-  ty (preds : list (term -> Prop)) : term -> Prop :=
+Fixpoint reducible ty preds : term -> Prop :=
   match ty with
     | tyvar v => nth (fun t => SNorm t) preds v
     | tyfun tyl tyr =>
@@ -900,8 +899,7 @@ Fixpoint reducible
       fun t => forall ty' P, RC P -> reducible ty (P :: preds) ({t \: ty}@ ty')
   end.
 
-Lemma reducibility_isrc ty (preds : list (term -> Prop)) :
-  Forall RC preds -> RC (reducible ty preds).
+Lemma reducibility_isrc ty preds : Forall RC preds -> RC (reducible ty preds).
 Proof.
   elim: ty preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] preds.
   - elim: preds n => [| P preds IH []] /=.
