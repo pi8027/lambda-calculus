@@ -835,6 +835,13 @@ Proof.
   by apply IH, H; constructor.
 Qed.
 
+Lemma snorm_uappl t tyl tyr : SNorm ({t \: tyl}@ tyr) -> SNorm t.
+Proof.
+  move: {1 3}({_ \: _}@ _) (erefl ({t \: tyl}@ tyr)) => t' H H0.
+  by move: t' H0 t H; refine (Acc_ind _ _) => t' _ IH t H;
+    subst t'; constructor => t' H; apply: (IH _ _ _ erefl); constructor.
+Qed.
+
 Definition neutral (t : term) : bool :=
   match t with
     | abs _ => false
@@ -842,6 +849,79 @@ Definition neutral (t : term) : bool :=
     | _ => true
   end.
 
+Section CRs.
+Variable P : term -> Prop.
+Definition CR1 := forall t, P t -> SNorm t.
+Definition CR2 := forall t t', t ->r1 t' -> P t -> P t'.
+Definition CR3 :=
+  forall t, neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
+End CRs.
+
+Record RC (P : term -> Prop) : Prop :=
+  reducibility_candidate {
+    rc_cr1 : CR1 P ;
+    rc_cr2 : CR2 P ;
+    rc_cr3 : CR3 P
+  }.
+
+Lemma CR4 P t : RC P -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
+Proof. by case => _ _ H0 H1 H2; apply H0 => // t' H3; move: (H2 _ H3). Qed.
+
+Lemma CR4' P (v : nat) : RC P -> P v.
+Proof. move/CR4; apply => // t' H; inversion H. Qed.
+
+Lemma rcfun_isrc (tyl tyr : typ) P Q :
+  RC P -> RC Q -> RC (fun u => forall v, P v -> Q (u @{v \: tyl})).
+Proof.
+  move => H H0; constructor.
+  - by move => /= t; move/(_ 0 (CR4' _ H))/(rc_cr1 H0)/snorm_appl.
+  - by move => /= t t' H1 H2 v; move/H2; apply(rc_cr2 H0); constructor.
+  - move => /= t1 H1 H2 t2 H3; move/(rc_cr1 H): H3 (H3) => H3.
+    move: t2 H3; refine (Acc_rect _ _) => t2 _ H3 H4.
+    apply (rc_cr3 H0) => //= t3 H5; move: H1; inversion H5;
+      subst => //= _; auto; apply H3 => //; apply (rc_cr2 H H9 H4).
+Qed.
+
+Lemma snorm_isrc : RC SNorm.
+Proof.
+  constructor; move => /=; auto.
+  - by move => t t' H []; move/(_ t' H).
+  - by constructor.
+Qed.
+
+Fixpoint reducible
+  ty (preds : list (term -> Prop)) : term -> Prop :=
+  match ty with
+    | tyvar v => nth (fun t => SNorm t) preds v
+    | tyfun tyl tyr =>
+      fun t => forall t', reducible tyl preds t' ->
+                 reducible tyr preds (t @{t' \: tyl})
+    | tyabs ty =>
+      fun t => forall ty' P, RC P -> reducible ty (P :: preds) ({t \: ty}@ ty')
+  end.
+
+Lemma reducibility_isrc ty (preds : list (term -> Prop)) :
+  Forall RC preds -> RC (reducible ty preds).
+Proof.
+  elim: ty preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] preds.
+  - elim: preds n => [| P preds IH []] /=.
+    + move => n _; rewrite nth_nil; apply snorm_isrc.
+    + by case.
+    + by move => n [H H0]; apply IH.
+  - by move => H; apply (@rcfun_isrc tyl tyr); [apply IHtyl | apply IHtyr].
+  - move => H; constructor.
+    + move => /= t; move/(_ 0 SNorm snorm_isrc)/
+        (rc_cr1 (IHty (_ :: _) (conj snorm_isrc H))); apply snorm_uappl.
+    + move => /= t t' H0 H1 ty' P H2; move/(H1 ty'): (H2).
+      by apply (rc_cr2 (IHty (_ :: _) (conj H2 H))); constructor.
+    + move => /= t H0 H1 ty' P H2.
+      apply (rc_cr3 (IHty (_ :: _) (conj H2 H))) => //= t' H3.
+      by move: H0; inversion H3; subst => //= _; apply H1.
+Qed.
+
+
+
+(*
 Definition CR1 ctx ty (P : forall t, typing ctx t ty -> Prop) :=
   forall t (H : typing ctx t ty), P t H -> SNorm t.
 
@@ -853,7 +933,7 @@ Definition CR3 ctx ty (P : forall t, typing ctx t ty -> Prop) :=
   forall t (H : typing ctx t ty), neutral t ->
     (forall t' (H' : t ->r1 t'), P t' (subject_reduction H' H)) -> P t H.
 
-Record RC ctx ty (P : forall t, typing ctx t ty -> Prop) : Prop :=
+Record RC ctx ty (P : forall t, typing ctx t ty -> Prop) : Type :=
   reducibility_candidate {
     rc_cr1 : CR1 P ;
     rc_cr2 : CR2 P ;
@@ -914,8 +994,8 @@ Fixpoint reducible
 Lemma reducible_isrc
   ctx ty (preds : list (typ * (term -> Prop))) :
   Forall (fun p => RC (fun t (_ : typing ctx t p.1) => p.2 t)) preds ->
-  RC (fun t (_ : typing ctx t (subst_typ 0 (map (@fst _ _) preds) ty)) =>
-          reducible ctx ty (map (@snd _ _) preds) t).
+  RC (fun t (_ : typing ctx t (subst_typ 0 [seq p.1 | p <- preds] ty)) =>
+          reducible ctx ty [seq p.2 | p <- preds] t).
 Proof.
   elim: ty ctx preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] ctx preds H.
   - elim: preds n H => /= [| [ty P] preds IHp [| n] /= [[H H0 H1] H2]].
@@ -933,5 +1013,6 @@ Proof.
   -
   -
 Abort.
+*)
 
 End strong_normalization_proof.
