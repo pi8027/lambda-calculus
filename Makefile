@@ -1,6 +1,6 @@
 include ./.deps
 
-COQLIBS=-R coq LCAC
+COQLIBS=-R coq LCAC ${COQLIBS}
 VOFILES=$(VFILES:.v=.vo)
 GLOBFILES=$(VFILES:.v=.glob)
 

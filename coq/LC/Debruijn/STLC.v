@@ -213,7 +213,7 @@ Lemma subject_shift t ty c ctx1 ctx2 :
 Proof.
   elim: t ty c ctx1 => [n | tl IHtl tr IHtr tty | t IHt []] //=.
   - by move => ty c ctx1;
-      move/eqP => ->; apply/eqP; rewrite nth_ctxinsert; elimif_omega.
+      move/eqP => ->; apply/eqP; rewrite nth_insert; elimif_omega.
   - by move => ty c ctx1; case/andP; move/IHtl => -> /=; apply IHtr.
   - by move => tyl tyr c ctx1; apply (IHt tyr c.+1 (Some tyl :: ctx1)).
 Qed.
@@ -225,13 +225,13 @@ Lemma subject_subst t ty n ctx ctx' :
 Proof.
   elim: t ty n ctx => [m | tl IHtl tr IHtr tty | t IHt []] //=.
   - move => ty n ctx.
-    rewrite /substitutev nth_ctxinsert !size_map.
+    rewrite /substitutev nth_insert !size_map.
     elimif_omega.
     + move: H H0 {H1}; elimleq; rewrite ltn_add2l => H.
       rewrite !(nth_map (var 0, tyvar 0)) // => H0; case/eqP => -> {ty}.
       move: {H0} (all_nthP (var 0, tyvar 0) H0 m H).
       move/(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
-      rewrite size_ctxinsert /= add0n size_take minnC minKn /ctxinsert take0
+      rewrite size_insert /= add0n size_take minnC minKn /insert take0
               sub0n take_minn minnn size_take minnE subKn ?leq_subr //=
               drop_take_nil drop0 cats0 -catA -{4}(cat_take_drop n ctx).
       apply ctxleq_preserves_typing.
@@ -251,7 +251,7 @@ Lemma subject_subst0 t ty ctx ctx' :
   typing ctx (substitute 0 [seq p.1 | p <- ctx'] t) ty.
 Proof.
   move: (@subject_subst t ty 0 ctx ctx').
-  by rewrite /ctxinsert take0 sub0n drop0 /=.
+  by rewrite /insert take0 sub0n drop0 /=.
 Qed.
 
 Arguments subject_subst [t ty n ctx] _ _ _.

@@ -66,15 +66,50 @@ Qed.
 
 End Seq.
 
+(* insert *)
+
+Definition insert A xs ys d n : seq A :=
+  take n ys ++ nseq (n - size ys) d ++ xs ++ drop n ys.
+
+Section Insert.
+
+Variable (A B : Type).
+
+Lemma size_insert (xs ys : seq A) d n :
+  size (insert xs ys d n) = size xs + maxn n (size ys).
+Proof.
+  rewrite /insert !size_cat size_nseq size_take size_drop; ssromega.
+Qed.
+
+Lemma map_insert (f : A -> B) xs ys d n :
+  map f (insert xs ys d n) = insert (map f xs) (map f ys) (f d) n.
+Proof.
+  by rewrite /insert !map_cat map_take map_nseq size_map map_drop.
+Qed.
+
+Lemma nth_insert (xs ys : seq A) d n m :
+  nth d (insert xs ys d n) m =
+  if m < n then nth d ys m else
+  if m < n + size xs then nth d xs (m - n) else nth d ys (m - size xs).
+Proof.
+  rewrite /insert !nth_cat size_take size_nseq -subnDA.
+  replace (minn n (size ys) + (n - size ys)) with n by ssromega.
+  do! case: ifP; try ssromega.
+  - by move => H H0; rewrite nth_take.
+  - move => H H0 H1; rewrite nth_nseq if_same nth_default //; ssromega.
+  - do !move => _; f_equal; ssromega.
+  - move => H _ _ _ _; rewrite nth_drop; f_equal; ssromega.
+Qed.
+
+End Insert.
+
 (* context *)
 
 Definition context A := (seq (option A)).
 
-Definition ctxinsert A xs ys n : context A :=
-  take n ys ++ nseq (n - size ys) None ++ xs ++ drop n ys.
-
 Notation ctxindex xs n x := (Some x == nth None xs n).
 Notation ctxmap f xs := (map (omap f) xs).
+Notation ctxinsert xs ys n := (insert xs ys None n).
 
 Section Context1.
 
@@ -193,38 +228,6 @@ Hint Resolve ctxleq0l ctxleql0 ctxleqnl ctxleqln ctxleqsl ctxleqls ctxleqss
              ctxleqcc ctxleqcl ctxleqlc.
 
 Infix "<=c" := ctxleq (at level 70, no associativity).
-
-Section Context2.
-
-Variable (A B : Type).
-
-Lemma size_ctxinsert (xs ys : context A) n :
-  size (ctxinsert xs ys n) = size xs + maxn n (size ys).
-Proof.
-  rewrite /ctxinsert !size_cat size_nseq size_take size_drop; ssromega.
-Qed.
-
-Lemma map_ctxinsert (f : A -> B) xs ys n :
-  ctxmap f (ctxinsert xs ys n) = ctxinsert (ctxmap f xs) (ctxmap f ys) n.
-Proof.
-  by rewrite /ctxinsert !map_cat map_take map_nseq size_map map_drop.
-Qed.
-
-Lemma nth_ctxinsert (xs ys : context A) n m :
-  nth None (ctxinsert xs ys n) m =
-  if m < n then nth None ys m else
-  if m < n + size xs then nth None xs (m - n) else nth None ys (m - size xs).
-Proof.
-  rewrite /ctxinsert !nth_cat size_take size_nseq -subnDA.
-  replace (minn n (size ys) + (n - size ys)) with n by ssromega.
-  do! case: ifP; try ssromega.
-  - by move => H H0; rewrite nth_take.
-  - move => H H0 H1; rewrite nth_nseq if_same nth_default //; ssromega.
-  - do !move => _; f_equal; ssromega.
-  - move => H _ _ _ _; rewrite nth_drop; f_equal; ssromega.
-Qed.
-
-End Context2.
 
 Section Context3.
 

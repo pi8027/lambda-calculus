@@ -20,4 +20,4 @@ done
 
 [[ -n $error ]] && exit 1
 
-make "VFILES=$vfiles"
+make VFILES="$vfiles" COQLIBS="-R coq LCAC $COQLIB"

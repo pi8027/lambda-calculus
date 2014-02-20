@@ -122,6 +122,22 @@ Fixpoint subst_term n n' ts t :=
     | uabs t => uabs (subst_term n n'.+1 ts t)
   end.
 
+Fixpoint max_var t :=
+  match t with
+    | var n => n.+1
+    | app tl tr _ => maxn (max_var tl) (max_var tr)
+    | abs t => (max_var t).-1
+    | uapp t _ _ => max_var t
+    | uabs t => max_var t
+  end.
+
+Fixpoint max_tyvar ty :=
+  match ty with
+    | tyvar n => n.+1
+    | tyfun tyl tyr => maxn (max_tyvar tyl) (max_tyvar tyr)
+    | tyabs ty => (max_tyvar ty).-1
+  end.
+
 Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
   match t, ty with
     | var n, _ => ctxindex ctx n ty
@@ -749,12 +765,12 @@ Proof.
   elim: t ty c ctx1 ctx2 =>
     [m | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
   - move => ty c ctx1 ctx2.
-    by move/eqP => ->; apply/eqP; rewrite nth_ctxinsert; elimif_omega.
+    by move/eqP => ->; apply/eqP; rewrite nth_insert; elimif_omega.
   - by move => ty c ctx1 ctx2; case/andP; move/IHtl => ->; apply IHtr.
   - by move => tyl tyr c ctx1 ctx2; move/(IHt _ c.+1 _ ctx2).
   - by move => ty c ctx1 ctx2; case/andP => ->; apply IHt.
   - move => ty c ctx1 ctx2; move/(IHt _ c _ (ctxmap (shift_typ 1 0) ctx2)).
-    by rewrite map_ctxinsert size_map.
+    by rewrite map_insert size_map.
 Qed.
 
 Lemma subject_subst t ty n ctx ctx' :
@@ -765,15 +781,15 @@ Proof.
   elim: t ty n ctx ctx' =>
     [m | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
   - move => ty n ctx ctx' H.
-    rewrite /subst_termv shifttyp_zero nth_ctxinsert !size_map; elimif_omega.
+    rewrite /subst_termv shifttyp_zero nth_insert !size_map; elimif_omega.
     + move: H0 H1 {H2}; elimleq; rewrite ltn_add2l => H0.
       rewrite !(nth_map (var 0, tyvar 0)) //.
       case/eqP => ?; subst ty.
       case: {m H0} (nth _ _ _) (all_nthP (var 0, tyvar 0) H m H0) => /= t ty.
       move/(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
-      rewrite size_ctxinsert size_take minnC minKn add0n.
+      rewrite size_insert size_take minnC minKn add0n.
       apply ctxleq_preserves_typing.
-      rewrite /ctxinsert take0 sub0n take_minn minnn size_take minnE subKn
+      rewrite /insert take0 sub0n take_minn minnn size_take minnE subKn
               ?leq_subr //= drop_take_nil cats0 drop0 -catA
               -{4}(cat_take_drop n ctx) ctxleq_appl.
       case/orP: (leq_total n (size ctx)).
@@ -795,7 +811,7 @@ Proof.
     + move: H {t ty IHt H0}; rewrite all_map; apply sub_all.
       rewrite /subpred /preim /pred_of_simpl; case => /= t ty.
       rewrite -map_drop; apply shifttyp_preserves_typing.
-    + by move: H0; rewrite map_ctxinsert -!map_comp.
+    + by move: H0; rewrite map_insert -!map_comp.
 Qed.
 
 Theorem subject_reduction ctx t t' ty :
@@ -806,7 +822,7 @@ Proof.
   - move => ty' t1 t2 ctx ty; case/andP => H H0.
     apply (@subject_subst _ _ 0 ctx [:: (t2, ty')]) => //=.
     - by rewrite drop0 H0.
-    - by rewrite /ctxinsert take0 drop0.
+    - by rewrite /insert take0 drop0.
   - move => t tyl tyr ctx ty; case/andP; move/eqP => ?; subst ty.
     move/(substtyp_preserves_typing 0 [:: tyr]).
     set ctx' := ctxmap _ _; have {ctx'} -> //: ctx' = ctx.
@@ -849,12 +865,75 @@ Definition neutral (t : term) : bool :=
     | _ => true
   end.
 
+(*
+Definition typing' (t : term) (ty : typ) : Prop :=
+  exists (ctx : context typ), typing ctx t ty.
+
 Section CRs.
-Variable P : term -> Prop.
+Variable (ty : typ) (P : term -> Prop).
+Definition CR0 := forall t, P t -> typing' t ty.
 Definition CR1 := forall t, P t -> SNorm t.
 Definition CR2 := forall t t', t ->r1 t' -> P t -> P t'.
-Definition CR3 :=
-  forall t, neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
+Definition CR3 := forall t,
+  typing' t ty -> neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
+End CRs.
+
+Record RC ty (P : term -> Prop) : Prop :=
+  reducibility_candidate {
+    rc_cr0 : CR0 ty P ;
+    rc_cr1 : CR1 P ;
+    rc_cr2 : CR2 P ;
+    rc_cr3 : CR3 ty P
+  }.
+
+Lemma CR4 ty P t : RC ty P ->
+  typing' t ty -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
+Proof. by case => _ _ _ H H0 H1 H2; apply H => // t'; move/H2. Qed.
+
+Lemma CR4' ty P (v : nat) : RC ty P -> typing' v ty -> P v.
+Proof. move => H; move/(CR4 H); apply => // t' H1; inversion H1. Qed.
+
+Lemma snorm_isrc ty : RC ty (fun t => typing' t ty /\ SNorm t).
+Proof.
+  constructor; move => /=; try tauto.
+  - move => t t' H [[ctx H0] H1]; split; last by apply H1.
+    by exists ctx; apply (subject_reduction H).
+  - move => t H H0 H1; split; first done.
+    constructor => t' H2; apply (H1 _ H2).
+Qed.
+
+Definition rcarrow (tyl tyr : typ) (P Q : term -> Prop) t :=
+  typing' t (tyl :->: tyr) /\
+  forall u, P u -> typing' (t @{u \: tyl}) tyr -> Q (t @{ u \: tyl}).
+
+Lemma rcarrow_isrc (tyl tyr : typ) P Q :
+  RC tyl P -> RC tyr Q ->
+  RC (tyl :->: tyr) (rcarrow tyl tyr P Q).
+Proof.
+  rewrite /rcarrow => H H0.
+  constructor.
+  - by move => /= t [H1 _].
+  - move => /= t [[ctx H1] H2];
+      apply (@snorm_appl _ (size ctx) tyl), (rc_cr1 H0), H2.
+    + by apply (CR4' H); exists (ctx ++ [:: Some tyl]) => /=;
+        rewrite nth_cat ltnn subnn.
+    + exists (ctx ++ [:: Some tyl]) => /=.
+      rewrite nth_cat ltnn subnn eqxx andbT.
+      by apply (@ctxleq_preserves_typing ctx (ctx ++ [:: Some tyl])).
+  - move => /=.
+    move => /= tl tr H1 [[ctx H2] H3]; split.
+    + by exists ctx; apply (subject_reduction H1).
+    + move => u H4 H5.
+      move: (H3 u H4).
+Qed.
+*)
+
+Section CRs.
+Variable (P : term -> Prop).
+Definition CR1 := forall t, P t -> SNorm t.
+Definition CR2 := forall t t', t ->r1 t' -> P t -> P t'.
+Definition CR3 := forall t,
+  neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
 End CRs.
 
 Record RC (P : term -> Prop) : Prop :=
@@ -864,60 +943,103 @@ Record RC (P : term -> Prop) : Prop :=
     rc_cr3 : CR3 P
   }.
 
-Lemma CR4 P t : RC P -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
-Proof. by case => _ _ H0 H1 H2; apply H0 => // t' H3; move: (H2 _ H3). Qed.
+Lemma CR4 P t : RC P ->
+  neutral t -> (forall t', ~ t ->r1 t') -> P t.
+Proof. by case => _ _ H H0 H1; apply H => // t' H2; move: (H1 _ H2). Qed.
 
 Lemma CR4' P (v : nat) : RC P -> P v.
-Proof. move/CR4; apply => // t' H; inversion H. Qed.
+Proof. move => H; apply: (CR4 H) => // t' H0; inversion H0. Qed.
+
+Lemma snorm_isrc : RC SNorm.
+Proof.
+  constructor; move => /=; try tauto.
+  - by move => t t' H []; apply.
+  - by move => t H H0; constructor => t' H1; apply H0.
+Qed.
 
 Lemma rcfun_isrc (tyl tyr : typ) P Q :
   RC P -> RC Q -> RC (fun u => forall v, P v -> Q (u @{v \: tyl})).
 Proof.
-  move => H H0; constructor.
-  - by move => /= t; move/(_ 0 (CR4' _ H))/(rc_cr1 H0)/snorm_appl.
-  - by move => /= t t' H1 H2 v; move/H2; apply(rc_cr2 H0); constructor.
-  - move => /= t1 H1 H2 t2 H3; move/(rc_cr1 H): H3 (H3) => H3.
-    move: t2 H3; refine (Acc_rect _ _) => t2 _ H3 H4.
+  move => H H0; constructor; move => /=.
+  - by move => t; move/(_ 0 (CR4' _ H))/(rc_cr1 H0)/snorm_appl.
+  - by move => t t' H1 H2 v; move/H2; apply (rc_cr2 H0); constructor.
+  - move => t1 H1 H2 t2 H3; move: t2 {H3} (rc_cr1 H H3) (H3).
+    refine (Acc_rect _ _) => t2 _ H3 H4.
     apply (rc_cr3 H0) => //= t3 H5; move: H1; inversion H5;
       subst => //= _; auto; apply H3 => //; apply (rc_cr2 H H9 H4).
 Qed.
 
-Lemma snorm_isrc : RC SNorm.
+Lemma rcall_isrc (PF : (term -> Prop) -> (term -> Prop)) :
+  (forall P, RC P -> RC (PF P)) ->
+  RC (fun t => forall P, RC P -> PF P t).
 Proof.
-  constructor; move => /=; auto.
-  - by move => t t' H []; move/(_ t' H).
-  - by constructor.
+  move => H; constructor; move => /=.
+  - by move => t; move/(_ SNorm snorm_isrc)/(rc_cr1 (H _ snorm_isrc)).
+  - by move => t t' H0 H1 P H2; apply (rc_cr2 (H _ H2) H0), H1.
+  - by move => t H0 H1 P H2; apply (rc_cr3 (H _ H2)) => // t' H3; apply H1.
 Qed.
 
-Fixpoint reducible ty preds : term -> Prop :=
+Fixpoint reducible ty (preds : seq (typ * (term -> Prop))) : term -> Prop :=
   match ty with
-    | tyvar v => nth (fun t => SNorm t) preds v
+    | tyvar v => nth SNorm [seq p.2 | p <- preds] v
     | tyfun tyl tyr =>
-      fun t => forall t', reducible tyl preds t' ->
-                 reducible tyr preds (t @{t' \: tyl})
+      fun t => forall t',
+        reducible tyl preds t' ->
+        reducible tyr preds (t @{t' \: subst_typ 0 [seq p.1 | p <- preds] tyl})
     | tyabs ty =>
-      fun t => forall ty' P, RC P -> reducible ty (P :: preds) ({t \: ty}@ ty')
+      fun t => forall ty' P,
+        RC P -> reducible ty ((ty', P) :: preds) ({t \: ty}@ ty')
   end.
 
-Lemma reducibility_isrc ty preds : Forall RC preds -> RC (reducible ty preds).
+Lemma reducibility_isrc ty preds :
+  Forall (fun p => RC (snd p)) preds -> RC (reducible ty preds).
 Proof.
   elim: ty preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] preds.
   - elim: preds n => [| P preds IH []] /=.
     + move => n _; rewrite nth_nil; apply snorm_isrc.
     + by case.
     + by move => n [H H0]; apply IH.
-  - by move => H; apply (@rcfun_isrc tyl tyr); [apply IHtyl | apply IHtyr].
+  - by move => H; apply
+      (@rcfun_isrc (subst_typ 0 [seq p.1 | p <- preds] tyl)
+                   (subst_typ 0 [seq p.1 | p <- preds] tyr));
+      [apply IHtyl | apply IHtyr].
   - move => H; constructor.
-    + move => /= t; move/(_ 0 SNorm snorm_isrc)/
-        (rc_cr1 (IHty (_ :: _) (conj snorm_isrc H))); apply snorm_uappl.
+    + move => /= t /(_ 0 SNorm snorm_isrc)
+        /(rc_cr1 (IHty ((_, _) :: _) (conj snorm_isrc H))); apply snorm_uappl.
     + move => /= t t' H0 H1 ty' P H2; move/(H1 ty'): (H2).
-      by apply (rc_cr2 (IHty (_ :: _) (conj H2 H))); constructor.
+      by apply (rc_cr2 (IHty ((_, _) :: _) (conj H2 H))); constructor.
     + move => /= t H0 H1 ty' P H2.
-      apply (rc_cr3 (IHty (_ :: _) (conj H2 H))) => //= t' H3.
+      apply (rc_cr3 (IHty ((_, _) :: _) (conj H2 H))) => //= t' H3.
       by move: H0; inversion H3; subst => //= _; apply H1.
 Qed.
 
-
+Lemma subst_reducibility ty preds n tys t :
+  max_tyvar (subst_typ n tys ty) <= size preds ->
+  (reducible (subst_typ n tys ty) preds t <->
+   reducible ty
+     (insert [seq (subst_typ 0 [seq p.1 | p <- preds] ty,
+                   reducible (shift_typ n 0 ty) preds) |
+                  ty <- tys] preds (tyvar 0, SNorm) n)
+     t).
+Proof.
+  elim: ty preds n tys t =>
+    [v | tyl IHtyl tyr IHtyr | ty IHty] preds n tys t.
+  - rewrite /= -(nth_map' (@snd _ _) (tyvar 0, SNorm)) /=
+            nth_insert /subst_typv; elimif_omega.
+    + move: H1 H {H0}; elimleq; rewrite size_map ltn_add2l => H H0.
+      rewrite (nth_map (tyvar (v - size tys))) //=.
+    + move: H1 H {H0}; elimleq; rewrite size_map ltn_add2l.
+      move/negbT; rewrite -leqNgt; elimleq.
+      by rewrite addnAC addnK nth_default ?leq_addr //= nth_map' /= addnC.
+    + by rewrite nth_map' /=.
+  - rewrite /= geq_max; case/andP => H H0;
+      split => H1 t'; move/IHtyl; move/(_ H)/H1/IHtyr; move/(_ H0).
+    + admit.
+    + admit.
+  - move => /= H; split => H0 ty' P H1.
+    + admit.
+    + admit.
+Abort.
 
 (*
 Definition CR1 ctx ty (P : forall t, typing ctx t ty -> Prop) :=
