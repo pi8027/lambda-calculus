@@ -83,3 +83,38 @@ Goal forall m n, minn m n - maxn m n = 0. ssromega; fail. Abort.
 Goal forall m n, minn m n + maxn m n = m + n. ssromega; fail. Abort.
 Goal forall m n, minn m n + (m - n) = m. ssromega; fail. Abort.
 Goal forall m n, maxn m n - (n - m) = m. ssromega; fail. Abort.
+
+(* Extended comparison predicates. *)
+
+CoInductive leq_xor_gtn' m n :
+    bool -> bool -> bool -> bool -> nat -> nat -> nat -> nat -> Set :=
+  | LeqNotGtn' of m <= n : leq_xor_gtn' m n (m < n) false true (n <= m) n n m m
+  | GtnNotLeq' of n < m : leq_xor_gtn' m n false true false true m m n n.
+
+Lemma leqP' m n : leq_xor_gtn' m n
+  (m < n) (n < m) (m <= n) (n <= m) (maxn m n) (maxn n m) (minn m n) (minn n m).
+Proof.
+  case: (leqP m n) => H; rewrite (maxnC n) (minnC n).
+  - by rewrite (maxn_idPr H) (minn_idPl H); constructor.
+  - by rewrite (ltnW H) ltnNge leq_eqVlt H orbT
+               (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)); constructor.
+Qed.
+
+CoInductive compare_nat' m n :
+    bool -> bool -> bool -> bool -> bool -> nat -> nat -> nat -> nat -> Set :=
+  | CompareNatLt' of m < n :
+    compare_nat' m n true false false true false n n m m
+  | CompareNatGt' of m > n :
+    compare_nat' m n false true false false true m m n n
+  | CompareNatEq' of m = n :
+    compare_nat' m n false false true true true m m m m.
+
+Lemma ltngtP' m n : compare_nat' m n
+  (m < n) (n < m) (m == n) (m <= n) (n <= m)
+  (maxn m n) (maxn n m) (minn m n) (minn n m).
+Proof.
+  (case: (ltngtP m n) => H; last by rewrite -H leqnn maxnn minnn; constructor);
+    rewrite (maxnC n) (minnC n) ?(ltnW H) leqNgt H /=.
+  - by rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)); constructor.
+  - by rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)); constructor.
+Qed.
