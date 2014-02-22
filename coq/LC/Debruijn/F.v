@@ -1056,7 +1056,7 @@ Lemma subst_reducibility ty preds n tys t :
   (reducible (subst_typ n tys ty) preds t <->
    reducible ty
      (insert [seq (subst_typ 0 [seq p.1 | p <- drop n preds] ty,
-                   reducible (shift_typ n 0 ty) preds) |
+                   reducible ty (drop n preds)) |
                   ty <- tys] preds (tyvar 0, SNorm) n)
      t).
 Proof.
@@ -1066,6 +1066,7 @@ Proof.
             nth_insert /subst_typv; elimif_omega.
     + move: H1 H {H0}; elimleq; rewrite size_map ltn_add2l => H H0.
       rewrite (nth_map (tyvar (v - size tys))) //=.
+      admit.
     + move: H1 H {H0}; elimleq; rewrite size_map ltn_add2l.
       move/negbT; rewrite -leqNgt; elimleq.
       by rewrite addnAC addnK nth_default ?leq_addr //= nth_map' /= addnC.
@@ -1076,15 +1077,12 @@ Proof.
               subst_subst_compose_ty ?map_drop // size_map.
   - move => /= H; split => H0 ty' P H1; move: (H0 ty' P H1) => {H0} H0.
     + rewrite map_insert -map_comp /funcomp /=.
-      move: H0.
-      move/IHty => /= /(_ H).
-      rewrite subst_subst_compose_ty /insert /= ?subSS size_map ?map_drop //.
-      admit.
+      move: H0; move/IHty => /= /(_ H).
+      by rewrite subst_subst_compose_ty /insert /= ?subSS size_map ?map_drop.
     + apply IHty => //; move: H0.
-      rewrite map_insert -map_comp /funcomp /= subst_subst_compose_ty /insert /=
-              ?subSS size_map ?map_drop //.
-      admit.
-Abort.
+      by rewrite map_insert -map_comp /funcomp /= subst_subst_compose_ty
+                 /insert /= ?subSS size_map ?map_drop.
+Qed.
 
 (*
 Definition CR1 ctx ty (P : forall t, typing ctx t ty -> Prop) :=
