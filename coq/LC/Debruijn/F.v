@@ -275,22 +275,26 @@ Proof.
 Qed.
 
 Lemma subst_shift_cancel_ty n d c ts t :
-  c <= n <= c + d ->
+  c <= n ->
   subst_typ n ts (shift_typ d c t) =
   subst_typ n (drop (c + d - n) ts)
     (shift_typ (d - minn (c + d - n) (size ts)) c t).
 Proof.
-  case/andP; elimleq; rewrite leq_add2l; elimleq.
+  elimleq; rewrite subnDl.
   elim: t n c => /=; try (move: addSn; congruence); move => v n c.
-  elimif_omega; rewrite /subst_typv; move: H0 {H H1}; elimleq.
-  rewrite -!addnA !subnDA !addKn.
-  have ->: n + d - minn d (size ts) = n + (d - size ts) by ssromega.
-  rewrite  !(addnCA v n) !addKn size_drop nth_drop.
-  have ->: v + (d - size ts) - (size ts - d) = v + d - size ts by ssromega.
-  case: (leqP (v + d) (size ts)) => H.
-  - have ->: d - size ts = 0 by ssromega.
-    by rewrite addnCA addn0.
-  - rewrite !nth_default //; ssromega.
+  elimif_omega; rewrite /subst_typv.
+  move: H0 H H1; elimleq.
+  rewrite !subnDA -!addnA !leq_add2l !addKn size_drop nth_drop.
+  case (leqP' d n); last case (leqP' (d - n) (size ts)).
+  - elimleq; move: (leq_addr n d). rewrite -subn_eq0 => /eqP -> _ _.
+    by rewrite min0n add0n !subn0.
+  - move => H H0; move: H0 H; elimleq; rewrite addSnnS addKn !addnK => H _ _.
+    by rewrite addnAC -addSnnS addnK subnBA // addnS addSn (addnC v d).
+  - move => H H0; move: H0 H; elimleq; rewrite addSnnS addKn ltnS;
+      elimleq => _ _; rewrite !(addnAC _ n.+1) -addSnnS addnK addnAC -addSn
+                              addnK -!addnS addnCA addKn addnCA addKn.
+    by move: (leq_addr d.+1 (size ts)); rewrite -subn_eq0 => /eqP ->;
+      rewrite subn0 !nth_default // ?leq_addl // -addnA leq_addr.
 Qed.
 
 Lemma subst_shift_cancel_ty1 n d c ts t :
@@ -338,7 +342,7 @@ Proof.
   - move: H3 H H0 {H1 H2}; elimleq.
     by rewrite -addnA !addKn ltn_add2l => H H0; rewrite
       (nth_map (tyvar (v - size ys))) // shift_subst_distr_ty // addn0
-      subst_shift_cancel_ty add0n ?leq_addr // addKn (minn_idPl H) addnK.
+      subst_shift_cancel_ty // add0n addKn (minn_idPl H) addnK.
   - move: H3 H0 H {H1 H2}; elimleq; rewrite -addnA !addKn ltn_add2l;
       move/negbT; rewrite -leqNgt; elimleq => H.
     rewrite maxnC; move/maxn_idPl: (H) => ->.
@@ -1056,8 +1060,8 @@ Lemma subst_reducibility ty preds n tys t :
   (reducible (subst_typ n tys ty) preds t <->
    reducible ty
      (insert [seq (subst_typ 0 [seq p.1 | p <- drop n preds] ty,
-                   reducible ty (drop n preds)) |
-                  ty <- tys] preds (tyvar 0, SNorm) n)
+                   reducible ty (drop n preds)) | ty <- tys]
+             preds (tyvar 0, SNorm) n)
      t).
 Proof.
   elim: ty preds n tys t =>
