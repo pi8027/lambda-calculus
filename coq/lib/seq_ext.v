@@ -87,17 +87,18 @@ Proof.
   by rewrite /insert !map_cat map_take map_nseq size_map map_drop.
 Qed.
 
-Lemma nth_insert (xs ys : seq A) d n m :
-  nth d (insert xs ys d n) m =
-  if m < n then nth d ys m else
-  if m < n + size xs then nth d xs (m - n) else nth d ys (m - size xs).
+Lemma nth_insert (xs ys : seq A) d d' n m :
+  nth d (insert xs ys d' n) m =
+  if m < n then nth d' ys m else
+  if m < n + size xs then nth d' xs (m - n) else nth d ys (m - size xs).
 Proof.
   rewrite /insert !nth_cat size_take size_nseq -subnDA.
   replace (minn n (size ys) + (n - size ys)) with n by ssromega.
   do! case: ifP; try ssromega.
-  - by move => H H0; rewrite nth_take.
-  - move => H H0 H1; rewrite nth_nseq if_same nth_default //; ssromega.
-  - do !move => _; f_equal; ssromega.
+  - by move => H; rewrite leq_min => /andP [] => H0 H1;
+      rewrite nth_take //; apply nth_equal; rewrite leqNgt H1.
+  - move => H H0 H1; rewrite nth_nseq H0 nth_default //; ssromega.
+  - by move => _ _ H _ _; apply nth_equal; rewrite leqNgt H.
   - move => H _ _ _ _; rewrite nth_drop; f_equal; ssromega.
 Qed.
 

@@ -36,10 +36,10 @@ Lemma eqtypP : Equality.axiom eqtyp.
 Proof.
   elim => [n | ty1l IHl ty1r IHr | ty1 IH];
     case => //= [m | ty2l ty2r | ty2]; try by constructor.
-  - case_eq (n == m); move/eqP; constructor; congruence.
-  - case_eq (eqtyp ty1l ty2l); move/IHl; case_eq (eqtyp ty1r ty2r); move/IHr;
+  - case_eq (n == m) => /eqP; constructor; congruence.
+  - case_eq (eqtyp ty1l ty2l) => /IHl; case_eq (eqtyp ty1r ty2r) => /IHr;
       constructor; congruence.
-  - case_eq (eqtyp ty1 ty2); move/IH; constructor; congruence.
+  - case_eq (eqtyp ty1 ty2) => /IH; constructor; congruence.
 Defined.
 
 Canonical typ_eqMixin := EqMixin eqtypP.
@@ -61,13 +61,13 @@ Lemma eqtermP : Equality.axiom eqterm.
 Proof.
   elim => [n | t1l IHl t1r IHr ty1 | t1 IH | t1 IH ty1l ty1r | t1 IH];
     case => //= [m | t2l t2r ty2 | t2 | t2 ty2l ty2r | t2]; try by constructor.
-  - case_eq (n == m); move/eqP; constructor; congruence.
-  - case_eq (eqterm t1l t2l); move/IHl; case_eq (eqterm t1r t2r); move/IHr;
-      case_eq (ty1 == ty2); move/eqP; constructor; congruence.
-  - case_eq (eqterm t1 t2); move/IH; constructor; congruence.
-  - case_eq (eqterm t1 t2); move/IH; case_eq (ty1l == ty2l); move/eqP;
-      case_eq (ty1r == ty2r); move/eqP; constructor; congruence.
-  - case_eq (eqterm t1 t2); move/IH; constructor; congruence.
+  - case_eq (n == m) => /eqP; constructor; congruence.
+  - case_eq (eqterm t1l t2l) => /IHl; case_eq (eqterm t1r t2r) => /IHr;
+      case_eq (ty1 == ty2) => /eqP; constructor; congruence.
+  - case_eq (eqterm t1 t2) => /IH; constructor; congruence.
+  - case_eq (eqterm t1 t2) => /IH; case_eq (ty1l == ty2l) => /eqP;
+      case_eq (ty1r == ty2r) => /eqP; constructor; congruence.
+  - case_eq (eqterm t1 t2) => /IH; constructor; congruence.
 Defined.
 
 Canonical term_eqMixin := EqMixin eqtermP.
@@ -268,13 +268,48 @@ Proof.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
+Lemma subst_nil_ty n t : subst_typ n [::] t = t.
+Proof.
+  elim: t n => /=; try congruence;
+    move => v n; rewrite /subst_typv nth_nil /= -fun_if; elimif_omega.
+Qed.
+
 Lemma subst_shift_cancel_ty n d c ts t :
+  c <= n <= c + d ->
+  subst_typ n ts (shift_typ d c t) =
+  subst_typ n (drop (c + d - n) ts)
+    (shift_typ (d - minn (c + d - n) (size ts)) c t).
+Proof.
+  case/andP; elimleq; rewrite leq_add2l; elimleq.
+  elim: t n c => /=; try (move: addSn; congruence); move => v n c.
+  elimif_omega; rewrite /subst_typv; move: H0 {H H1}; elimleq.
+  rewrite -!addnA !subnDA !addKn.
+  have ->: n + d - minn d (size ts) = n + (d - size ts) by ssromega.
+  rewrite  !(addnCA v n) !addKn size_drop nth_drop.
+  have ->: v + (d - size ts) - (size ts - d) = v + d - size ts by ssromega.
+  case: (leqP (v + d) (size ts)) => H.
+  - have ->: d - size ts = 0 by ssromega.
+    by rewrite addnCA addn0.
+  - rewrite !nth_default //; ssromega.
+Qed.
+
+Lemma subst_shift_cancel_ty1 n d c ts t :
   c <= n -> size ts + n <= d + c ->
   subst_typ n ts (shift_typ d c t) = shift_typ (d - size ts) c t.
 Proof.
-  elimleq; rewrite addnAC leq_add2r; elimleq.
-  elim: t n c => /=; try (move: addSn; congruence); move => v n c;
-    elimif_omega; rewrite /subst_typv nth_default /=; f_equal; ssromega.
+  move => H H0.
+  rewrite subst_shift_cancel_ty ?drop_oversize ?subst_nil_ty; f_equal; ssromega.
+Qed.
+
+Lemma subst_app_ty n xs ys t :
+  subst_typ n xs (subst_typ (size xs + n) ys t) = subst_typ n (xs ++ ys) t.
+Proof.
+  elim: t n => /=; try (move: addnS; congruence);
+    move => v n; elimif_omega; rewrite /subst_typv.
+  - move: H0 {H}; elimleq; rewrite subst_shift_cancel_ty1 //=; last ssromega.
+    by rewrite addKn addnAC addnK size_cat subnDA addKn
+               nth_cat ltnNge leq_addr /= addKn.
+  - rewrite nth_cat; f_equal; elimif_omega; apply nth_equal; ssromega.
 Qed.
 
 Lemma subst_subst_distr_ty n m xs ys t :
@@ -284,27 +319,33 @@ Lemma subst_subst_distr_ty n m xs ys t :
 Proof.
   elimleq; elim: t m => /=; try (move: addnS addSn; congruence);
     move => v m; elimif_omega; rewrite /subst_typv.
-  - rewrite (@subst_shift_cancel_ty m) // ?size_map; last ssromega.
-    rewrite -{1}addnA addKn nth_default /= /subst_typv; elimif_omega.
-    by rewrite !subnDA addnK (subnAC v).
+  - move: H {H0}; elimleq.
+    rewrite (@subst_shift_cancel_ty1 m) ?size_map ?addn0 ?leq_addr //=.
+    by rewrite
+      !(addnAC _ m) addnK -addnA addKn -addnA addKn nth_default ?leq_addr //=
+      addnC leq_add2r leq_addr /subst_typv subnDA -addnA addKn addnK.
   - rewrite size_map -shift_subst_distr_ty // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
-Lemma subst_app_ty n xs ys t :
-  subst_typ n xs (subst_typ (size xs + n) ys t) = subst_typ n (xs ++ ys) t.
+Lemma subst_subst_compose_ty n m xs ys t :
+  m <= size xs ->
+  subst_typ n xs (subst_typ (n + m) ys t) =
+  subst_typ n (insert (map (subst_typ 0 (drop m xs)) ys) xs 0 m) t.
 Proof.
-  elim: t n => /=; try (move: addnS; congruence);
-    move => v n; elimif_omega; rewrite /subst_typv.
-  - rewrite subst_shift_cancel_ty ?addn0 //
-      size_cat nth_cat !subnDA addKn (subnAC v); elimif_omega.
-  - rewrite nth_cat; f_equal; elimif_omega; apply nth_equal; ssromega.
-Qed.
-
-Lemma subst_nil_ty n t : subst_typ n [::] t = t.
-Proof.
-  elim: t n => /=; try congruence;
-    move => v n; rewrite /subst_typv nth_nil /= -fun_if; elimif_omega.
+  move => H; elim: t n => /=; try (move: addSn; congruence); move => v n;
+    rewrite /subst_typv size_insert size_map nth_insert size_map; elimif_omega.
+  - move: H3 H H0 {H1 H2}; elimleq.
+    by rewrite -addnA !addKn ltn_add2l => H H0; rewrite
+      (nth_map (tyvar (v - size ys))) // shift_subst_distr_ty // addn0
+      subst_shift_cancel_ty add0n ?leq_addr // addKn (minn_idPl H) addnK.
+  - move: H3 H0 H {H1 H2}; elimleq; rewrite -addnA !addKn ltn_add2l;
+      move/negbT; rewrite -leqNgt; elimleq => H.
+    rewrite maxnC; move/maxn_idPl: (H) => ->.
+    by rewrite subnDA addnAC addnK nth_default /=
+               1?addnCA ?leq_addr // /subst_typv addKn addnC.
+  - rewrite /subst_typv; f_equal; apply nth_equal.
+    by rewrite leqNgt (leq_trans H0 H).
 Qed.
 
 Lemma typemap_compose f g n m t :
@@ -425,7 +466,7 @@ Proof.
     move => v n m m'; elimif_omega.
   rewrite /subst_termv -!shift_typemap_distr typemap_compose.
   f_equal; apply typemap_eq => {v n ts H} n t.
-  rewrite subst_shift_cancel_ty; f_equal; ssromega.
+  rewrite subst_shift_cancel_ty1; f_equal; ssromega.
 Qed.
 
 Lemma substtyp_subst_distr n m m' tys ts t :
@@ -713,10 +754,10 @@ Lemma ctxleq_preserves_typing ctx1 ctx2 t ty :
 Proof.
   elim: t ty ctx1 ctx2 =>
     [n | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
-  - by move => ty ctx1 ctx2; move/ctxleqP; apply.
-  - by move => ty ctx1 ctx2 H; case/andP; move/(IHtl _ _ _ H) => ->; apply IHtr.
+  - by move => ty ctx1 ctx2 /ctxleqP; apply.
+  - by move => ty ctx1 ctx2 H /andP [] /(IHtl _ _ _ H) ->; apply IHtr.
   - by move => tyl tyr ctx1 ctx2 H; apply IHt; rewrite ctxleqss eqxx.
-  - by move => ty ctx1 ctx2 H; case/andP => ->; apply IHt.
+  - by move => ty ctx1 ctx2 H /andP [] ->; apply IHt.
   - by move => ty ctx1 ctx2 H; apply IHt, ctxleq_map.
 Qed.
 
@@ -728,11 +769,11 @@ Proof.
   elim: t ty d c ctx =>
     [n | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
   - by move => ty d c ctx; apply ctxindex_map.
-  - by move => ty d c ctx; case/andP; move/IHtl => ->; apply IHtr.
-  - by move => tyl tyr d c ctx; move/(IHt _ d c).
-  - move => ty d c ctx; case/andP; move/eqP => ?; subst ty; move/IHt => ->.
-    by rewrite subst_shift_distr_ty //= subn0 add1n eqxx.
-  - move => ty d c ctx; move/(IHt _ d c.+1).
+  - by move => ty d c ctx /andP [] /IHtl => ->; apply IHtr.
+  - by move => tyl tyr d c ctx /(IHt _ d c).
+  - by move => ty d c ctx /andP [] /eqP -> /IHt ->;
+      rewrite subst_shift_distr_ty //= subn0 add1n eqxx.
+  - move => ty d c ctx /(IHt _ d c.+1).
     rewrite /is_true => <-; f_equal.
     rewrite -!map_comp.
     apply eq_map; case => //= ty'.
@@ -747,11 +788,11 @@ Proof.
   elim: t ty n ctx =>
     [m | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
   - by move => ty n ctx; apply ctxindex_map.
-  - by move => ty n ctx; case/andP; move/IHtl => ->; apply IHtr.
-  - by move => tyl tyr n ctx; move/(IHt _ n).
-  - move => ty n ctx; case/andP; move/eqP => ?; subst ty; move/IHt => ->.
-    by rewrite subst_subst_distr_ty //= subn0 add1n eqxx.
-  - move => ty n ctx; move/(IHt _ n.+1).
+  - by move => ty n ctx /andP [] /IHtl ->; apply IHtr.
+  - by move => tyl tyr n ctx /(IHt _ n).
+  - by move => ty n ctx /andP [] /eqP -> /IHt ->;
+      rewrite subst_subst_distr_ty //= subn0 add1n eqxx.
+  - move => ty n ctx /(IHt _ n.+1).
     rewrite /is_true => <-; f_equal.
     rewrite -!map_comp.
     apply eq_map; case => //= ty'.
@@ -764,12 +805,11 @@ Lemma subject_shift t ty c ctx1 ctx2 :
 Proof.
   elim: t ty c ctx1 ctx2 =>
     [m | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
-  - move => ty c ctx1 ctx2.
-    by move/eqP => ->; apply/eqP; rewrite nth_insert; elimif_omega.
-  - by move => ty c ctx1 ctx2; case/andP; move/IHtl => ->; apply IHtr.
-  - by move => tyl tyr c ctx1 ctx2; move/(IHt _ c.+1 _ ctx2).
-  - by move => ty c ctx1 ctx2; case/andP => ->; apply IHt.
-  - move => ty c ctx1 ctx2; move/(IHt _ c _ (ctxmap (shift_typ 1 0) ctx2)).
+  - move => ty c ctx1 ctx2 /eqP ->; apply/eqP; rewrite nth_insert; elimif_omega.
+  - by move => ty c ctx1 ctx2 /andP [] /IHtl -> /IHtr ->.
+  - by move => tyl tyr c ctx1 ctx2 /(IHt _ c.+1 _ ctx2).
+  - by move => ty c ctx1 ctx2 /andP [] -> /IHt ->.
+  - move => ty c ctx1 ctx2 /(IHt _ c _ (ctxmap (shift_typ 1 0) ctx2)).
     by rewrite map_insert size_map.
 Qed.
 
@@ -783,24 +823,23 @@ Proof.
   - move => ty n ctx ctx' H.
     rewrite /subst_termv shifttyp_zero nth_insert !size_map; elimif_omega.
     + move: H0 H1 {H2}; elimleq; rewrite ltn_add2l => H0.
-      rewrite !(nth_map (var 0, tyvar 0)) //.
-      case/eqP => ?; subst ty.
-      case: {m H0} (nth _ _ _) (all_nthP (var 0, tyvar 0) H m H0) => /= t ty.
-      move/(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
+      rewrite !(nth_map (var 0, tyvar 0)) // => /eqP [] ->.
+      case: {ty m H0} (nth _ _ _) (all_nthP (var 0, tyvar 0) H m H0) =>
+        /= t ty /(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
       rewrite size_insert size_take minnC minKn add0n.
       apply ctxleq_preserves_typing.
       rewrite /insert take0 sub0n take_minn minnn size_take minnE subKn
               ?leq_subr //= drop_take_nil cats0 drop0 -catA
               -{4}(cat_take_drop n ctx) ctxleq_appl.
       case/orP: (leq_total n (size ctx)).
-      * by rewrite -subn_eq0; move/eqP => ->; apply ctxleqxx.
+      * by rewrite -subn_eq0 => /eqP ->; apply ctxleqxx.
       * by move => H0; rewrite drop_oversize // cats0 ctxleql0 size_nseq.
-    + move: H0 H1 {H2}; elimleq; move/negbT; rewrite -leqNgt leq_add2l => H0 H1.
+    + move: H0 H1 {H2}; elimleq => /negbT; rewrite -leqNgt leq_add2l => H0 H1.
       rewrite nth_default ?size_map //=.
       by move: H0 H1; elimleq; rewrite addnAC addnK addnC.
-  - by move => ty n ctx ctx' H; case/andP; move/IHtl => -> //=; apply IHtr.
+  - by move => ty n ctx ctx' H /andP [] /IHtl -> //=; apply IHtr.
   - by move => tyl tyr n ctx ctx' H H0; apply IHt.
-  - by move => ty n ctx ctx' H; case/andP => ->; apply IHt.
+  - by move => ty n ctx ctx' H /andP [] ->; apply IHt.
   - move => ty n ctx ctx' H H0.
     rewrite -{2}(addn0 1) -subst_shifttyp_app.
     set ctx'' := (map _ (map _ _)).
@@ -819,20 +858,20 @@ Theorem subject_reduction ctx t t' ty :
 Proof.
   move => H; move: t t' H ctx ty.
   refine (reduction1_ind _ _ _ _ _ _ _) => /=.
-  - move => ty' t1 t2 ctx ty; case/andP => H H0.
+  - move => ty' t1 t2 ctx ty /andP [] H H0.
     apply (@subject_subst _ _ 0 ctx [:: (t2, ty')]) => //=.
     - by rewrite drop0 H0.
     - by rewrite /insert take0 drop0.
-  - move => t tyl tyr ctx ty; case/andP; move/eqP => ?; subst ty.
-    move/(substtyp_preserves_typing 0 [:: tyr]).
+  - move => t tyl tyr ctx ty /andP [] /eqP -> {ty}
+      /(substtyp_preserves_typing 0 [:: tyr]).
     set ctx' := ctxmap _ _; have {ctx'} -> //: ctx' = ctx.
       rewrite /ctx' -map_comp -{2}(map_id ctx).
       apply eq_map; case => //= ty.
-      by rewrite subst_shift_cancel_ty //= shift_zero_ty.
-  - by move => t1 t1' t2 ty _ H ctx ty0; case/andP; move/H => ->.
-  - by move => t1 t2 t2' ty _ H ctx ty0; case/andP => ->; apply H.
+      by rewrite subst_shift_cancel_ty1 //= shift_zero_ty.
+  - by move => t1 t1' t2 ty _ H ctx ty0 /andP [] /H ->.
+  - by move => t1 t2 t2' ty _ H ctx ty0 /andP [] ->; apply H.
   - by move => t t' _ H ctx [] //= tyl tyr; apply H.
-  - by move => t t' tyl tyr _ H ctx ty; case/andP => ->; apply H.
+  - by move => t t' tyl tyr _ H ctx ty /andP [] ->; apply H.
   - by move => t t' _ H ctx [] //=; apply H.
 Qed.
 
@@ -979,16 +1018,15 @@ Proof.
   - by move => t H0 H1 P H2; apply (rc_cr3 (H _ H2)) => // t' H3; apply H1.
 Qed.
 
-Fixpoint reducible ty (preds : seq (typ * (term -> Prop))) : term -> Prop :=
+Fixpoint reducible ty (preds : seq (typ * (term -> Prop))) t : Prop :=
   match ty with
-    | tyvar v => nth SNorm [seq p.2 | p <- preds] v
-    | tyfun tyl tyr =>
-      fun t => forall t',
-        reducible tyl preds t' ->
-        reducible tyr preds (t @{t' \: subst_typ 0 [seq p.1 | p <- preds] tyl})
-    | tyabs ty =>
-      fun t => forall ty' P,
-        RC P -> reducible ty ((ty', P) :: preds) ({t \: ty}@ ty')
+    | tyvar v => nth SNorm [seq p.2 | p <- preds] v t
+    | tyfun tyl tyr => forall t',
+      reducible tyl preds t' ->
+      reducible tyr preds (t @{t' \: subst_typ 0 [seq p.1 | p <- preds] tyl})
+    | tyabs ty => forall ty' P, RC P ->
+      reducible ty ((ty', P) :: preds)
+        ({t \: subst_typ 1 [seq p.1 | p <- preds] ty}@ ty')
   end.
 
 Lemma reducibility_isrc ty preds :
@@ -1014,10 +1052,10 @@ Proof.
 Qed.
 
 Lemma subst_reducibility ty preds n tys t :
-  max_tyvar (subst_typ n tys ty) <= size preds ->
+  n <= size preds ->
   (reducible (subst_typ n tys ty) preds t <->
    reducible ty
-     (insert [seq (subst_typ 0 [seq p.1 | p <- preds] ty,
+     (insert [seq (subst_typ 0 [seq p.1 | p <- drop n preds] ty,
                    reducible (shift_typ n 0 ty) preds) |
                   ty <- tys] preds (tyvar 0, SNorm) n)
      t).
@@ -1032,13 +1070,20 @@ Proof.
       move/negbT; rewrite -leqNgt; elimleq.
       by rewrite addnAC addnK nth_default ?leq_addr //= nth_map' /= addnC.
     + by rewrite nth_map' /=.
-  - rewrite /= geq_max; case/andP => H H0;
-      split => H1 t'; move/IHtyl; move/(_ H)/H1/IHtyr; move/(_ H0).
-    + admit.
-    + admit.
-  - move => /= H; split => H0 ty' P H1.
-    + admit.
-    + admit.
+  - by move => H /=; split => H1 t';
+      move/IHtyl; move/(_ H)/H1/IHtyr; move/(_ H);
+      rewrite map_insert -map_comp /funcomp /=
+              subst_subst_compose_ty ?map_drop // size_map.
+  - move => /= H; split => H0 ty' P H1; move: (H0 ty' P H1) => {H0} H0.
+    + rewrite map_insert -map_comp /funcomp /=.
+      move: H0.
+      move/IHty => /= /(_ H).
+      rewrite subst_subst_compose_ty /insert /= ?subSS size_map ?map_drop //.
+      admit.
+    + apply IHty => //; move: H0.
+      rewrite map_insert -map_comp /funcomp /= subst_subst_compose_ty /insert /=
+              ?subSS size_map ?map_drop //.
+      admit.
 Abort.
 
 (*
