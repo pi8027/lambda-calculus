@@ -283,18 +283,15 @@ Proof.
   elimleq; rewrite subnDl.
   elim: t n c => /=; try (move: addSn; congruence); move => v n c.
   elimif_omega; rewrite /subst_typv.
-  move: H0 H H1; elimleq.
-  rewrite !subnDA -!addnA !leq_add2l !addKn size_drop nth_drop.
-  case (leqP' d n); last case (leqP' (d - n) (size ts)).
-  - elimleq; move: (leq_addr n d). rewrite -subn_eq0 => /eqP -> _ _.
-    by rewrite min0n add0n !subn0.
-  - move => H H0; move: H0 H; elimleq; rewrite addSnnS addKn !addnK => H _ _.
-    by rewrite addnAC -addSnnS addnK subnBA // addnS addSn (addnC v d).
-  - move => H H0; move: H0 H; elimleq; rewrite addSnnS addKn ltnS;
-      elimleq => _ _; rewrite !(addnAC _ n.+1) -addSnnS addnK addnAC -addSn
-                              addnK -!addnS addnCA addKn addnCA addKn.
-    by move: (leq_addr d.+1 (size ts)); rewrite -subn_eq0 => /eqP ->;
-      rewrite subn0 !nth_default // ?leq_addl // -addnA leq_addr.
+  move: H0 {H1 H}; elimleq.
+  rewrite !subnDA -!addnA !addKn size_drop nth_drop.
+  case (leqP' d n); elimleq.
+  - by move: (leq_addr n d);
+      rewrite -subn_eq0 => /eqP ->; rewrite min0n add0n !subn0.
+  - rewrite addnAC -addSnnS addnK addSnnS addKn; case (leqP' d.+1 (size ts)).
+    + by move => H; rewrite !addnK subnBA // addnS addSn (addnC v).
+    + rewrite ltnS; elimleq; rewrite addnAC -addSn addnK -!addnS
+        addnCA addKn addnCA addKn !nth_default; do 2? f_equal; ssromega.
 Qed.
 
 Lemma subst_shift_cancel_ty1 n d c ts t :
