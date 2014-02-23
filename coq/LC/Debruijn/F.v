@@ -274,7 +274,7 @@ Proof.
     move => v n; rewrite /subst_typv nth_nil /= -fun_if; elimif_omega.
 Qed.
 
-Lemma subst_shift_cancel_ty n d c ts t :
+Lemma subst_shift_cancel_ty1 n d c ts t :
   c <= n ->
   subst_typ n ts (shift_typ d c t) =
   subst_typ n (drop (c + d - n) ts)
@@ -292,7 +292,7 @@ Proof.
         addnCA addKn addnCA addKn !nth_default; do 2 f_equal; ssromega.
 Qed.
 
-Lemma subst_shift_cancel_ty' n d c ts t :
+Lemma subst_shift_cancel_ty2 n d c ts t :
   n <= c <= n + size ts ->
   subst_typ n ts (shift_typ d c t) =
   subst_typ n (take (c - n) ts ++ drop (c + d - n) ts)
@@ -310,12 +310,12 @@ Proof.
     rewrite nth_take ?leq_addr //; apply nth_equal; ssromega.
 Qed.
 
-Lemma subst_shift_cancel_ty1 n d c ts t :
+Lemma subst_shift_cancel_ty3 n d c ts t :
   c <= n -> size ts + n <= d + c ->
   subst_typ n ts (shift_typ d c t) = shift_typ (d - size ts) c t.
 Proof.
-  move => H H0.
-  rewrite subst_shift_cancel_ty ?drop_oversize ?subst_nil_ty; f_equal; ssromega.
+  move => H H0; rewrite subst_shift_cancel_ty1 ?drop_oversize ?subst_nil_ty;
+    f_equal; ssromega.
 Qed.
 
 Lemma subst_app_ty n xs ys t :
@@ -323,7 +323,7 @@ Lemma subst_app_ty n xs ys t :
 Proof.
   elim: t n => /=; try (move: addnS; congruence);
     move => v n; elimif_omega; rewrite /subst_typv.
-  - move: H0 {H}; elimleq; rewrite subst_shift_cancel_ty1 //=; last ssromega.
+  - move: H0 {H}; elimleq; rewrite subst_shift_cancel_ty3 //=; last ssromega.
     by rewrite addKn addnAC addnK size_cat subnDA addKn
                nth_cat ltnNge leq_addr /= addKn.
   - rewrite nth_cat; f_equal; elimif_omega; apply nth_equal; ssromega.
@@ -337,7 +337,7 @@ Proof.
   elimleq; elim: t m => /=; try (move: addnS addSn; congruence);
     move => v m; elimif_omega; rewrite /subst_typv.
   - move: H {H0}; elimleq.
-    rewrite (@subst_shift_cancel_ty1 m) ?size_map ?addn0 ?leq_addr //=.
+    rewrite (@subst_shift_cancel_ty3 m) ?size_map ?addn0 ?leq_addr //=.
     by rewrite
       !(addnAC _ m) addnK -addnA addKn -addnA addKn nth_default ?leq_addr //=
       addnC leq_add2r leq_addr /subst_typv subnDA -addnA addKn addnK.
@@ -355,7 +355,7 @@ Proof.
   - move: H3 H H0 {H1 H2}; elimleq.
     by rewrite -addnA !addKn ltn_add2l => H H0; rewrite
       (nth_map (tyvar (v - size ys))) // shift_subst_distr_ty // addn0
-      subst_shift_cancel_ty // add0n addKn (minn_idPl H) addnK.
+      subst_shift_cancel_ty1 // add0n addKn (minn_idPl H) addnK.
   - move: H3 H0 H {H1 H2}; elimleq; rewrite -addnA !addKn ltn_add2l;
       move/negbT; rewrite -leqNgt; elimleq => H.
     rewrite maxnC; move/maxn_idPl: (H) => ->.
@@ -483,7 +483,7 @@ Proof.
     move => v n m m'; elimif_omega.
   rewrite /subst_termv -!shift_typemap_distr typemap_compose.
   f_equal; apply typemap_eq => {v n ts H} n t.
-  rewrite subst_shift_cancel_ty1; f_equal; ssromega.
+  rewrite subst_shift_cancel_ty3; f_equal; ssromega.
 Qed.
 
 Lemma substtyp_subst_distr n m m' tys ts t :
@@ -884,7 +884,7 @@ Proof.
     set ctx' := ctxmap _ _; have {ctx'} -> //: ctx' = ctx.
       rewrite /ctx' -map_comp -{2}(map_id ctx).
       apply eq_map; case => //= ty.
-      by rewrite subst_shift_cancel_ty1 //= shift_zero_ty.
+      by rewrite subst_shift_cancel_ty3 //= shift_zero_ty.
   - by move => t1 t1' t2 ty _ H ctx ty0 /andP [] /H ->.
   - by move => t1 t2 t2' ty _ H ctx ty0 /andP [] ->; apply H.
   - by move => t t' _ H ctx [] //= tyl tyr; apply H.
@@ -1068,6 +1068,46 @@ Proof.
       by move: H0; inversion H3; subst => //= _; apply H1.
 Qed.
 
+Lemma take_insert (A : Type) n (xs ys : seq A) d :
+  take n (insert xs ys d n) = take n ys ++ nseq (n - size ys) d.
+Proof.
+  rewrite /insert take_cat size_take ltnNge geq_minl /=.
+  have -> x y: x - minn x y = x - y by ssromega.
+  by rewrite take_cat size_nseq ltnn subnn take0 cats0.
+Qed.
+
+Lemma drop_insert (A : Type) n (xs ys : seq A) d :
+  drop (n + size xs) (insert xs ys d n) = drop n ys.
+Proof.
+  rewrite /insert !catA drop_cat !size_cat size_take size_nseq; elimif_omega.
+  rewrite drop_addn; f_equal; ssromega.
+Qed.
+
+Lemma shift_reducibility c ty preds preds' t :
+  c <= size preds ->
+  (reducible (shift_typ (size preds') c ty)
+     (insert preds' preds (tyvar 0, SNorm) c) t <->
+   reducible ty preds t).
+Proof.
+  elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
+  - rewrite /= map_insert nth_insert size_map; elimif_omega.
+    by rewrite addnK.
+  - by split => /= H0 t'; move/(IHtyl c _ _ H)/H0/(IHtyr c _ _ H); rewrite
+      map_insert subst_shift_cancel_ty2 /= ?subn0 ?add0n ?size_insert ?size_map
+      ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // take_insert size_map
+      -[X in drop (c + X)](size_map (@fst _ _) preds') drop_insert subnDA addnK;
+      (have ->: c - maxn c _ = 0 by ssromega); rewrite shift_zero_ty;
+      move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
+  - by split => /= H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
+      rewrite ?ltnS ?H //; move: {H0 H1} (H0 ty' P H1); rewrite
+        map_insert /= subst_shift_cancel_ty2 /= ?subn1 ?add1n ?ltnS ?size_insert
+        ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // addSn /=
+        take_insert size_map -[X in drop (c + X)](size_map (@fst _ _) preds')
+        drop_insert subSS subnDA addnK;
+      (have ->: c - maxn c _ = 0 by ssromega); rewrite shift_zero_ty;
+      move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
+Qed.
+
 Lemma subst_reducibility ty preds n tys t :
   n <= size preds ->
   (reducible (subst_typ n tys ty) preds t <->
@@ -1083,7 +1123,10 @@ Proof.
             nth_insert /subst_typv; elimif_omega.
     + move: H1 H {H0}; elimleq; rewrite size_map ltn_add2l => H H0.
       rewrite (nth_map (tyvar (v - size tys))) //=.
-      admit.
+      move: (shift_reducibility (nth (tyvar (v - size tys)) tys v)
+        (take n preds) t (leq0n (size (drop n preds)))).
+      rewrite /insert take0 drop0 sub0n /= cat_take_drop size_take.
+      by move/minn_idPl: H0 => ->.
     + move: H1 H {H0}; elimleq; rewrite size_map ltn_add2l.
       move/negbT; rewrite -leqNgt; elimleq.
       by rewrite addnAC addnK nth_default ?leq_addr //= nth_map' /= addnC.
