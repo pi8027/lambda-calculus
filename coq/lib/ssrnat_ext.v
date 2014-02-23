@@ -87,34 +87,46 @@ Goal forall m n, maxn m n - (n - m) = m. ssromega; fail. Abort.
 (* Extended comparison predicates. *)
 
 CoInductive leq_xor_gtn' m n :
-    bool -> bool -> bool -> bool -> nat -> nat -> nat -> nat -> Set :=
-  | LeqNotGtn' of m <= n : leq_xor_gtn' m n (m < n) false true (n <= m) n n m m
-  | GtnNotLeq' of n < m : leq_xor_gtn' m n false true false true m m n n.
+    bool -> bool -> bool -> bool ->
+    nat -> nat -> nat -> nat -> nat -> nat -> Set :=
+  | LeqNotGtn' of m <= n :
+    leq_xor_gtn' m n (m < n) false true (n <= m) n n m m 0 (n - m)
+  | GtnNotLeq' of n < m :
+    leq_xor_gtn' m n false true false true m m n n (m - n) 0.
 
 Lemma leqP' m n : leq_xor_gtn' m n
-  (m < n) (n < m) (m <= n) (n <= m) (maxn m n) (maxn n m) (minn m n) (minn n m).
+  (m < n) (n < m) (m <= n) (n <= m)
+  (maxn m n) (maxn n m) (minn m n) (minn n m)
+  (m - n) (n - m).
 Proof.
   case: (leqP m n) => H; rewrite (maxnC n) (minnC n).
-  - by rewrite (maxn_idPr H) (minn_idPl H); constructor.
-  - by rewrite (ltnW H) ltnNge leq_eqVlt H orbT
-               (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)); constructor.
+  - rewrite (maxn_idPr H) (minn_idPl H).
+    by move: (H); rewrite -subn_eq0 => /eqP ->; constructor.
+  - rewrite (ltnW H) ltnNge leq_eqVlt H orbT
+            (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
+    by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
 
 CoInductive compare_nat' m n :
-    bool -> bool -> bool -> bool -> bool -> nat -> nat -> nat -> nat -> Set :=
+    bool -> bool -> bool -> bool -> bool ->
+    nat -> nat -> nat -> nat -> nat -> nat -> Set :=
   | CompareNatLt' of m < n :
-    compare_nat' m n true false false true false n n m m
+    compare_nat' m n true false false true false n n m m 0 (n - m)
   | CompareNatGt' of m > n :
-    compare_nat' m n false true false false true m m n n
+    compare_nat' m n false true false false true m m n n (m - n) 0
   | CompareNatEq' of m = n :
-    compare_nat' m n false false true true true m m m m.
+    compare_nat' m n false false true true true m m m m 0 0.
 
 Lemma ltngtP' m n : compare_nat' m n
   (m < n) (n < m) (m == n) (m <= n) (n <= m)
-  (maxn m n) (maxn n m) (minn m n) (minn n m).
+  (maxn m n) (maxn n m) (minn m n) (minn n m)
+  (m - n) (n - m).
 Proof.
-  (case: (ltngtP m n) => H; last by rewrite -H leqnn maxnn minnn; constructor);
+  (case: (ltngtP m n) => H;
+    last by rewrite -H leqnn maxnn minnn subnn; constructor);
     rewrite (maxnC n) (minnC n) ?(ltnW H) leqNgt H /=.
-  - by rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)); constructor.
-  - by rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)); constructor.
+  - rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)).
+    by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
+  - rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
+    by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
