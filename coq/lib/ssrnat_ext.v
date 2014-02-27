@@ -129,70 +129,84 @@ Qed.
 
 (* Other automation tactics. *)
 
+Module simpl_natarith.
+
+Lemma lem1_1 ml mr n r : ml = r + n -> ml + mr = r + mr + n.
+Proof. by move => ->; rewrite addnAC. Qed.
+Lemma lem1_2 ml mr n r : mr = r + n -> ml + mr = ml + r + n.
+Proof. by move => ->; rewrite addnA. Qed.
+Lemma lem1_3 m' n r : m' = r + n -> m'.+1 = r.+1 + n.
+Proof. by move => ->; rewrite addSn. Qed.
+Lemma lem2_1 ml mr n r : ml - n = r -> ml - mr - n = r - mr.
+Proof. by move => <-; rewrite subnAC. Qed.
+Lemma lem2_2 m' n r : m' - n = r -> m'.-1 - n = r.-1.
+Proof. by move => <-; rewrite -subnS -add1n subnDA subn1. Qed.
+Lemma lem2_3 m n r : m = r + n -> m - n = r.
+Proof. by move => ->; rewrite addnK. Qed.
+Lemma lem4_1 m n m' n' : m - n = m' - n' -> (m <= n) = (m' <= n').
+Proof. by rewrite -!subn_eq0 => ->. Qed.
+
+End simpl_natarith.
+
+Import simpl_natarith.
+
 Ltac simpl_natarith1 m n :=
   match m with
-    | n => constr: 0
-    | ?ml + ?mr => let ml' := simpl_natarith1 ml n in constr: (ml' + mr)
-    | ?ml + ?mr => let mr' := simpl_natarith1 mr n in constr: (ml + mr')
-    | ?m'.+1 => let m'' := simpl_natarith1 m' n in constr: m''.+1
-    | ?m'.+1 => match n with 1 => constr: m' end
+    | n => constr: (esym (add0n n))
+    | ?ml + ?mr => let H := simpl_natarith1 ml n in constr: (lem1_1 mr H)
+    | ?ml + ?mr => let H := simpl_natarith1 mr n in constr: (lem1_2 ml H)
+    | ?m'.+1 => let H := simpl_natarith1 m' n in constr: (lem1_3 H)
+    | ?m'.+1 => match n with 1 => constr: (esym (addn1 m')) end
   end.
 
 Ltac simpl_natarith2 m n :=
   match m with
-    | ?ml - ?mr => let ml' := simpl_natarith2 ml n in constr: (ml' - mr)
-    | ?m'.-1 => let m'' := simpl_natarith1 m' n in constr: m''.-1
-    | _ => simpl_natarith1 m n
+    | ?ml - ?mr => let H := simpl_natarith2 ml n in constr: (lem2_1 mr H)
+    | ?m'.-1 => let H := simpl_natarith2 m' n in constr: (lem2_2 H)
+    | _ => let H := simpl_natarith1 m n in constr: (lem2_3 H)
   end.
 
 Ltac simpl_natarith3 m n :=
   lazymatch n with
     | ?nl + ?nr =>
-      match simpl_natarith3 m nl with (?m1, ?nl') =>
-        match simpl_natarith3 m1 nr with (?m2, ?nr') =>
-          constr: (m2, nl' + nr')
-        end
+      simpl_natarith3 m nl;
+      match goal with |- _ = ?m1 -> _ =>
+        let H := fresh "H" in
+        simpl_natarith3 m1 nr => H;
+        move/(fun H' => eq_trans (subnDA _ _ _)
+                       (eq_trans (f_equal (subn^~ _) H')
+                       (eq_trans H (esym (subnDA _ _ _))))); clear H
       end
     | _ =>
       match n with
         | ?n'.+1 =>
           lazymatch n' with
             | 0 => fail
-            | _ => simpl_natarith3 m (n' + 1)
+            | _ => simpl_natarith3 m (n' + 1);
+                   move/(eq_trans (f_equal (subn m) (esym (addn1 _))))
           end
-        | _ => let m' := simpl_natarith2 m n in constr: (m', 0)
-        | _ => constr: (m, n)
+        | _ =>
+          let H := simpl_natarith2 m n in move: (eq_trans H (esym (subn0 _)))
+        | _ => move: (erefl (m - n))
       end
   end.
 
 Ltac simpl_natarith :=
   let H' := fresh "H" in
+  let tac := (rewrite {}H'
+    ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS, leq0n)) in
   repeat match goal with
     | H : context [?m - ?n] |- _ =>
-      match simpl_natarith3 m n with (?m', ?n') =>
-        (have H': m - n = m' - n' by clear; ssromega);
-        rewrite {}H' ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS) in H
-      end
+      simpl_natarith3 m n => H'; move: H; tac => H
     | |- context [?m - ?n] =>
-      match simpl_natarith3 m n with (?m', ?n') =>
-        (have H': m - n = m' - n' by clear; ssromega);
-        rewrite {}H' ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS)
-      end
+      simpl_natarith3 m n => H'; tac
     | H : context [?m <= ?n] |- _ =>
-      match simpl_natarith3 m n with (?m', ?n') =>
-        (have H': (m <= n) = (m' <= n') by
-           clear; rewrite -!subn_eq0; f_equal; ssromega);
-        rewrite {}H' ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS) in H
-      end
+      simpl_natarith3 m n; move/lem4_1 => H'; move: H; tac => H
     | |- context [?m <= ?n] =>
-      match simpl_natarith3 m n with (?m', ?n') =>
-        (have H': (m <= n) = (m' <= n') by
-           clear; rewrite -!subn_eq0; f_equal; ssromega);
-        rewrite {}H' ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS)
-      end
+      simpl_natarith3 m n; move/lem4_1 => H'; tac
   end;
   repeat match goal with
-    | H : is_true (0 <= _) |- _ => clear H
+    | H : is_true true |- _ => move => {H}
   end.
 
 Tactic Notation "elimleq" :=

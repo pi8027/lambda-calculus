@@ -209,25 +209,21 @@ Proof.
     rewrite /subst_typv nth_nil /=; elimif_omega.
 Qed.
 
-(*
 Lemma subst_shift_cancel_ty1 n d c ts t :
   c <= n ->
   subst_typ n ts (shift_typ d c t) =
   subst_typ n (drop (c + d - n) ts)
     (shift_typ (d - minn (c + d - n) (size ts)) c t).
 Proof.
-  elimleq; rewrite subnDl; elim: t n c => /=; try (move: addSn; congruence);
-    move => v n c; elimif_omega; rewrite /subst_typv.
-  move: H0 {H1 H}; elimleq.
-  rewrite !subnDA -!addnA !addKn size_drop nth_drop.
-  case (leqP' d n); elimleq.
-  - by rewrite min0n add0n !subn0.
-  - rewrite addnAC -addSnnS addnK addSnnS addKn; case (leqP' d.+1 (size ts)).
-    + by move => H; rewrite !addnK subnBA // addnS addSn (addnC v).
-    + rewrite ltnS; elimleq; rewrite addnAC -addSn addnK -!addnS
-        addnCA addKn addnCA addKn !nth_default; do 2 f_equal; ssromega.
+  elimleq; elim: t n c => /=; congruence' => v n c; elimif_omega;
+    rewrite /subst_typv size_drop nth_drop; case (leqP' d n); elimleq.
+  - by rewrite min0n !subn0; elimleq H1.
+  - case: (leqP' d.+1 (size ts)).
+    + move => H0; simpl_natarith; elimif_omega.
+    + rewrite ltnS; elimleq; rewrite !nth_default //; ssromega.
 Qed.
 
+(*
 Lemma subst_shift_cancel_ty2 n d c ts t :
   n <= c <= n + size ts ->
   subst_typ n ts (shift_typ d c t) =
