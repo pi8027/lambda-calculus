@@ -34,12 +34,11 @@ Fixpoint eqtyp t1 t2 :=
 
 Lemma eqtypP : Equality.axiom eqtyp.
 Proof.
-  elim => [n | ty1l IHl ty1r IHr | ty1 IH];
-    case => //= [m | ty2l ty2r | ty2]; try by constructor.
-  - case_eq (n == m) => /eqP; constructor; congruence.
-  - case_eq (eqtyp ty1l ty2l) => /IHl; case_eq (eqtyp ty1r ty2r) => /IHr;
-      constructor; congruence.
-  - case_eq (eqtyp ty1 ty2) => /IH; constructor; congruence.
+  move => t1 t2; apply: (iffP idP) => [| <-].
+  - by elim: t1 t2 => [n | t1l IHt1l t1r IHt1r | t1 IHt1]
+      [// m /eqP -> | //= t2l t2r /andP [] /IHt1l -> /IHt1r -> |
+       // t2 /IHt1 ->].
+  - by elim: t1 => //= t ->.
 Defined.
 
 Canonical typ_eqMixin := EqMixin eqtypP.
@@ -59,15 +58,13 @@ Fixpoint eqterm t1 t2 :=
 
 Lemma eqtermP : Equality.axiom eqterm.
 Proof.
-  elim => [n | t1l IHl t1r IHr ty1 | t1 IH | t1 IH ty1l ty1r | t1 IH];
-    case => //= [m | t2l t2r ty2 | t2 | t2 ty2l ty2r | t2]; try by constructor.
-  - case_eq (n == m) => /eqP; constructor; congruence.
-  - case_eq (eqterm t1l t2l) => /IHl; case_eq (eqterm t1r t2r) => /IHr;
-      case_eq (ty1 == ty2) => /eqP; constructor; congruence.
-  - case_eq (eqterm t1 t2) => /IH; constructor; congruence.
-  - case_eq (eqterm t1 t2) => /IH; case_eq (ty1l == ty2l) => /eqP;
-      case_eq (ty1r == ty2r) => /eqP; constructor; congruence.
-  - case_eq (eqterm t1 t2) => /IH; constructor; congruence.
+  move => t1 t2; apply: (iffP idP) => [| <-].
+  - by elim: t1 t2 =>
+      [n | t1l IHt1l t1r IHt1r ty1 | t1 IHt1 | t1 IHt1 ty1l ty1r | t1 IHt1]
+      [// m /eqP -> | //= t2l t2r ty2 /and3P [] /IHt1l -> /IHt1r -> /eqP -> |
+       // t2 /IHt1 -> | //= t2 ty2l ty2r /and3P [] /IHt1 -> /eqP -> /eqP -> |
+       // t2 /IHt1 -> ].
+  - by elim: t1 => //= [t -> t' -> | t ->] *; rewrite !eqxx.
 Defined.
 
 Canonical term_eqMixin := EqMixin eqtermP.
@@ -122,6 +119,7 @@ Fixpoint subst_term n n' ts t :=
     | uabs t => uabs (subst_term n n'.+1 ts t)
   end.
 
+(*
 Fixpoint max_var t :=
   match t with
     | var n => n.+1
@@ -137,6 +135,7 @@ Fixpoint max_tyvar ty :=
     | tyfun tyl tyr => maxn (max_tyvar tyl) (max_tyvar tyr)
     | tyabs ty => (max_tyvar ty).-1
   end.
+*)
 
 Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
   match t, ty with
@@ -167,46 +166,29 @@ Infix "->r" := reduction (at level 70, no associativity).
 
 Hint Constructors reduction1.
 
-Ltac elimif :=
-  (case: ifP => //=; elimif; let hyp := fresh "H" in move => hyp) || idtac.
-
-Ltac elimif_omega :=
-  elimif;
-  try (match goal with
-    | |- var _ = var _ => f_equal
-    | |- tyvar _ = tyvar _ => f_equal
-    | |- nth ?x ?xs _ = nth ?x ?xs _ => f_equal
-    | |- _ => idtac
-  end; ssromega).
+Ltac congruence' := try (move: addSn addnS; congruence).
 
 Lemma shift_zero_ty n t : shift_typ 0 n t = t.
-Proof.
-  by elim: t n => /=; try congruence; move => m n; rewrite addn0 if_same.
-Qed.
+Proof. by elim: t n => /=; congruence' => m n; rewrite addn0 if_same. Qed.
 
 Lemma shift_add_ty d c d' c' t :
   c <= c' <= c + d ->
   shift_typ d' c' (shift_typ d c t) = shift_typ (d' + d) c t.
 Proof.
-  case/andP; elimleq; rewrite leq_add2l; elimleq;
-    elim: t c c' => /=; try (move: addSn; congruence); move => *; elimif_omega.
+  case/andP; do 2 elimleq; elim: t c c' => /=; congruence' => *; elimif_omega.
 Qed.
 
 Lemma shift_shift_distr_ty d c d' c' t :
   c' <= c ->
   shift_typ d' c' (shift_typ d c t) = shift_typ d (d' + c) (shift_typ d' c' t).
-Proof.
-  elimleq; elim: t c c' => /=;
-    try (move: addSn addnS; congruence); move => *; elimif_omega.
-Qed.
+Proof. elimleq; elim: t c c' => /=; congruence' => *; elimif_omega. Qed.
 
 Lemma shift_subst_distr_ty n d c ts t :
   c <= n ->
   shift_typ d c (subst_typ n ts t) = subst_typ (d + n) ts (shift_typ d c t).
 Proof.
-  elimleq; elim: t n c => /=;
-    try (move: addSn addnS; congruence); move => v n c; elimif_omega.
-  by rewrite /subst_typv shift_add_ty ?add0n ?leq_addr // !subnDA addnK addnA.
+  elimleq; elim: t n c => /=; congruence' => v n c;
+    rewrite /subst_typv; elimif_omega; rewrite shift_add_ty; elimif_omega.
 Qed.
 
 Lemma subst_shift_distr_ty n d c ts t :
@@ -214,19 +196,20 @@ Lemma subst_shift_distr_ty n d c ts t :
   shift_typ d c (subst_typ n ts t) =
   subst_typ n (map (shift_typ d (c - n)) ts) (shift_typ d (size ts + c) t).
 Proof.
-  elimleq; elim: t n => /=; try (move: addnS addSn; congruence);
-    move => m n; rewrite /subst_typv size_map; elimif_omega.
-  - rewrite !nth_default ?size_map /= ?(subnAC _ n) ?subnK; elimif_omega.
+  elimleq; elim: t n => /=; congruence' => m n;
+    rewrite /subst_typv size_map; elimif_omega.
+  - rewrite !nth_default ?size_map /=; elimif_omega.
   - rewrite -shift_shift_distr_ty // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 Lemma subst_nil_ty n t : subst_typ n [::] t = t.
 Proof.
-  elim: t n => /=; try congruence;
-    move => v n; rewrite /subst_typv nth_nil /= -fun_if; elimif_omega.
+  elim: t n => /=; congruence' => v n;
+    rewrite /subst_typv nth_nil /=; elimif_omega.
 Qed.
 
+(*
 Lemma subst_shift_cancel_ty1 n d c ts t :
   c <= n ->
   subst_typ n ts (shift_typ d c t) =
@@ -1134,3 +1117,4 @@ Proof.
 Qed.
 
 End strong_normalization_proof.
+*)

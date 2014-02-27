@@ -22,12 +22,10 @@ Fixpoint eqterm t1 t2 :=
 
 Lemma eqtermP : Equality.axiom eqterm.
 Proof.
-  elim => [n | t1l IHl t1r IHr | t1 IH] [m | t2l t2r | t2] /=;
-    try by constructor.
-  - case_eq (n == m); move/eqP; constructor; congruence.
-  - case_eq (eqterm t1l t2l); move/IHl;
-      case_eq (eqterm t1r t2r); move/IHr; constructor; congruence.
-  - case_eq (eqterm t1 t2); move/IH; constructor; congruence.
+  move => t1 t2; apply: (iffP idP) => [| <-].
+  - by elim: t1 t2 => [n | t1l IH t1r IH' | t1 IH]
+      [// m /eqP -> | //= t2l t2r /andP [] /IH -> /IH' -> | // t2 /IH ->].
+  - by elim: t1 => //= t1l ->.
 Defined.
 
 Canonical term_eqMixin := EqMixin eqtermP.
@@ -40,8 +38,8 @@ Fixpoint shift d c t : term :=
     | abs t1 => abs (shift d c.+1 t1)
   end.
 
-Definition substitutev ts m n : term :=
-  shift n 0 (nth (var (m - n - size ts)) ts (m - n)).
+Notation substitutev ts m n :=
+  (shift n 0 (nth (var (m - n - size ts)) ts (m - n))).
 
 Fixpoint substitute n ts t : term :=
   match t with
@@ -59,89 +57,31 @@ Inductive betared1 : relation term :=
   | betared1abs t t'       : t ->b1 t' -> abs t ->b1 abs t'
   where "t ->b1 t'" := (betared1 t t').
 
-Fixpoint betared1' (t1 t2 : term) : bool :=
-  match t1 with
-    | var _ => false
-    | app t1l t1r =>
-      (if t1l is abs t1l'
-         then t2 == substitute 0 [:: t1r] t1l'
-         else false) ||
-      (if t2 is app t2l t2r
-         then (betared1' t1l t2l && (t1r == t2r)) ||
-              ((t1l == t2l) && betared1' t1r t2r)
-         else false)
-    | abs t1' =>
-      if t2 is abs t2'
-        then betared1' t1' t2'
-        else false
-  end.
-
-Lemma betared1P t1 t2 : reflect (betared1 t1 t2) (betared1' t1 t2).
-Proof.
-  move: t1 t2; fix IH 1; case => [n t2 | t1l t1r t2 | t1].
-  - constructor => H; inversion H.
-  - case: t2 {1}t2 (erefl t2) => [m | t2l t2r | t2'] t2 /= H; rewrite -H;
-      (case: t1l {1}t1l (erefl t1l) (IH t1l) (IH t1r) =>
-        [n | t1ll t1lr | t1l'] t1l H0; last move: (IH t1l') => IHl');
-      move => IHl IHr {IH}; rewrite -H0;
-      try (case_eq (t2 == substitute 0 [:: t1r] t1l'); move/eqP => H1);
-      try (case_eq (betared1' t1l t2l && (t1r == t2r));
-        [case/andP => H2; move/eqP => H3 | move => H2]);
-      try (case_eq ((t1l == t2l) && betared1' t1r t2r);
-        [case/andP; move/eqP => H4 H5 | move => H4]);
-      constructor; subst; try rewrite {}H1; subst;
-      try (by constructor; apply/IHl || apply/IHr);
-      move => H6; inversion H6; subst;
-        (congruence || (by inversion H0) ||
-         by move: H0 H2 H4; (move/IHl || move/IHr) => ->; rewrite eqxx).
-  - case => /= [m | t2l t2r | t2]; try by constructor => H; inversion H.
-    case_eq (betared1' t1 t2); move/IH; constructor.
-    + by constructor.
-    + by move => H; inversion H.
-Qed.
-
 Notation betared := [* betared1].
 Infix "->b" := betared (at level 70, no associativity).
 
 Hint Constructors betared1.
 
-Ltac elimif :=
-  (case: ifP => //=; elimif; let hyp := fresh "H" in move => hyp) || idtac.
-
-Ltac elimif_omega :=
-  elimif;
-  try (match goal with
-    | |- var _ = var _ => f_equal
-    | |- nth ?x ?xs _ = nth ?x ?xs _ => f_equal
-    | |- _ => idtac
-  end; ssromega).
+Ltac congruence' := try (move: addSn addnS; congruence).
 
 Lemma shiftzero n t : shift 0 n t = t.
-Proof.
-  elim: t n => /=; try congruence.
-  by move => m n; rewrite addn0 if_same.
-Qed.
+Proof. by elim: t n => /=; congruence' => m n; rewrite addn0 if_same. Qed.
 
 Lemma shift_add d d' c c' t :
   c <= c' <= c + d -> shift d' c' (shift d c t) = shift (d' + d) c t.
 Proof.
-  case/andP; elimleq; rewrite leq_add2l; elimleq.
-  elim: t c d => /=; try (move: addSn; congruence); move => *; elimif_omega.
+  case/andP; do 2 elimleq; elim: t c d => /=; congruence' => *; elimif_omega.
 Qed.
 
 Lemma shift_shift_distr d c d' c' t :
   c' <= c -> shift d' c' (shift d c t) = shift d (d' + c) (shift d' c' t).
-Proof.
-  elimleq; elim: t c' c => /=; try (move: addSn addnS; congruence);
-    move => *; elimif_omega.
-Qed.
+Proof. elimleq; elim: t c' c => /=; congruence' => *; elimif_omega. Qed.
 
 Lemma shift_subst_distr n d c ts t :
   c <= n -> shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
 Proof.
-  elimleq; elim: t c n => /=; try (move: addSn addnS; congruence);
-    move => v c n; elimif_omega.
-  by rewrite /substitutev shift_add ?add0n ?leq_addr // !subnDA addnK addnA.
+  elimleq; elim: t c n => /=; congruence' => v c n;
+    elimif_omega; rewrite shift_add; elimif_omega.
 Qed.
 
 Lemma subst_shift_distr n d c ts t :
@@ -149,20 +89,18 @@ Lemma subst_shift_distr n d c ts t :
   shift d c (substitute n ts t) =
   substitute n (map (shift d (c - n)) ts) (shift d (size ts + c) t).
 Proof.
-  elimleq; elim: t n => /=; try (move: addnS addSn; congruence).
-  move => v n; elimif_omega; rewrite /substitutev.
-  - rewrite !nth_default ?size_map /= 1?subnAC ?subnK; elimif_omega.
-  - rewrite -shift_shift_distr // nth_map' /=.
-    f_equal; apply nth_equal; rewrite size_map; elimif_omega.
+  elimleq; elim: t n => /=; congruence' => v n; elimif_omega.
+  - rewrite !nth_default ?size_map /=; elimif_omega.
+  - rewrite -shift_shift_distr // nth_map' /=; f_equal;
+      apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 Lemma subst_shift_cancel n d c ts t :
   c <= n -> size ts + n <= d + c ->
   substitute n ts (shift d c t) = shift (d - size ts) c t.
 Proof.
-  elimleq; rewrite addnAC leq_add2r; elimleq; elim: t c d => /=;
-    try (move: addSn addnS; congruence); move => v c d; elimif_omega.
-  rewrite /substitutev nth_default /=; elimif_omega.
+  do 2 elimleq; elim: t c d => /=; congruence' => v c d;
+    elimif_omega; rewrite nth_default /=; elimif_omega.
 Qed.
 
 Lemma subst_subst_distr n m xs ys t :
@@ -170,11 +108,9 @@ Lemma subst_subst_distr n m xs ys t :
   substitute n xs (substitute m ys t) =
   substitute m (map (substitute (n - m) xs) ys) (substitute (size ys + n) xs t).
 Proof.
-  elimleq; elim: t m => /=; try (move: addnS addSn; congruence);
-    move => v m; elimif_omega; rewrite /substitutev.
+  elimleq; elim: t m => /=; congruence' => v m; elimif_omega.
   - rewrite (@subst_shift_cancel m) // ?size_map; try ssromega.
-    rewrite nth_default /= /substitutev; elimif_omega.
-    by rewrite !subnDA addnK -addnA addKn (subnAC v).
+    rewrite nth_default /=; elimif_omega.
   - rewrite size_map -shift_subst_distr // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
@@ -182,16 +118,13 @@ Qed.
 Lemma subst_app n xs ys t :
   substitute n xs (substitute (size xs + n) ys t) = substitute n (xs ++ ys) t.
 Proof.
-  elim: t n => /=; try (move: addnS; congruence);
-    move => v n; rewrite /substitutev nth_cat size_cat; elimif_omega.
-  - by rewrite subst_shift_cancel ?addn0 // addKn addnC !subnDA.
-  - rewrite /substitutev; f_equal; apply nth_equal; ssromega.
+  elim: t n => /=; congruence' => v n; rewrite nth_cat size_cat;
+    elimif_omega; rewrite subst_shift_cancel; elimif_omega.
 Qed.
 
 Lemma subst_nil n t : substitute n [::] t = t.
 Proof.
-  elim: t n => /=; try congruence; move => m n;
-    rewrite /substitutev nth_nil /=; elimif_omega.
+  elim: t n => /=; congruence' => m n; rewrite nth_nil /=; elimif_omega.
 Qed.
 
 Lemma subst_betared1 n ts t t' :
@@ -227,9 +160,7 @@ Function reduce_all_redex t : term :=
   end.
 
 Lemma parred_refl t : parred t t.
-Proof.
-  elim: t; auto.
-Qed.
+Proof. elim: t; auto. Qed.
 
 Lemma betaredappl t1 t1' t2 : t1 ->b t1' -> app t1 t2 ->b app t1' t2.
 Proof.
@@ -252,9 +183,7 @@ Qed.
 Hint Resolve parred_refl betaredappl betaredappr betaredabs.
 
 Lemma betared1_in_parred : inclusion betared1 parred.
-Proof.
-  apply betared1_ind; auto.
-Qed.
+Proof. apply betared1_ind; auto. Qed.
 
 Lemma parred_in_betared : inclusion parred betared.
 Proof.
@@ -281,7 +210,7 @@ Lemma subst_parred n ps t t' :
 Proof.
   move => H H0; move: t t' H0 n.
   refine (parred_ind _ _ _ _) => /=; auto.
-  - move => v n; elimif; rewrite /substitutev !size_map; apply shift_parred.
+  - move => v n; elimif; rewrite !size_map; apply shift_parred.
     elim: {v n H0} ps (v - n) H => //= [[t t']] ps IH [| v] [] //= H H0.
     by rewrite subSS; apply IH.
   - move => t1 t1' t2 t2' H0 H1 H2 H3 n.
@@ -307,56 +236,7 @@ Qed.
 
 Theorem betared_confluent : confluent betared.
 Proof.
-  apply (rtc_confluent'
-    betared1_in_parred parred_in_betared parred_confluent).
+  apply (rtc_confluent' betared1_in_parred parred_in_betared parred_confluent).
 Qed.
 
 End confluence_proof.
-
-Module evaluation_strategies.
-
-Definition cbn_lr t : {t' | t ->b1 t'} + ({t' | t ->b1 t'} -> False).
-Proof.
-  elim: t.
-  - right; case => t H; inversion H.
-  - case.
-    + move => n _ t [].
-      * case => t' IH; left; exists (app n t'); auto.
-      * move => IH; right; case => t' H; inversion H; first inversion H3; subst.
-        by apply IH; exists t2'.
-    + move => tll tlr [[tl' IHtl] | IHtl] tr.
-      * move => IHtr; left; exists (app tl' tr); auto.
-      * move => [[tr' IHtr] | IHtr].
-        - left; exists (app (app tll tlr) tr'); auto.
-        - right; case => t' H; inversion H; subst.
-          + by apply IHtl; exists t1'.
-          + by apply IHtr; exists t2'.
-    + by move => tl IHtl tr IHtr; left; exists (substitute 0 [:: tr] tl).
-  - move => t [[t' IH] | IH].
-    + left; exists (abs t'); auto.
-    + right; case => t' H; inversion H; subst; apply IH; exists t'0; auto.
-Defined.
-
-Definition cbn_rl t : {t' | t ->b1 t'} + ({t' | t ->b1 t'} -> False).
-Proof.
-  elim: t.
-  - right; case => t H; inversion H.
-  - case.
-    + move => n _ t [].
-      * case => t' IH; left; exists (app n t'); auto.
-      * move => IH; right; case => t' H; inversion H; first inversion H3; subst.
-        by apply IH; exists t2'.
-    + move => tll tlr IHtl tr [[tr' IHtr] | IHtr].
-      * left; exists (app (app tll tlr) tr'); auto.
-      * case: IHtl => [[tl' IHtl] | IHtl].
-        - left; exists (app tl' tr); auto.
-        - right; case => t' H; inversion H; subst.
-          + by apply IHtl; exists t1'.
-          + by apply IHtr; exists t2'.
-    + by move => tl IHtl tr IHtr; left; exists (substitute 0 [:: tr] tl).
-  - move => t [[t' IH] | IH].
-    + left; exists (abs t'); auto.
-    + right; case => t' H; inversion H; subst; apply IH; exists t'0; auto.
-Defined.
-
-End evaluation_strategies.

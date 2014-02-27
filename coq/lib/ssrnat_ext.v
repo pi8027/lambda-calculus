@@ -1,9 +1,12 @@
 Require Import
-  Omega Ssreflect.ssreflect Ssreflect.ssrbool Ssreflect.eqtype Ssreflect.ssrnat.
+  Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
+  Ssreflect.ssrnat Omega.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Import Prenex Implicits.
+
+(* ssromega *)
 
 Tactic Notation "find_minneq_hyp" constr(n) constr(m) :=
   match goal with
@@ -38,6 +41,7 @@ Ltac replace_minn_maxn :=
 
 Ltac arith_hypo_ssrnat2coqnat :=
   match goal with
+    | H : is_true false |- _ => by move: H
     | H : context [andb _ _] |- _ => let H0 := fresh "H" in case/andP: H => H H0
     | H : context [orb _ _] |- _ => case/orP in H
     | H : context [?L <= ?R] |- _ => move/leP in H
@@ -59,14 +63,6 @@ Ltac ssromega :=
   do ?arith_hypo_ssrnat2coqnat;
   do ?arith_goal_ssrnat2coqnat;
   omega.
-
-Ltac elimleq :=
-  let H := fresh "H" in
-  match goal with
-    | [ |- is_true (?m <= ?n) -> _ ] =>
-      move => H; rewrite -(subnKC H) ?(addnK, addKn, addnA);
-      move: {n H} (n - m) => n
-  end.
 
 (* test codes for ssromega *)
 
@@ -130,3 +126,104 @@ Proof.
   - rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
     by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
+
+(* Other automation tactics. *)
+
+Ltac simpl_natarith1 m n :=
+  match m with
+    | n => constr: 0
+    | ?ml + ?mr => let ml' := simpl_natarith1 ml n in constr: (ml' + mr)
+    | ?ml + ?mr => let mr' := simpl_natarith1 mr n in constr: (ml + mr')
+    | ?m'.+1 => let m'' := simpl_natarith1 m' n in constr: m''.+1
+    | ?m'.+1 => match n with 1 => constr: m' end
+  end.
+
+Ltac simpl_natarith2 m n :=
+  match m with
+    | ?ml - ?mr => let ml' := simpl_natarith2 ml n in constr: (ml' - mr)
+    | ?m'.-1 => let m'' := simpl_natarith1 m' n in constr: m''.-1
+    | _ => simpl_natarith1 m n
+  end.
+
+Ltac simpl_natarith3 m n :=
+  lazymatch n with
+    | ?nl + ?nr =>
+      match simpl_natarith3 m nl with (?m1, ?nl') =>
+        match simpl_natarith3 m1 nr with (?m2, ?nr') =>
+          constr: (m2, nl' + nr')
+        end
+      end
+    | _ =>
+      match n with
+        | ?n'.+1 =>
+          lazymatch n' with
+            | 0 => fail
+            | _ => simpl_natarith3 m (n' + 1)
+          end
+        | _ => let m' := simpl_natarith2 m n in constr: (m', 0)
+        | _ => constr: (m, n)
+      end
+  end.
+
+Ltac simpl_natarith :=
+  let H' := fresh "H" in
+  repeat match goal with
+    | H : context [?m - ?n] |- _ =>
+      match simpl_natarith3 m n with (?m', ?n') =>
+        (have H': m - n = m' - n' by clear; ssromega);
+        rewrite {}H' ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS) in H
+      end
+    | |- context [?m - ?n] =>
+      match simpl_natarith3 m n with (?m', ?n') =>
+        (have H': m - n = m' - n' by clear; ssromega);
+        rewrite {}H' ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS)
+      end
+    | H : context [?m <= ?n] |- _ =>
+      match simpl_natarith3 m n with (?m', ?n') =>
+        (have H': (m <= n) = (m' <= n') by
+           clear; rewrite -!subn_eq0; f_equal; ssromega);
+        rewrite {}H' ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS) in H
+      end
+    | |- context [?m <= ?n] =>
+      match simpl_natarith3 m n with (?m', ?n') =>
+        (have H': (m <= n) = (m' <= n') by
+           clear; rewrite -!subn_eq0; f_equal; ssromega);
+        rewrite {}H' ?(addSn, addnS, add0n, addn0, sub0n, subn0, subSS)
+      end
+  end;
+  repeat match goal with
+    | H : is_true (0 <= _) |- _ => clear H
+  end.
+
+Tactic Notation "elimleq" :=
+  match goal with
+    | |- is_true (_ <= _ _) -> _ => fail
+    | |- is_true (?m <= ?n) -> _ =>
+      (let H := fresh "H" in move/subnKC => H; rewrite <- H in *; clear H);
+      (let rec tac :=
+        lazymatch reverse goal with
+          | H : context [n] |- _ => move: H; tac => H
+          | _ => move: {n} (n - m) => n
+        end in tac);
+      simpl_natarith
+  end.
+
+Tactic Notation "elimleq" constr(H) := move: H; elimleq.
+
+Ltac elimif :=
+  (match goal with
+     | |- context [if ?m < ?n then _ else _] => case (leqP' n m)
+     | |- context [if ?m <= ?n then _ else _] => case (leqP' m n)
+     | |- context [if ?b then _ else _] => case (ifP b)
+   end;
+   move => //=; elimif; let hyp := fresh "H" in move => hyp) ||
+  idtac.
+
+Ltac elimif_omega :=
+  elimif;
+  try (repeat match goal with
+    | |- _ + _ = _ => idtac
+    | |- _ - _ = _ => idtac
+    | |- _ => f_equal
+  end; ssromega);
+  repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end.
