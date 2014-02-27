@@ -246,16 +246,13 @@ Proof.
     f_equal; ssromega.
 Qed.
 
-(*
 Lemma subst_app_ty n xs ys t :
   subst_typ n xs (subst_typ (size xs + n) ys t) = subst_typ n (xs ++ ys) t.
 Proof.
-  elim: t n => /=; try (move: addnS; congruence);
-    move => v n; elimif_omega; rewrite /subst_typv.
-  - move: H0 {H}; elimleq; rewrite subst_shift_cancel_ty3 //=; last ssromega.
-    by rewrite addKn addnAC addnK size_cat subnDA addKn
-               nth_cat ltnNge leq_addr /= addKn.
-  - rewrite nth_cat; f_equal; elimif_omega; apply nth_equal; ssromega.
+  elim: t n => /=; congruence' => v n;
+    rewrite /subst_typv size_cat nth_cat; elimif_omega; rewrite /subst_typv.
+  - by rewrite subst_shift_cancel_ty3 ?addn0 //; simpl_natarith.
+  - f_equal; simpl_natarith; apply nth_equal; ssromega.
 Qed.
 
 Lemma subst_subst_distr_ty n m xs ys t :
@@ -263,14 +260,11 @@ Lemma subst_subst_distr_ty n m xs ys t :
   subst_typ n xs (subst_typ m ys t) =
   subst_typ m (map (subst_typ (n - m) xs) ys) (subst_typ (size ys + n) xs t).
 Proof.
-  elimleq; elim: t m => /=; try (move: addnS addSn; congruence);
-    move => v m; elimif_omega; rewrite /subst_typv.
-  - move: H {H0}; elimleq.
-    rewrite (@subst_shift_cancel_ty3 m) ?size_map ?addn0 ?leq_addr //=.
-    by rewrite
-      !(addnAC _ m) addnK -addnA addKn -addnA addKn nth_default ?leq_addr //=
-      addnC leq_add2r leq_addr /subst_typv subnDA -addnA addKn addnK.
-  - rewrite size_map -shift_subst_distr_ty // nth_map' /=.
+  elimleq; elim: t m => /=; congruence' => v m;
+    rewrite /subst_typv; elimif_omega; rewrite /subst_typv.
+  - rewrite (@subst_shift_cancel_ty3 m) ?size_map; try ssromega.
+    rewrite nth_default /= /subst_typv; elimif_omega.
+  - rewrite size_map -shift_subst_distr_ty //= addKn nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
@@ -279,19 +273,14 @@ Lemma subst_subst_compose_ty n m xs ys t :
   subst_typ n xs (subst_typ (n + m) ys t) =
   subst_typ n (insert (map (subst_typ 0 (drop m xs)) ys) xs 0 m) t.
 Proof.
-  move => H; elim: t n => /=; try (move: addSn; congruence); move => v n;
-    rewrite /subst_typv size_insert size_map nth_insert size_map; elimif_omega.
-  - move: H3 H H0 {H1 H2}; elimleq.
-    by rewrite -addnA !addKn ltn_add2l => H H0; rewrite
-      (nth_map (tyvar (v - size ys))) // shift_subst_distr_ty // addn0
-      subst_shift_cancel_ty1 // add0n addKn (minn_idPl H) addnK.
-  - move: H3 H0 H {H1 H2}; elimleq; rewrite -addnA !addKn ltn_add2l;
-      move/negbT; rewrite -leqNgt; elimleq => H.
-    rewrite maxnC; move/maxn_idPl: (H) => ->.
-    by rewrite subnDA addnAC addnK nth_default /=
-               1?addnCA ?leq_addr // /subst_typv addKn addnC.
-  - rewrite /subst_typv; f_equal; apply nth_equal.
-    by rewrite leqNgt (leq_trans H0 H).
+  move => H; elim: t n => /=; congruence' => v n.
+  rewrite /subst_typv size_insert nth_insert size_map; elimif_omega.
+  - rewrite (maxn_idPr H) nth_default /= /subst_typv 1?addnCA ?leq_addr //=.
+    elimif_omega.
+  - rewrite (nth_map (tyvar (v - size ys))) // shift_subst_distr_ty //
+            addn0 subst_shift_cancel_ty1 //=; simpl_natarith.
+    by rewrite (minn_idPl H); simpl_natarith.
+  - rewrite /subst_typv addKn; f_equal; apply nth_equal; ssromega.
 Qed.
 
 Lemma typemap_compose f g n m t :
@@ -380,6 +369,7 @@ Proof.
   elim: t d c n => /=; congruence.
 Qed.
 
+(*
 Lemma subst_shifttyp_distr n m d c ts t :
   c + d <= m ->
   subst_term n m ts (typemap (shift_typ d) c t) =
