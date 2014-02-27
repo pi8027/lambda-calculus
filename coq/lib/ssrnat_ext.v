@@ -235,9 +235,9 @@ Ltac elimif :=
 
 Ltac elimif_omega :=
   elimif;
+  repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end;
   try (repeat match goal with
     | |- _ + _ = _ => idtac
     | |- _ - _ = _ => idtac
     | |- _ => f_equal
-  end; ssromega);
-  repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end.
+  end; ssromega).

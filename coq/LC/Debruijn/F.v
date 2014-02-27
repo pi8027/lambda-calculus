@@ -223,23 +223,19 @@ Proof.
     + rewrite ltnS; elimleq; rewrite !nth_default //; ssromega.
 Qed.
 
-(*
 Lemma subst_shift_cancel_ty2 n d c ts t :
   n <= c <= n + size ts ->
   subst_typ n ts (shift_typ d c t) =
   subst_typ n (take (c - n) ts ++ drop (c + d - n) ts)
     (shift_typ (c + d - (n + size ts)) c t).
 Proof.
-  case/andP; elimleq; rewrite subnDA -addnA addKn leq_add2l => H;
-    elim: t n => /=; try (move: addSn; congruence); move => v n.
-  rewrite /subst_typv size_cat size_take size_drop
-          nth_cat nth_drop size_take (minn_idPl H); elimif_omega; f_equal.
-  - move: H2 {H0 H1 H3}; elimleq; rewrite -!addnA !addKn subnDA addKn.
-    case: (leqP' (c + d) (size ts)) => H0.
-    + rewrite addn0; do 2 f_equal; ssromega.
-    + rewrite !nth_default; f_equal; ssromega.
-  - move: H1 H0 H {H2}; elimleq; elimleq; rewrite addSn => H.
-    rewrite nth_take ?leq_addr //; apply nth_equal; ssromega.
+  case/andP; elimleq => H; elim: t n => /=; congruence' => v n.
+  rewrite /subst_typv size_cat size_take size_drop nth_cat nth_drop
+           size_take (minn_idPl H); elimif_omega; f_equal.
+  - case (leqP' (c + d) (size ts)) => H0.
+    + rewrite addn0; f_equal; first f_equal; ssromega.
+    + rewrite subn0 !nth_default; first f_equal; ssromega.
+  - rewrite nth_take; first apply nth_equal; elimif_omega.
 Qed.
 
 Lemma subst_shift_cancel_ty3 n d c ts t :
@@ -250,6 +246,7 @@ Proof.
     f_equal; ssromega.
 Qed.
 
+(*
 Lemma subst_app_ty n xs ys t :
   subst_typ n xs (subst_typ (size xs + n) ys t) = subst_typ n (xs ++ ys) t.
 Proof.
