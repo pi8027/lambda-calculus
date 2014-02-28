@@ -97,25 +97,23 @@ Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
     | _, _ => false
   end.
 
-Ltac congruence' := try (move: addSn addnS; congruence).
+Ltac congruence' := move => /=; try (move: addSn addnS; congruence).
 
 Lemma shiftzero n t : shift 0 n t = t.
-Proof. by elim: t n => /=; congruence' => m n; rewrite addn0 if_same. Qed.
+Proof. by elim: t n; congruence' => m n; rewrite addn0 if_same. Qed.
 
 Lemma shift_add d d' c c' t :
   c <= c' <= c + d -> shift d' c' (shift d c t) = shift (d' + d) c t.
-Proof.
-  case/andP; do 2 elimleq; elim: t c d => /=; congruence' => *; elimif_omega.
-Qed.
+Proof. case/andP; do 2 elimleq; elim: t c; congruence' => *; elimif_omega. Qed.
 
 Lemma shift_shift_distr d c d' c' t :
   c' <= c -> shift d' c' (shift d c t) = shift d (d' + c) (shift d' c' t).
-Proof. elimleq; elim: t c' c => /=; congruence' => n c c'; elimif_omega. Qed.
+Proof. elimleq; elim: t c'; congruence' => *; elimif_omega. Qed.
 
 Lemma shift_subst_distr n d c ts t :
   c <= n -> shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
 Proof.
-  elimleq; elim: t c n => /=; congruence' => v c n;
+  elimleq; elim: t c => /=; congruence' => v c;
     elimif_omega; rewrite shift_add; elimif_omega.
 Qed.
 
@@ -124,7 +122,7 @@ Lemma subst_shift_distr n d c ts t :
   shift d c (substitute n ts t) =
   substitute n (map (shift d (c - n)) ts) (shift d (size ts + c) t).
 Proof.
-  elimleq; elim: t n => /=; congruence' => v n; elimif_omega.
+  elimleq; elim: t n; congruence' => v n; elimif_omega.
   - rewrite !nth_default ?size_map /=; elimif_omega.
   - rewrite -shift_shift_distr // nth_map' /=;
       f_equal; apply nth_equal; rewrite size_map; elimif_omega.
@@ -134,7 +132,7 @@ Lemma subst_shift_cancel n d c ts t :
   c <= n -> size ts + n <= d + c ->
   substitute n ts (shift d c t) = shift (d - size ts) c t.
 Proof.
-  do 2 elimleq; elim: t c d => /=; congruence' => v c d;
+  do 2 elimleq; elim: t c; congruence' => v c;
     elimif_omega; rewrite nth_default /=; elimif_omega.
 Qed.
 
@@ -143,7 +141,7 @@ Lemma subst_subst_distr n m xs ys t :
   substitute n xs (substitute m ys t) =
   substitute m (map (substitute (n - m) xs) ys) (substitute (size ys + n) xs t).
 Proof.
-  elimleq; elim: t m => /=; congruence' => v m; elimif_omega.
+  elimleq; elim: t m; congruence' => v m; elimif_omega.
   - rewrite (@subst_shift_cancel m) // ?size_map; last ssromega.
     rewrite nth_default /=; elimif_omega.
   - rewrite size_map -shift_subst_distr // nth_map' /=.
@@ -153,14 +151,12 @@ Qed.
 Lemma subst_app n xs ys t :
   substitute n xs (substitute (size xs + n) ys t) = substitute n (xs ++ ys) t.
 Proof.
-  elim: t n => /=; congruence' => v n; rewrite nth_cat size_cat;
+  elim: t n; congruence' => v n; rewrite nth_cat size_cat;
     elimif_omega; rewrite subst_shift_cancel; elimif_omega.
 Qed.
 
 Lemma subst_nil n t : substitute n [::] t = t.
-Proof.
-  elim: t n => /=; congruence' => m n; rewrite nth_nil /=; elimif_omega.
-Qed.
+Proof. elim: t n; congruence' => v n; rewrite nth_nil /=; elimif_omega. Qed.
 
 Lemma subst_betared1 n ts t t' :
   t ->b1 t' -> substitute n ts t ->b1 substitute n ts t'.
@@ -368,7 +364,7 @@ Proof.
       apply (IHt tyr ctx2 ((t2, tyl) :: ctx')) => /=.
       * move: H; apply ctxleq_preserves_typing.
         by rewrite ctxleqss eqxx ctxleq_appl /=.
-      * apply/andP; split => //; move: H0; apply sub_all => p; eauto.
+      * rewrite H3 /=; move: H0; apply sub_all => p; eauto.
       * split => //; move: H1; apply Forall_impl; eauto.
 Qed.
 
