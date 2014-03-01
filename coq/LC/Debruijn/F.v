@@ -195,11 +195,10 @@ Lemma subst_shift_cancel_ty1 n d c ts t :
     (shift_typ (d - minn (c + d - n) (size ts)) c t).
 Proof.
   elimleq; elim: t c; congruence' => v c; elimif_omega;
-    rewrite /subst_typv size_drop nth_drop; case (leqP' d n); elimleq.
-  - by rewrite min0n !subn0; elimleq H1.
-  - case: (leqP' d.+1 (size ts)).
-    + move => H0; simpl_natarith; elimif_omega.
-    + rewrite ltnS; elimleq; rewrite !nth_default //; ssromega.
+    rewrite /subst_typv size_drop nth_drop;
+    case (leqP' d n); elimleq => //; case: (leqP' d.+1 (size ts)).
+  - move => H0; simpl_natarith; elimif_omega.
+  - rewrite ltnS; elimleq; rewrite !nth_default //; ssromega.
 Qed.
 
 Lemma subst_shift_cancel_ty2 n d c ts t :
