@@ -816,8 +816,8 @@ Lemma rcfun_isrc (tyl tyr : typ) P Q :
   RC P -> RC Q -> RC (fun u => forall v, P v -> Q (u @{v \: tyl})).
 Proof.
   move => H H0; constructor; move => /=.
-  - by move => t; move/(_ 0 (CR4' _ H))/(rc_cr1 H0)/snorm_appl.
-  - by move => t t' H1 H2 v; move/H2; apply (rc_cr2 H0); constructor.
+  - by move => t /(_ 0 (CR4' _ H)) /(rc_cr1 H0) /snorm_appl.
+  - by move => t t' H1 H2 v /H2; apply (rc_cr2 H0); constructor.
   - move => t1 H1 H2 t2 H3; move: t2 {H3} (rc_cr1 H H3) (H3).
     refine (Acc_rect _ _) => t2 _ H3 H4.
     apply (rc_cr3 H0) => //= t3 H5; move: H1; inversion H5;
@@ -829,7 +829,7 @@ Lemma rcall_isrc (PF : (term -> Prop) -> (term -> Prop)) :
   RC (fun t => forall P, RC P -> PF P t).
 Proof.
   move => H; constructor; move => /=.
-  - by move => t; move/(_ SNorm snorm_isrc)/(rc_cr1 (H _ snorm_isrc)).
+  - by move => t /(_ SNorm snorm_isrc) /(rc_cr1 (H _ snorm_isrc)).
   - by move => t t' H0 H1 P H2; apply (rc_cr2 (H _ H2) H0), H1.
   - by move => t H0 H1 P H2; apply (rc_cr3 (H _ H2)) => // t' H3; apply H1.
 Qed.
@@ -890,7 +890,7 @@ Lemma shift_reducibility c ty preds preds' t :
 Proof.
   elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
   - rewrite /= map_insert nth_insert size_map; elimif_omega.
-  - by split => /= H0 t'; move/(IHtyl c _ _ H)/H0/(IHtyr c _ _ H); rewrite
+  - by split => /= H0 t' /(IHtyl c _ _ H) /H0 /(IHtyr c _ _ H); rewrite
       map_insert subst_shift_cancel_ty2 /= ?subn0 ?add0n ?size_insert ?size_map
       ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // take_insert size_map
       -[X in drop (c + X)](size_map (@fst _ _) preds') drop_insert subnDA addnK;
@@ -927,13 +927,12 @@ Proof.
       rewrite /insert take0 drop0 sub0n /= cat_take_drop size_take.
       by move/minn_idPl: H0 => ->.
     + by rewrite nth_map' /=.
-  - by move => H /=; split => H1 t';
-      move/IHtyl; move/(_ H)/H1/IHtyr; move/(_ H);
+  - by move => H /=; split => H1 t' /IHtyl => /(_ H) /H1 /IHtyr => /(_ H);
       rewrite map_insert -map_comp /funcomp /=
               subst_subst_compose_ty ?map_drop // size_map.
-  - move => /= H; split => H0 ty' P H1; move: (H0 ty' P H1) => {H0} H0.
+  - move => /= H; split => H0 ty' P /(H0 ty' P) => {H0} H0.
     + rewrite map_insert -map_comp /funcomp /=.
-      move: H0; move/IHty => /= /(_ H).
+      move/IHty: H0 => /= /(_ H).
       by rewrite subst_subst_compose_ty /insert /= ?subSS size_map ?map_drop.
     + apply IHty => //; move: H0.
       by rewrite map_insert -map_comp /funcomp /= subst_subst_compose_ty

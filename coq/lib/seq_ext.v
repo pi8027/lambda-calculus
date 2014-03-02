@@ -167,14 +167,13 @@ Lemma ctxleqP (xs ys : context A) :
 Proof.
   apply: (iffP idP); elim: xs ys => [| x xs IH].
   - by move => ys _ n a; rewrite nth_nil.
-  - by case => [| y ys]; rewrite ctxleqcl /=; case/andP; case/orP;
-      move/eqP => ?; subst => H [] //= n a; move/(IH _ H) => //;
-      rewrite nth_nil.
+  - by case => [| y ys]; rewrite ctxleqcl /= =>
+      /andP [] /orP [] /eqP -> H [] //= n a /(IH _ H) //; rewrite nth_nil.
   - by move => ys; rewrite ctxleq0l.
   - by case => [| y ys]; rewrite ctxleqcl /= => H; apply/andP;
       (apply conj;
        [ case: x H; rewrite ?eqxx ?orbT // => x H; rewrite (H 0 x) |
-         apply IH => n a; move/(H n.+1 a) ]).
+         apply IH => n a /(H n.+1 a) ]).
 Qed.
 
 Lemma ctxleqxx (xs : context A) : xs <=c xs.
