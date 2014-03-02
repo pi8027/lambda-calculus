@@ -756,7 +756,6 @@ Qed.
 
 End subject_reduction_proof.
 
-(*
 Module strong_normalization_proof.
 
 Import subject_reduction_proof.
@@ -783,69 +782,6 @@ Definition neutral (t : term) : bool :=
     | uabs _ => false
     | _ => true
   end.
-
-(*
-Definition typing' (t : term) (ty : typ) : Prop :=
-  exists (ctx : context typ), typing ctx t ty.
-
-Section CRs.
-Variable (ty : typ) (P : term -> Prop).
-Definition CR0 := forall t, P t -> typing' t ty.
-Definition CR1 := forall t, P t -> SNorm t.
-Definition CR2 := forall t t', t ->r1 t' -> P t -> P t'.
-Definition CR3 := forall t,
-  typing' t ty -> neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
-End CRs.
-
-Record RC ty (P : term -> Prop) : Prop :=
-  reducibility_candidate {
-    rc_cr0 : CR0 ty P ;
-    rc_cr1 : CR1 P ;
-    rc_cr2 : CR2 P ;
-    rc_cr3 : CR3 ty P
-  }.
-
-Lemma CR4 ty P t : RC ty P ->
-  typing' t ty -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
-Proof. by case => _ _ _ H H0 H1 H2; apply H => // t'; move/H2. Qed.
-
-Lemma CR4' ty P (v : nat) : RC ty P -> typing' v ty -> P v.
-Proof. move => H; move/(CR4 H); apply => // t' H1; inversion H1. Qed.
-
-Lemma snorm_isrc ty : RC ty (fun t => typing' t ty /\ SNorm t).
-Proof.
-  constructor; move => /=; try tauto.
-  - move => t t' H [[ctx H0] H1]; split; last by apply H1.
-    by exists ctx; apply (subject_reduction H).
-  - move => t H H0 H1; split; first done.
-    constructor => t' H2; apply (H1 _ H2).
-Qed.
-
-Definition rcarrow (tyl tyr : typ) (P Q : term -> Prop) t :=
-  typing' t (tyl :->: tyr) /\
-  forall u, P u -> typing' (t @{u \: tyl}) tyr -> Q (t @{ u \: tyl}).
-
-Lemma rcarrow_isrc (tyl tyr : typ) P Q :
-  RC tyl P -> RC tyr Q ->
-  RC (tyl :->: tyr) (rcarrow tyl tyr P Q).
-Proof.
-  rewrite /rcarrow => H H0.
-  constructor.
-  - by move => /= t [H1 _].
-  - move => /= t [[ctx H1] H2];
-      apply (@snorm_appl _ (size ctx) tyl), (rc_cr1 H0), H2.
-    + by apply (CR4' H); exists (ctx ++ [:: Some tyl]) => /=;
-        rewrite nth_cat ltnn subnn.
-    + exists (ctx ++ [:: Some tyl]) => /=.
-      rewrite nth_cat ltnn subnn eqxx andbT.
-      by apply (@ctxleq_preserves_typing ctx (ctx ++ [:: Some tyl])).
-  - move => /=.
-    move => /= tl tr H1 [[ctx H2] H3]; split.
-    + by exists ctx; apply (subject_reduction H1).
-    + move => u H4 H5.
-      move: (H3 u H4).
-Qed.
-*)
 
 Section CRs.
 Variable (P : term -> Prop).
@@ -942,8 +878,8 @@ Qed.
 Lemma drop_insert (A : Type) n (xs ys : seq A) d :
   drop (n + size xs) (insert xs ys d n) = drop n ys.
 Proof.
-  rewrite /insert !catA drop_cat !size_cat size_take size_nseq; elimif_omega.
-  rewrite drop_addn; f_equal; ssromega.
+  rewrite /insert !catA drop_cat !size_cat size_take size_nseq drop_addn.
+  elimif_omega.
 Qed.
 
 Lemma shift_reducibility c ty preds preds' t :
@@ -954,7 +890,6 @@ Lemma shift_reducibility c ty preds preds' t :
 Proof.
   elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
   - rewrite /= map_insert nth_insert size_map; elimif_omega.
-    by rewrite addnK.
   - by split => /= H0 t'; move/(IHtyl c _ _ H)/H0/(IHtyr c _ _ H); rewrite
       map_insert subst_shift_cancel_ty2 /= ?subn0 ?add0n ?size_insert ?size_map
       ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // take_insert size_map
@@ -982,17 +917,15 @@ Lemma subst_reducibility ty preds n tys t :
 Proof.
   elim: ty preds n tys t =>
     [v | tyl IHtyl tyr IHtyr | ty IHty] preds n tys t.
-  - rewrite /= -(nth_map' (@snd _ _) (tyvar 0, SNorm)) /=
-            nth_insert /subst_typv; elimif_omega.
-    + move: H1 H {H0}; elimleq; rewrite size_map ltn_add2l => H H0.
+  - rewrite /= -(nth_map' (@snd _ _) (tyvar 0, SNorm)) /= nth_insert size_map.
+    elimif_omega.
+    + by rewrite nth_default ?leq_addr //= nth_map' addnC.
+    + move => H0.
       rewrite (nth_map (tyvar (v - size tys))) //=.
       move: (shift_reducibility (nth (tyvar (v - size tys)) tys v)
         (take n preds) t (leq0n (size (drop n preds)))).
       rewrite /insert take0 drop0 sub0n /= cat_take_drop size_take.
       by move/minn_idPl: H0 => ->.
-    + move: H1 H {H0}; elimleq; rewrite size_map ltn_add2l.
-      move/negbT; rewrite -leqNgt; elimleq.
-      by rewrite addnAC addnK nth_default ?leq_addr //= nth_map' /= addnC.
     + by rewrite nth_map' /=.
   - by move => H /=; split => H1 t';
       move/IHtyl; move/(_ H)/H1/IHtyr; move/(_ H);
@@ -1032,4 +965,3 @@ Proof.
 Qed.
 
 End strong_normalization_proof.
-*)
