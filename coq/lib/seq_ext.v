@@ -20,9 +20,7 @@ Proof.
 Qed.
 
 Lemma take_minn n m (xs : seq A) : take n (take m xs) = take (minn n m) xs.
-Proof.
-  by elim: n m xs => [| n IH] [| m] [] // x xs; rewrite minnSS /= IH.
-Qed.
+Proof. by elim: n m xs => [| n IH] [| m] [] // x xs; rewrite minnSS /= IH. Qed.
 
 Lemma drop_take_distr n m (xs : seq A) :
   drop n (take m xs) = take (m - n) (drop n xs).
@@ -35,14 +33,10 @@ Qed.
 
 Lemma take_drop_distr n m (xs : seq A) :
   take n (drop m xs) = drop m (take (n + m) xs).
-Proof.
-  by rewrite drop_take_distr addnK.
-Qed.
+Proof. by rewrite drop_take_distr addnK. Qed.
 
 Lemma drop_take_nil n (xs : seq A) : drop n (take n xs) = [::].
-Proof.
-  by rewrite drop_take_distr subnn take0.
-Qed.
+Proof. by rewrite drop_take_distr subnn take0. Qed.
 
 Lemma size_take n (xs : seq A) : size (take n xs) = minn n (size xs).
 Proof.
@@ -54,15 +48,11 @@ Qed.
 (* nth *)
 
 Lemma nth_map' (f : A -> B) x xs n : f (nth x xs n) = nth (f x) (map f xs) n.
-Proof.
-  by elim: xs n => [n | x' xs IH []] //=; rewrite !nth_nil.
-Qed.
+Proof. by elim: xs n => [n | x' xs IH []] //=; rewrite !nth_nil. Qed.
 
 Lemma nth_equal (a b : A) xs n :
   (size xs <= n -> a = b) -> nth a xs n = nth b xs n.
-Proof.
-  by elim: xs n => [n /= -> | x xs IH []].
-Qed.
+Proof. by elim: xs n => [n /= -> | x xs IH []]. Qed.
 
 End Seq.
 
@@ -77,29 +67,23 @@ Variable (A B : Type).
 
 Lemma size_insert (xs ys : seq A) d n :
   size (insert xs ys d n) = size xs + maxn n (size ys).
-Proof.
-  rewrite /insert !size_cat size_nseq size_take size_drop; ssromega.
-Qed.
+Proof. rewrite /insert !size_cat size_nseq size_take size_drop; ssromega. Qed.
 
 Lemma map_insert (f : A -> B) xs ys d n :
   map f (insert xs ys d n) = insert (map f xs) (map f ys) (f d) n.
-Proof.
-  by rewrite /insert !map_cat map_take map_nseq size_map map_drop.
-Qed.
+Proof. by rewrite /insert !map_cat map_take map_nseq size_map map_drop. Qed.
 
 Lemma nth_insert (xs ys : seq A) d d' n m :
   nth d (insert xs ys d' n) m =
   if m < n then nth d' ys m else
   if m < n + size xs then nth d' xs (m - n) else nth d ys (m - size xs).
 Proof.
-  rewrite /insert !nth_cat size_take size_nseq -subnDA.
-  replace (minn n (size ys) + (n - size ys)) with n by ssromega.
-  do! case: ifP; try ssromega.
-  - by move => H; rewrite leq_min => /andP [] => H0 H1;
-      rewrite nth_take //; apply nth_equal; rewrite leqNgt H1.
-  - move => H H0 H1; rewrite nth_nseq H0 nth_default //; ssromega.
-  - by move => _ _ H _ _; apply nth_equal; rewrite leqNgt H.
-  - move => H _ _ _ _; rewrite nth_drop; f_equal; ssromega.
+  rewrite /insert !nth_cat size_take size_nseq -subnDA nth_drop.
+  have ->: minn n (size ys) + (n - size ys) = n by ssromega.
+  elimif; try ssromega.
+  - apply nth_equal; ssromega.
+  - rewrite nth_nseq H0 nth_default //; ssromega.
+  - rewrite nth_take //; apply nth_equal; ssromega.
 Qed.
 
 End Insert.
@@ -194,15 +178,11 @@ Proof.
 Qed.
 
 Lemma ctxleqxx (xs : context A) : xs <=c xs.
-Proof.
-  by apply/ctxleqP.
-Qed.
+Proof. by apply/ctxleqP. Qed.
 
 Lemma ctxleq_trans (xs ys zs : context A) :
   xs <=c ys -> ys <=c zs -> xs <=c zs.
-Proof.
-  do 2 move/ctxleqP => ?; apply/ctxleqP; auto.
-Qed.
+Proof. do 2 move/ctxleqP => ?; apply/ctxleqP; auto. Qed.
 
 Lemma ctxleq_app (xs xs' ys ys' : context A) :
   size xs = size xs' ->
@@ -214,14 +194,10 @@ Qed.
 
 Lemma ctxleq_appl (xs ys zs : context A) :
   (xs ++ ys <=c xs ++ zs) = (ys <=c zs).
-Proof.
-  by rewrite ctxleq_app // ctxleqxx.
-Qed.
+Proof. by rewrite ctxleq_app // ctxleqxx. Qed.
 
 Lemma ctxleq_appr (xs ys : context A) : xs <=c (xs ++ ys).
-Proof.
-  by rewrite -{1}(cats0 xs) ctxleq_appl ctxleq0l.
-Qed.
+Proof. by rewrite -{1}(cats0 xs) ctxleq_appl ctxleq0l. Qed.
 
 End Context1.
 
@@ -236,9 +212,7 @@ Variable (A B : eqType).
 
 Lemma ctxindex_map (f : A -> B) xs n x :
   ctxindex xs n x -> ctxindex (ctxmap f xs) n (f x).
-Proof.
-  by elim: xs n x => [| x xs IH] [] //= x'; move/eqP <-.
-Qed.
+Proof. by elim: xs n x => [| x xs IH] [] //= x' /eqP <-. Qed.
 
 Lemma ctxleq_map (f : A -> B) xs ys :
   xs <=c ys -> ctxmap f xs <=c ctxmap f ys.
@@ -263,15 +237,11 @@ Fixpoint Forall A (P : A -> Prop) xs :=
 Lemma Forall_impl :
   forall (A : Type) (P Q : A -> Prop) xs,
   (forall a, P a -> Q a) -> Forall P xs -> Forall Q xs.
-Proof.
-  move => A P Q xs H; elim: xs; firstorder.
-Qed.
+Proof. move => A P Q xs H; elim: xs; firstorder. Qed.
 
 Lemma Forall_map (A B : Type) (f : A -> B) P xs :
   Forall P (map f xs) <-> Forall (P \o f) xs.
-Proof.
-  by elim: xs => //= x xs ->.
-Qed.
+Proof. by elim: xs => //= x xs ->. Qed.
 
 Lemma Forall_nth (A : Type) (P : A -> Prop) xs :
   Forall P xs <-> (forall x m, m < size xs -> P (nth x xs m)).
@@ -287,6 +257,6 @@ Lemma allP' (A : eqType) (P : pred A) xs :
   reflect (Forall P xs) (all P xs).
 Proof.
   apply (iffP idP); elim: xs => //= x xs IH.
-  - by case/andP => ->; move/IH.
-  - by case => -> /=.
+  - by case/andP => -> /IH.
+  - by case => ->.
 Qed.

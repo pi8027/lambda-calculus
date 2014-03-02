@@ -118,23 +118,22 @@ Ltac simpl_natarith3 m n :=
   end.
 
 Ltac simpl_natarith :=
-  let rewriters :=
+  let rlemmas :=
     constr: (addSn, addnS, add0n, addn0, sub0n, subn0, subSS,
              min0n, minn0, max0n, maxn0, leq0n) in
-  let tac dummy := (
-    match goal with |- ?x = ?y -> _ =>
-      lazymatch x with
-        | y => move => _; rewrite !rewriters
-        | _ => move => ->; rewrite ?rewriters
-      end
-    end) in
+  let tac :=
+    lazymatch goal with
+      | |- ?x = ?x -> _ => move => _; rewrite !rlemmas
+      | _ => move => ->; rewrite ?rlemmas
+    end in
   repeat match goal with
-    | H : context [?m - ?n] |- _ => move: H; simpl_natarith3 m n; tac 0 => H
-    | |- context [?m - ?n] => simpl_natarith3 m n; tac 0
+    | H : context [?m - ?n] |- _ => move: H; simpl_natarith3 m n; tac => H
+    | |- context [?m - ?n] => simpl_natarith3 m n; tac
     | H : context [?m <= ?n] |- _ =>
-      move: H; simpl_natarith3 m n; move/lem4_1; tac 0 => H
-    | |- context [?m <= ?n] => simpl_natarith3 m n; move/lem4_1; tac 0
+      move: H; simpl_natarith3 m n; move/lem4_1; tac => H
+    | |- context [?m <= ?n] => simpl_natarith3 m n; move/lem4_1; tac
   end;
+  try done;
   repeat match goal with
     | H : is_true true |- _ => move => {H}
   end.
@@ -155,15 +154,6 @@ Tactic Notation "elimleq" :=
   end.
 
 Tactic Notation "elimleq" constr(H) := move: H; elimleq.
-
-Ltac elimif :=
-  (match goal with
-     | |- context [if ?m < ?n then _ else _] => case (leqP' n m)
-     | |- context [if ?m <= ?n then _ else _] => case (leqP' m n)
-     | |- context [if ?b then _ else _] => case (ifP b)
-   end;
-   move => //=; elimif; let hyp := fresh "H" in move => hyp) ||
-  idtac.
 
 (* ssromega *)
 
@@ -193,38 +183,49 @@ Ltac replace_minn_maxn :=
     | |- context [minn ?m ?n] => find_minneq_hyp m n
     | |- context [maxn ?m ?n] => find_maxneq_hyp m n
   end;
-  repeat (let x := fresh "x" in move => x).
+  try (let x := fresh "x" in move => x).
 
 Ltac arith_hypo_ssrnat2coqnat :=
   match goal with
-    | H : is_true false |- _ => by move: H
-    | H : context [andb _ _] |- _ => let H0 := fresh "H" in case/andP: H => H H0
-    | H : context [orb _ _] |- _ => case/orP in H
-    | H : context [?L <= ?R] |- _ => move/leP in H
-    | H : context [?L == ?R] |- _ => move/eqP in H
+    | H : is_true false    |- _ => by move: H
+    | H : is_true (_ && _) |- _ => let H0 := fresh "H" in case/andP: H => H H0
+    | H : is_true (_ || _) |- _ => case/orP in H
+    | H : context [_ <  _] |- _ => move/ltP in H
+    | H : context [_ <= _] |- _ => move/leP in H
+    | H : context [_ == _] |- _ => move/eqP in H
   end.
 
 Ltac arith_goal_ssrnat2coqnat :=
   match goal with
-    | |- is_true (andb _ _) => apply/andP; split
-    | |- is_true (orb _ _) => apply/orP
+    | |- is_true (_ && _) => apply/andP; split
+    | |- is_true (_ || _) => apply/orP
+    | |- is_true (_ <  _) => apply/ltP
     | |- is_true (_ <= _) => apply/leP
-    | |- is_true (eqn _ _) => apply/eqnP
+    | |- is_true (_ == _) => apply/eqP
   end.
 
 Ltac ssromega :=
   repeat (let x := fresh "x" in move => x);
-  do ?replace_minn_maxn => //;
+  do ?replace_minn_maxn;
+  try done;
+  repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end;
   do ?unfold addn, subn, muln, addn_rec, subn_rec, muln_rec in *;
   do ?arith_hypo_ssrnat2coqnat;
   do ?arith_goal_ssrnat2coqnat;
   omega.
 
+Ltac elimif :=
+  (match goal with
+     | |- context [if ?m < ?n then _ else _] => case (leqP' n m)
+     | |- context [if ?m <= ?n then _ else _] => case (leqP' m n)
+     | |- context [if ?b then _ else _] => case (ifP b)
+   end;
+   move => //=; elimif; let hyp := fresh "H" in move => hyp) ||
+  idtac.
+
 Ltac elimif_omega :=
-  elimif;
-  simpl_natarith;
+  elimif; simpl_natarith;
   repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end;
-  move => //;
   try (repeat match goal with
     | |- _ + _ = _ => idtac
     | |- _ - _ = _ => idtac
