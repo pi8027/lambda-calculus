@@ -696,7 +696,6 @@ Proof.
     by rewrite map_insert size_map.
 Qed.
 
-(*
 Lemma subject_subst t ty n ctx ctx' :
   all (fun p => typing (drop n ctx) p.1 p.2) ctx' ->
   typing (ctxinsert [seq Some p.2 | p <- ctx'] ctx n) t ty ->
@@ -705,9 +704,9 @@ Proof.
   elim: t ty n ctx ctx' =>
     [m | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
   - move => ty n ctx ctx' H.
-    rewrite /subst_termv shifttyp_zero nth_insert !size_map; elimif_omega.
-    + move: H0 H1 {H2}; elimleq; rewrite ltn_add2l => H0.
-      rewrite !(nth_map (var 0, tyvar 0)) // => /eqP [] ->.
+    rewrite shifttyp_zero nth_insert !size_map; elimif_omega.
+    + by move => H0; rewrite nth_default ?size_map /= addnC // leq_addl.
+    + rewrite !(nth_map (var 0, tyvar 0)) // => /eqP [] ->.
       case: {ty m H0} (nth _ _ _) (all_nthP (var 0, tyvar 0) H m H0) =>
         /= t ty /(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
       rewrite size_insert size_take minnC minKn add0n.
@@ -715,12 +714,8 @@ Proof.
       rewrite /insert take0 sub0n take_minn minnn size_take minnE subKn
               ?leq_subr //= drop_take_nil cats0 drop0 -catA
               -{4}(cat_take_drop n ctx) ctxleq_appl.
-      case/orP: (leq_total n (size ctx)).
-      * by rewrite -subn_eq0 => /eqP ->; apply ctxleqxx.
-      * by move => H0; rewrite drop_oversize // cats0 ctxleql0 size_nseq.
-    + move: H0 H1 {H2}; elimleq => /negbT; rewrite -leqNgt leq_add2l => H0 H1.
-      rewrite nth_default ?size_map //=.
-      by move: H0 H1; elimleq; rewrite addnAC addnK addnC.
+      case (leqP' n (size ctx)) => //= H0.
+      by rewrite drop_oversize ?(ltnW H0) //= cats0 ctxleql0 size_nseq.
   - by move => ty n ctx ctx' H /andP [] /IHtl -> //=; apply IHtr.
   - by move => tyl tyr n ctx ctx' H H0; apply IHt.
   - by move => ty n ctx ctx' H /andP [] ->; apply IHt.
@@ -758,7 +753,6 @@ Proof.
   - by move => t t' tyl tyr _ H ctx ty /andP [] ->; apply H.
   - by move => t t' _ H ctx [] //=; apply H.
 Qed.
-*)
 
 End subject_reduction_proof.
 
