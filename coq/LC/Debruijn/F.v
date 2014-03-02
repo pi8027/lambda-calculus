@@ -77,8 +77,8 @@ Fixpoint shift_typ d c t :=
     | tyabs t => tyabs (shift_typ d c.+1 t)
   end.
 
-Definition subst_typv ts m n :=
-  shift_typ n 0 (nth (tyvar (m - n - size ts)) ts (m - n)).
+Notation subst_typv ts m n :=
+  (shift_typ n 0 (nth (tyvar (m - n - size ts)) ts (m - n))) (only parsing).
 
 Fixpoint subst_typ n ts t :=
   match t with
@@ -105,10 +105,10 @@ Fixpoint shift_term d c t :=
     | uabs t => uabs (shift_term d c t)
   end.
 
-Definition subst_termv ts m n n' :=
-  typemap (shift_typ n') 0
+Notation subst_termv ts m n n' :=
+  (typemap (shift_typ n') 0
     (shift_term n 0
-      (nth (var (m - n - size ts)) ts (m - n))).
+      (nth (var (m - n - size ts)) ts (m - n)))) (only parsing).
 
 Fixpoint subst_term n n' ts t :=
   match t with
@@ -168,7 +168,7 @@ Lemma shift_subst_distr_ty n d c ts t :
   shift_typ d c (subst_typ n ts t) = subst_typ (d + n) ts (shift_typ d c t).
 Proof.
   elimleq; elim: t n c; congruence' => v n c;
-    rewrite /subst_typv; elimif_omega; rewrite shift_add_ty; elimif_omega.
+    elimif_omega; rewrite shift_add_ty; elimif_omega.
 Qed.
 
 Lemma subst_shift_distr_ty n d c ts t :
@@ -177,16 +177,14 @@ Lemma subst_shift_distr_ty n d c ts t :
   subst_typ n (map (shift_typ d (c - n)) ts) (shift_typ d (size ts + c) t).
 Proof.
   elimleq; elim: t n; congruence' => v n;
-    rewrite /subst_typv size_map; elimif_omega.
+    rewrite size_map; elimif_omega.
   - rewrite !nth_default ?size_map /=; elimif_omega.
   - rewrite -shift_shift_distr_ty // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 Lemma subst_nil_ty n t : subst_typ n [::] t = t.
-Proof.
-  elim: t n; congruence' => v n; rewrite /subst_typv nth_nil /=; elimif_omega.
-Qed.
+Proof. elim: t n; congruence' => v n; rewrite nth_nil /=; elimif_omega. Qed.
 
 Lemma subst_shift_cancel_ty1 n d c ts t :
   c <= n ->
@@ -195,9 +193,9 @@ Lemma subst_shift_cancel_ty1 n d c ts t :
     (shift_typ (d - minn (c + d - n) (size ts)) c t).
 Proof.
   elimleq; elim: t c; congruence' => v c; elimif_omega;
-    rewrite /subst_typv size_drop nth_drop;
-    case (leqP' d n); elimleq => //; case: (leqP' d.+1 (size ts)).
-  - move => H0; simpl_natarith; elimif_omega.
+    rewrite size_drop nth_drop;
+    case (leqP' d n); elimleq; case: (leqP' d.+1 (size ts)).
+  - move => H0; elimif_omega.
   - rewrite ltnS; elimleq; rewrite !nth_default //; ssromega.
 Qed.
 
@@ -208,7 +206,7 @@ Lemma subst_shift_cancel_ty2 n d c ts t :
     (shift_typ (c + d - (n + size ts)) c t).
 Proof.
   case/andP; elimleq => H; elim: t n; congruence' => v n.
-  rewrite /subst_typv size_cat size_take size_drop nth_cat nth_drop
+  rewrite size_cat size_take size_drop nth_cat nth_drop
            size_take (minn_idPl H); elimif_omega; f_equal.
   - case (leqP' (c + d) (size ts)) => H0.
     + rewrite addn0; f_equal; first f_equal; ssromega.
@@ -227,10 +225,8 @@ Qed.
 Lemma subst_app_ty n xs ys t :
   subst_typ n xs (subst_typ (size xs + n) ys t) = subst_typ n (xs ++ ys) t.
 Proof.
-  elim: t n; congruence' => v n;
-    rewrite /subst_typv size_cat nth_cat; elimif_omega; rewrite /subst_typv.
-  - by rewrite subst_shift_cancel_ty3 ?addn0 //; simpl_natarith.
-  - f_equal; simpl_natarith; apply nth_equal; ssromega.
+  elim: t n; congruence' => v n; rewrite size_cat nth_cat; elimif_omega.
+  rewrite subst_shift_cancel_ty3; elimif_omega.
 Qed.
 
 Lemma subst_subst_distr_ty n m xs ys t :
@@ -238,11 +234,10 @@ Lemma subst_subst_distr_ty n m xs ys t :
   subst_typ n xs (subst_typ m ys t) =
   subst_typ m (map (subst_typ (n - m) xs) ys) (subst_typ (size ys + n) xs t).
 Proof.
-  elimleq; elim: t m; congruence' => v m;
-    rewrite /subst_typv; elimif_omega; rewrite /subst_typv.
-  - rewrite (@subst_shift_cancel_ty3 m) ?size_map; try ssromega.
-    rewrite nth_default /= /subst_typv; elimif_omega.
-  - rewrite size_map -shift_subst_distr_ty //= addKn nth_map' /=.
+  elimleq; elim: t m; congruence' => v m; elimif_omega.
+  - rewrite (@subst_shift_cancel_ty3 m) ?size_map 1?nth_default //=;
+      elimif_omega.
+  - rewrite size_map -shift_subst_distr_ty //= nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
@@ -252,13 +247,10 @@ Lemma subst_subst_compose_ty n m xs ys t :
   subst_typ n (insert (map (subst_typ 0 (drop m xs)) ys) xs 0 m) t.
 Proof.
   move => H; elim: t n; congruence' => v n.
-  rewrite /subst_typv size_insert nth_insert size_map; elimif_omega.
-  - rewrite (maxn_idPr H) nth_default /= /subst_typv 1?addnCA ?leq_addr //=.
-    elimif_omega.
+  rewrite size_insert nth_insert size_map; elimif_omega.
+  - by rewrite (maxn_idPr H) nth_default /= 1?addnCA ?leq_addr //= addKn addnC.
   - rewrite (nth_map (tyvar (v - size ys))) // shift_subst_distr_ty //
-            addn0 subst_shift_cancel_ty1 //=; simpl_natarith.
-    by rewrite (minn_idPl H); simpl_natarith.
-  - rewrite /subst_typv addKn; f_equal; apply nth_equal; ssromega.
+            addn0 subst_shift_cancel_ty1 //=; elimif_omega.
 Qed.
 
 Lemma typemap_compose f g n m t :
@@ -347,7 +339,7 @@ Lemma subst_shifttyp_distr n m d c ts t :
   typemap (shift_typ d) c (subst_term n (m - d) ts t).
 Proof.
   elimleq; elim: t n c; congruence' => v n c; elimif_omega.
-  rewrite /subst_termv -!shift_typemap_distr shifttyp_add; elimif_omega.
+  rewrite -!shift_typemap_distr shifttyp_add; elimif_omega.
 Qed.
 
 Lemma shifttyp_subst_distr d c n m ts t :
@@ -356,9 +348,8 @@ Lemma shifttyp_subst_distr d c n m ts t :
   subst_term n m (map (typemap (shift_typ d) (c - m)) ts)
     (typemap (shift_typ d) c t).
 Proof.
-  elimleq; elim: t n m; congruence' => v n m; elimif_omega.
-  by rewrite /subst_termv size_map -!shift_typemap_distr
-             -shifttyp_shifttyp_distr // (nth_map' (typemap _ _)).
+  by elimleq; elim: t n m; congruence' => v n m; elimif_omega;
+    rewrite size_map -!shift_typemap_distr -shifttyp_shifttyp_distr // nth_map'.
 Qed.
 
 Lemma subst_substtyp_distr n m m' tys ts t :
@@ -367,7 +358,7 @@ Lemma subst_substtyp_distr n m m' tys ts t :
   typemap (subst_typ^~ tys) m' (subst_term n (size tys + m) ts t).
 Proof.
   elimleq; elim: t n m'; congruence' => v n m'; elimif_omega.
-  rewrite /subst_termv -!shift_typemap_distr typemap_compose.
+  rewrite -!shift_typemap_distr typemap_compose.
   f_equal; apply typemap_eq => {v n ts} n t.
   rewrite subst_shift_cancel_ty3; f_equal; ssromega.
 Qed.
@@ -379,7 +370,7 @@ Lemma substtyp_subst_distr n m m' tys ts t :
     (typemap (subst_typ^~ tys) m' t).
 Proof.
   elimleq; elim: t n m; congruence' => v n m; elimif_omega.
-  by rewrite /subst_termv size_map -!shift_typemap_distr
+  by rewrite size_map -!shift_typemap_distr
              -shifttyp_substtyp_distr // (nth_map' (typemap _ _)).
 Qed.
 
@@ -402,8 +393,7 @@ Lemma subst_shift_distr n m d c ts t :
   shift_term d c (subst_term n m ts t) =
   subst_term n m (map (shift_term d (c - n)) ts) (shift_term d (size ts + c) t).
 Proof.
-  elimleq; elim: t n m; congruence' => v n m.
-  rewrite /subst_termv size_map; elimif_omega.
+  elimleq; elim: t n m; congruence' => v n m; rewrite size_map; elimif_omega.
   - rewrite !nth_default ?size_map /=; elimif_omega.
   - rewrite shift_typemap_distr -shift_shift_distr // nth_map' /=.
     do 2 f_equal; apply nth_equal; rewrite size_map; elimif_omega.
@@ -415,7 +405,7 @@ Lemma shift_subst_distr n m d c ts t :
   subst_term (d + n) m ts (shift_term d c t).
 Proof.
   elimleq; elim: t m c; congruence' => v m c; elimif_omega.
-  rewrite /subst_termv shift_typemap_distr shift_add; elimif_omega.
+  rewrite shift_typemap_distr shift_add; elimif_omega.
 Qed.
 
 Lemma subst_shift_cancel n m d c ts t :
@@ -423,7 +413,7 @@ Lemma subst_shift_cancel n m d c ts t :
   subst_term n m ts (shift_term d c t) = shift_term (d - size ts) c t.
 Proof.
   do 2 elimleq; elim: t m c; congruence' => v m c; elimif_omega.
-  rewrite /subst_termv nth_default /=; f_equal; ssromega.
+  rewrite nth_default /=; f_equal; ssromega.
 Qed.
 
 Lemma subst_subst_distr n n' m m' xs ys t :
@@ -432,9 +422,8 @@ Lemma subst_subst_distr n n' m m' xs ys t :
   subst_term n' m' (map (subst_term (n - n') (m - m') xs) ys)
     (subst_term (size ys + n) m xs t).
 Proof.
-  do 2 elimleq; elim: t n' m'; congruence' => v n' m';
-    elimif_omega; rewrite /subst_termv.
-  - rewrite nth_default /=  /subst_termv; elimif_omega.
+  do 2 elimleq; elim: t n' m'; congruence' => v n' m'; elimif_omega.
+  - rewrite nth_default /=; elimif_omega.
     rewrite -!shift_typemap_distr (@subst_shift_cancel n') // size_map;
       elimif_omega.
   - rewrite -!shift_typemap_distr -shift_subst_distr //
@@ -447,24 +436,20 @@ Lemma subst_app n m xs ys t :
   subst_term n m xs (subst_term (size xs + n) m ys t) =
   subst_term n m (xs ++ ys) t.
 Proof.
-  elim: t n m; congruence' => v n m;
-    rewrite /subst_termv nth_cat size_cat; elimif_omega.
-  - rewrite -!shift_typemap_distr subst_shift_cancel; elimif_omega.
-  - rewrite /subst_termv addKn; do 2 f_equal; apply nth_equal; ssromega.
+  elim: t n m; congruence' => v n m; rewrite nth_cat size_cat; elimif_omega.
+  rewrite -!shift_typemap_distr subst_shift_cancel; elimif_omega.
 Qed.
 
 Lemma subst_nil n m t : subst_term n m [::] t = t.
 Proof.
-  elim: t n m; congruence' => v n m.
-  rewrite /subst_termv nth_nil /= -fun_if; elimif_omega.
+  elim: t n m; congruence' => v n m; rewrite nth_nil /= -fun_if; elimif_omega.
 Qed.
 
 Lemma subst_shifttyp_app n m m' ts t :
   subst_term n m (map (typemap (shift_typ m') 0) ts) t =
   subst_term n (m' + m) ts t.
 Proof.
-  elim: t n m; congruence' => v n m;
-    rewrite /subst_termv size_map; elimif_omega.
+  elim: t n m; congruence' => v n m; rewrite size_map; elimif_omega.
   rewrite -!shift_typemap_distr !(nth_map' (typemap _ _)) /=; do 2 f_equal.
   elim: ts => //= t ts ->; f_equal.
   rewrite typemap_compose; apply typemap_eq => {n t ts} n t.
@@ -616,10 +601,8 @@ Proof.
   - by move => tl tl' tr tr' ty H0 H1 H2 H3 n m;
       rewrite subst_subst_distr //= !subn0 add1n; auto.
   - by move => t t' ty1 ty2 H0 H1 n m; rewrite subst_substtyp_distr //=; auto.
-  - move => v n m.
-    rewrite /subst_termv !size_map.
-    case: ifP => // _.
-    elim: ps H (v - n) => //= {v} [[t t']] ts IH [H H0] [| v] //=.
+  - move => v n m; rewrite !size_map; case: ifP => //; elimleq.
+    elim: ps H v => //= [[t t']] ts IH [H H0] [| v] //=.
     - by apply shifttyp_parred, shift_parred.
     - by rewrite subSS; apply IH.
 Qed.
