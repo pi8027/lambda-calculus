@@ -732,6 +732,15 @@ Proof.
     + by move: H0; rewrite map_insert -!map_comp.
 Qed.
 
+Lemma subject_subst0 t ty ctx ctx' :
+  all (fun p => typing ctx p.1 p.2) ctx' ->
+  typing ([seq Some p.2 | p <- ctx'] ++ ctx) t ty ->
+  typing ctx (subst_term 0 0 [seq p.1 | p <- ctx'] t) ty.
+Proof.
+  move: (@subject_subst t ty 0 ctx ctx').
+  by rewrite /insert take0 sub0n drop0 /=.
+Qed.
+
 Theorem subject_reduction ctx t t' ty :
   t ->r1 t' -> typing ctx t ty -> typing ctx t' ty.
 Proof.
@@ -962,5 +971,32 @@ Proof.
   inversion H7; subst; apply H0 => //.
   apply (rc_cr2 H (substtyp_reduction1 _ _ H4) H1).
 Qed.
+
+Lemma uapp_reducibility t ty ty' preds :
+  Forall (fun p => RC p.2) preds -> reducible (tyabs ty) preds t ->
+  reducible (subst_typ 0 [:: ty'] ty) preds
+    ({t \: subst_typ 1 [seq p.1 | p <- preds] ty}@
+     subst_typ 0 [seq p.1 | p <- preds] ty').
+Proof.
+  move => /= H H0.
+  apply subst_reducibility => //=.
+  rewrite /insert take0 sub0n drop0 /=.
+  by apply H0, reducibility_isrc.
+Qed.
+
+(*
+Lemma uapp_reducibility t ty ty' preds :
+  Forall (fun p => RC p.2) preds ->
+  reducible (tyabs ty) preds
+    (typemap (subst_typ^~ [seq p.1 | p <- preds]) 0 t) ->
+  reducible (subst_typ 0 [:: ty'] ty) preds
+    (typemap (subst_typ^~ [seq p.1 | p <- preds]) 0 ({t \: ty}@ ty')).
+Proof.
+  move => /= H H0.
+  apply subst_reducibility => //.
+  rewrite /insert take0 sub0n drop0 /=.
+  by apply H0, reducibility_isrc.
+Qed.
+*)
 
 End strong_normalization_proof.

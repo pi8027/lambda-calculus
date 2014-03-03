@@ -217,10 +217,8 @@ Lemma ctxleq_map (f : A -> B) xs ys :
   xs <=c ys -> ctxmap f xs <=c ctxmap f ys.
 Proof.
   move/ctxleqP => H; apply/ctxleqP => n a.
-  move: (H n).
-  rewrite -!(nth_map' (omap f) None).
-  case: (nth None xs n) => //= a' H0.
-  by move/eqP: (H0 a' (eqxx _)) => <- /=.
+  move: (H n); rewrite -!(nth_map' (omap f) None).
+  by case: (nth None xs n) => //= a' /(_ a' (eqxx _)) /eqP => <-.
 Qed.
 
 End Context3.

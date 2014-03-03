@@ -64,7 +64,7 @@ Fixpoint shift d c t : term :=
   end.
 
 Notation substitutev ts m n :=
-  (shift n 0 (nth (var (m - n - size ts)) ts (m - n))).
+  (shift n 0 (nth (var (m - n - size ts)) ts (m - n))) (only parsing).
 
 Fixpoint substitute n ts t : term :=
   match t with
@@ -141,9 +141,8 @@ Lemma subst_subst_distr n m xs ys t :
   substitute n xs (substitute m ys t) =
   substitute m (map (substitute (n - m) xs) ys) (substitute (size ys + n) xs t).
 Proof.
-  elimleq; elim: t m; congruence' => v m; elimif_omega.
-  - rewrite (@subst_shift_cancel m) // ?size_map; last ssromega.
-    rewrite nth_default /=; elimif_omega.
+  elimleq; elim: t m; congruence' => v m /=; elimif_omega.
+  - rewrite (@subst_shift_cancel m) // size_map 1?nth_default /=; elimif_omega.
   - rewrite size_map -shift_subst_distr // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
