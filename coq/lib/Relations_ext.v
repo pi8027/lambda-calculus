@@ -1,6 +1,6 @@
 Require Import
-  Coq.Relations.Relations Coq.Relations.Relation_Operators
-  Ssreflect.ssreflect Ssreflect.ssrnat.
+  Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
+  Ssreflect.ssrnat Coq.Relations.Relations Coq.Relations.Relation_Operators.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -74,10 +74,18 @@ Proof.
   by exists t4; split; rewrite -rtc_nest_elim; apply (rtc_map H0).
 Qed.
 
-Theorem rtc_preservation A (P : A -> Prop) (R : relation A) :
+Lemma rtc_preservation A (P : A -> Prop) (R : relation A) :
   (forall x y, R x y -> P x -> P y) -> forall x y, [* R] x y -> P x -> P y.
 Proof.
   move => H.
   refine (clos_refl_trans_1n_ind A R _ _ _) => //= x y z H0 _ H1 H2.
   exact (H1 (H x y H0 H2)).
+Qed.
+
+Lemma acc_preservation A B (RA : relation A) (RB : relation B) (f : A -> B) a :
+  (forall x y, RA x y -> RB (f x) (f y)) -> Acc RB (f a) -> Acc RA a.
+Proof.
+  move => H H0; move: {1 2}(f a) H0 (erefl (f a)) => b H0; move: b H0 a.
+  refine (Acc_ind _ _) => b _ H0 a H1; subst b.
+  by constructor => a' H1; apply (fun x => H0 _ x _ erefl), H.
 Qed.
