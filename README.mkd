@@ -11,5 +11,4 @@ This formalization contains the following definitions and theorems:
     * Strong normalization theorem
 * System F
     * Subject reduction theorem
-
-Our current work is strong normalization theorem of System F.  It's based on chapter 14 of Girard's "Proofs and Types".
+    * Strong normalization theorem
