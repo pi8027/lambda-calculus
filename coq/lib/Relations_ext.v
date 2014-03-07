@@ -35,6 +35,15 @@ Proof.
   apply rt1n_trans with t2; auto.
 Qed.
 
+Lemma rtc_map' A B (R : relation A) (R' : relation B) (f : A -> B) :
+  inclusion R (fun x y => R' (f x) (f y)) ->
+  inclusion [* R] (fun x y => [* R'] (f x) (f y)).
+Proof.
+  move => H.
+  refine (clos_refl_trans_1n_ind A R _ _ _) => //= x y z H0 H1 H2.
+  apply rt1n_trans with (f y); auto.
+Qed.
+
 Lemma rtc_nest_elim A (R : relation A) : same_relation [* [* R]] [* R].
 Proof.
   move => t1 t2; split.

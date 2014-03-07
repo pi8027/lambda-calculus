@@ -456,18 +456,6 @@ Proof.
   rewrite addn0 shift_add_ty; elimif_omega.
 Qed.
 
-Lemma substtyp_reduction1 t t' tys n :
-  t ->r1 t' ->
-  typemap (subst_typ^~ tys) n t ->r1 typemap (subst_typ^~ tys) n t'.
-Proof.
-  move => H; move: t t' H tys n.
-  refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
-  - by move => ty t1 t2 tys n;
-      rewrite substtyp_subst_distr // subn0; constructor.
-  - by move => t ty1 ty2 tys n;
-      rewrite substtyp_substtyp_distr //= add1n subn0; constructor.
-Qed.
-
 Lemma redappl t1 t1' t2 ty : t1 ->r t1' -> t1 @{t2 \: ty} ->r t1' @{t2 \: ty}.
 Proof.
   elim => // {t1 t1'} t1 t1' t1'' H H0 H1.
@@ -478,6 +466,13 @@ Lemma redappr t1 t2 t2' ty : t2 ->r t2' -> t1 @{t2 \: ty} ->r t1 @{t2' \: ty}.
 Proof.
   elim => // {t2 t2'} t2 t2' t2'' H H0 H1.
   by apply rt1n_trans with (t1 @{t2' \: ty}) => //; constructor.
+Qed.
+
+Lemma redapp t1 t1' t2 t2' ty :
+  t1 ->r t1' -> t2 ->r t2' -> t1 @{t2 \: ty} ->r t1' @{t2' \: ty}.
+Proof.
+  by move => H H0; apply rtc_trans' with (t1' @{t2 \: ty});
+    [apply redappl | apply redappr].
 Qed.
 
 Lemma redabs t t' : t ->r t' -> abs t ->r abs t'.
@@ -496,6 +491,62 @@ Lemma reduabs t t' : t ->r t' -> uabs t ->r uabs t'.
 Proof.
   elim => // {t t'} t t' t'' H H0 H1.
   by apply rt1n_trans with (uabs t') => //; constructor.
+Qed.
+
+Lemma shifttyp_reduction1 t t' d c :
+  t ->r1 t' -> typemap (shift_typ d) c t ->r1 typemap (shift_typ d) c t'.
+Proof.
+  move => H; move: t t' H d c.
+  refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
+  - by move => ty t1 t2 d c; rewrite shifttyp_subst_distr //= subn0.
+  - by move => t ty1 ty2 d c; rewrite substtyp_shifttyp_distr //= subn0 add1n.
+Qed.
+
+Lemma shift_reduction1 t t' d c :
+  t ->r1 t' -> shift_term d c t ->r1 shift_term d c t'.
+Proof.
+  move => H; move: t t' H d c.
+  refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
+  - by move => ty t1 t2 d c; rewrite subst_shift_distr //= subn0 add1n.
+  - by move => t ty1 ty2 d c; rewrite shift_typemap_distr.
+Qed.
+
+Lemma substtyp_reduction1 t t' tys n :
+  t ->r1 t' ->
+  typemap (subst_typ^~ tys) n t ->r1 typemap (subst_typ^~ tys) n t'.
+Proof.
+  move => H; move: t t' H tys n.
+  refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
+  - by move => ty t1 t2 tys n;
+      rewrite substtyp_subst_distr // subn0; constructor.
+  - by move => t ty1 ty2 tys n; rewrite substtyp_substtyp_distr //= add1n subn0.
+Qed.
+
+Lemma subst_reduction1 t t' n m ts :
+  t ->r1 t' -> subst_term n m ts t ->r1 subst_term n m ts t'.
+Proof.
+  move => H; move: t t' H n m ts.
+  refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
+  - by move => ty t1 t2 n m ts; rewrite subst_subst_distr //= !subn0.
+  - by move => t ty1 ty2 n m ts; rewrite subst_substtyp_distr.
+Qed.
+
+Lemma subst_reduction t n m ts :
+  Forall (fun t => t.1 ->r t.2) ts ->
+  subst_term n m (unzip1 ts) t ->r subst_term n m (unzip2 ts) t.
+Proof.
+  move => H; elim: t n m => //=.
+  - move => v n m; rewrite !size_map; elimif_omega.
+    elim: ts v H => //=; case => t t' ts IH [[H _] | v] //=.
+    + move: H.
+      apply (rtc_map' (f := fun x =>
+        typemap (shift_typ m) 0 (shift_term n 0 x))) => t1 t2 H.
+      by apply shifttyp_reduction1, shift_reduction1.
+    + by move => [_ H]; rewrite subSS; apply IH.
+  - by move => tl IHtl tr IHtr ty n m; apply redapp.
+  - by move => tl IHtl tr IHtr; apply redabs.
+  - by move => t IHt ty ty' n m; apply reduapp.
+  - by move => t IHt n m; apply reduabs.
 Qed.
 
 Hint Resolve redappl redappr redabs reduapp reduabs.
@@ -532,17 +583,13 @@ Fixpoint reduce_all_redex t : term :=
   end.
 
 Lemma parred_refl t : parred t t.
-Proof.
-  by elim: t; constructor.
-Qed.
+Proof. by elim: t; constructor. Qed.
 
 Hint Constructors parred.
 Hint Resolve parred_refl.
 
 Lemma betared1_in_parred : inclusion reduction1 parred.
-Proof.
-  by apply reduction1_ind; constructor.
-Qed.
+Proof. by apply reduction1_ind; constructor. Qed.
 
 Lemma parred_in_betared : inclusion parred reduction.
 Proof.
@@ -593,8 +640,7 @@ Qed.
 
 Lemma subst_parred n m ps t t' :
   Forall (prod_curry parred) ps -> t ->rp t' ->
-  subst_term n m [seq fst p | p <- ps] t ->rp
-  subst_term n m [seq snd p | p <- ps] t'.
+  subst_term n m (unzip1 ps) t ->rp subst_term n m (unzip2 ps) t'.
 Proof.
   move => H H0; move: t t' H0 n m.
   refine (parred_ind _ _ _ _ _ _ _) => /=; auto.
@@ -699,7 +745,7 @@ Qed.
 Lemma subject_subst t ty n ctx ctx' :
   all (fun p => typing (drop n ctx) p.1 p.2) ctx' ->
   typing (ctxinsert [seq Some p.2 | p <- ctx'] ctx n) t ty ->
-  typing ctx (subst_term n 0 [seq p.1 | p <- ctx'] t) ty.
+  typing ctx (subst_term n 0 (unzip1 ctx') t) ty.
 Proof.
   elim: t ty n ctx ctx' =>
     [m | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
@@ -722,9 +768,9 @@ Proof.
   - move => ty n ctx ctx' H H0.
     rewrite -{2}(addn0 1) -subst_shifttyp_app.
     set ctx'' := (map _ (map _ _)).
-    have {ctx''} ->: ctx'' = [seq p.1 | p <-
-        [seq (typemap (shift_typ 1) 0 p.1, shift_typ 1 0 p.2) | p <- ctx']]
-      by rewrite /ctx'' -!map_comp /funcomp /=.
+    have {ctx''} ->: ctx'' = unzip1
+        [seq (typemap (shift_typ 1) 0 p.1, shift_typ 1 0 p.2) | p <- ctx']
+      by rewrite /unzip1 /ctx'' -!map_comp /funcomp /=.
     apply IHt.
     + move: H {t ty IHt H0}; rewrite all_map; apply sub_all.
       rewrite /subpred /preim /pred_of_simpl; case => /= t ty.
@@ -735,32 +781,28 @@ Qed.
 Lemma subject_subst0 t ty ctx ctx' :
   all (fun p => typing ctx p.1 p.2) ctx' ->
   typing ([seq Some p.2 | p <- ctx'] ++ ctx) t ty ->
-  typing ctx (subst_term 0 0 [seq p.1 | p <- ctx'] t) ty.
+  typing ctx (subst_term 0 0 (unzip1 ctx') t) ty.
 Proof.
-  move: (@subject_subst t ty 0 ctx ctx').
-  by rewrite /insert take0 sub0n drop0 /=.
+  by move: (@subject_subst t ty 0 ctx ctx'); rewrite /insert take0 sub0n drop0.
 Qed.
 
 Theorem subject_reduction ctx t t' ty :
   t ->r1 t' -> typing ctx t ty -> typing ctx t' ty.
 Proof.
-  move => H; move: t t' H ctx ty.
-  refine (reduction1_ind _ _ _ _ _ _ _) => /=.
-  - move => ty' t1 t2 ctx ty /andP [] H H0.
-    apply (@subject_subst _ _ 0 ctx [:: (t2, ty')]) => //=.
-    - by rewrite drop0 H0.
-    - by rewrite /insert take0 drop0.
-  - move => t tyl tyr ctx ty /andP [] /eqP -> {ty}
-      /(substtyp_preserves_typing 0 [:: tyr]).
+  move => H; move: t t' H ctx ty; refine (reduction1_ind _ _ _ _ _ _ _) => /=
+    [ty' t1 t2 ctx ty /andP [] H H0 |
+     t tyl tyr ctx ty /andP [] /eqP -> {ty} |
+     t1 t1' t2 ty _ H ctx ty0 /andP [] /H -> |
+     t1 t2 t2' ty _ H ctx ty0 /andP [] -> /H |
+     t t' _ H ctx [] //= tyl tyr /H |
+     t t' tyl tyr _ H ctx ty /andP [] -> /H |
+     t t' _ H ctx [] //= t0 /H] //=.
+  - by apply (@subject_subst0 _ _ ctx [:: (t2, ty')]) => //=; rewrite H0.
+  - move/(substtyp_preserves_typing 0 [:: tyr]).
     set ctx' := ctxmap _ _; have {ctx'} -> //: ctx' = ctx.
       rewrite /ctx' -map_comp -{2}(map_id ctx).
       apply eq_map; case => //= ty.
       by rewrite subst_shift_cancel_ty3 //= shift_zero_ty.
-  - by move => t1 t1' t2 ty _ H ctx ty0 /andP [] /H ->.
-  - by move => t1 t2 t2' ty _ H ctx ty0 /andP [] ->; apply H.
-  - by move => t t' _ H ctx [] //= tyl tyr; apply H.
-  - by move => t t' tyl tyr _ H ctx ty /andP [] ->; apply H.
-  - by move => t t' _ H ctx [] //=; apply H.
 Qed.
 
 End subject_reduction_proof.
@@ -771,26 +813,8 @@ Import subject_reduction_proof.
 
 Definition SNorm (t : term) : Prop := Acc (fun x y => reduction1 y x) t.
 
-Lemma snorm_appl tl tr ty : SNorm (tl @{tr \: ty}) -> SNorm tl.
-Proof.
-  move: tl.
-  fix IH 2 => tl [H]; constructor => tl' H0.
-  by apply IH, H; constructor.
-Qed.
-
-Lemma snorm_uappl t tyl tyr : SNorm ({t \: tyl}@ tyr) -> SNorm t.
-Proof.
-  move: {1 3}({_ \: _}@ _) (erefl ({t \: tyl}@ tyr)) => t' H H0.
-  by move: t' H0 t H; refine (Acc_ind _ _) => t' _ IH t H;
-    subst t'; constructor => t' H; apply: (IH _ _ _ erefl); constructor.
-Qed.
-
 Definition neutral (t : term) : bool :=
-  match t with
-    | abs _ => false
-    | uabs _ => false
-    | _ => true
-  end.
+  match t with abs _ => false | uabs _ => false | _ => true end.
 
 Section CRs.
 Variable (P : term -> Prop).
@@ -806,6 +830,13 @@ Record RC (P : term -> Prop) : Prop :=
     rc_cr2 : CR2 P ;
     rc_cr3 : CR3 P
   }.
+
+Lemma CR2' P t t' : RC P -> t ->r t' -> P t -> P t'.
+Proof.
+  move => H; move: t t'.
+  refine (clos_refl_trans_1n_ind _ _ _ _ _) => //= x y z H0 H1 H2 H3.
+  by apply H2, (rc_cr2 H H0).
+Qed.
 
 Lemma CR4 P t : RC P ->
   neutral t -> (forall t', ~ t ->r1 t') -> P t.
@@ -825,7 +856,9 @@ Lemma rcfun_isrc (tyl tyr : typ) P Q :
   RC P -> RC Q -> RC (fun u => forall v, P v -> Q (u @{v \: tyl})).
 Proof.
   move => H H0; constructor; move => /=.
-  - by move => t /(_ 0 (CR4' _ H)) /(rc_cr1 H0) /snorm_appl.
+  - move => t /(_ 0 (CR4' _ H)) /(rc_cr1 H0).
+    by rewrite -/((fun t => t @{0 \: tyl}) t);
+      apply acc_preservation => x y H1; constructor.
   - by move => t t' H1 H2 v /H2; apply (rc_cr2 H0); constructor.
   - move => t1 H1 H2 t2 H3; move: t2 {H3} (rc_cr1 H H3) (H3).
     refine (Acc_rect _ _) => t2 _ H3 H4.
@@ -845,13 +878,13 @@ Qed.
 
 Fixpoint reducible ty (preds : seq (typ * (term -> Prop))) t : Prop :=
   match ty with
-    | tyvar v => nth SNorm [seq p.2 | p <- preds] v t
+    | tyvar v => nth SNorm (unzip2 preds) v t
     | tyfun tyl tyr => forall t',
       reducible tyl preds t' ->
-      reducible tyr preds (t @{t' \: subst_typ 0 [seq p.1 | p <- preds] tyl})
+      reducible tyr preds (t @{t' \: subst_typ 0 (unzip1 preds) tyl})
     | tyabs ty => forall ty' P, RC P ->
       reducible ty ((ty', P) :: preds)
-        ({t \: subst_typ 1 [seq p.1 | p <- preds] ty}@ ty')
+        ({t \: subst_typ 1 (unzip1 preds) ty}@ ty')
   end.
 
 Lemma reducibility_isrc ty preds :
@@ -863,12 +896,14 @@ Proof.
     + by case.
     + by move => n [H H0]; apply IH.
   - by move => H; apply
-      (@rcfun_isrc (subst_typ 0 [seq p.1 | p <- preds] tyl)
-                   (subst_typ 0 [seq p.1 | p <- preds] tyr));
+      (@rcfun_isrc (subst_typ 0 (unzip1 preds) tyl)
+                   (subst_typ 0 (unzip1 preds) tyr));
       [apply IHtyl | apply IHtyr].
   - move => H; constructor.
     + move => /= t /(_ 0 SNorm snorm_isrc)
-        /(rc_cr1 (IHty ((_, _) :: _) (conj snorm_isrc H))); apply snorm_uappl.
+        /(rc_cr1 (IHty ((_, _) :: _) (conj snorm_isrc H))).
+      rewrite -/((fun t => {t \: subst_typ 1 (unzip1 preds) ty}@ 0) t).
+      by apply acc_preservation => x y H0; constructor.
     + move => /= t t' H0 H1 ty' P H2; move/(H1 ty'): (H2).
       by apply (rc_cr2 (IHty ((_, _) :: _) (conj H2 H))); constructor.
     + move => /= t H0 H1 ty' P H2.
@@ -879,9 +914,8 @@ Qed.
 Lemma take_insert (A : Type) n (xs ys : seq A) d :
   take n (insert xs ys d n) = take n ys ++ nseq (n - size ys) d.
 Proof.
-  rewrite /insert take_cat size_take ltnNge geq_minl /=.
-  have -> x y: x - minn x y = x - y by ssromega.
-  by rewrite take_cat size_nseq ltnn subnn take0 cats0.
+  by rewrite /insert take_cat size_take ltnNge geq_minl /= minnE subKn
+             ?leq_subr // take_cat size_nseq ltnn subnn take0 cats0.
 Qed.
 
 Lemma drop_insert (A : Type) n (xs ys : seq A) d :
@@ -898,15 +932,16 @@ Lemma shift_reducibility c ty preds preds' t :
    reducible ty preds t).
 Proof.
   elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
-  - rewrite /= map_insert nth_insert size_map; elimif_omega.
+  - rewrite /= /unzip2 map_insert nth_insert size_map; elimif_omega.
   - by split => /= H0 t' /(IHtyl c _ _ H) /H0 /(IHtyr c _ _ H); rewrite
-      map_insert subst_shift_cancel_ty2 /= ?subn0 ?add0n ?size_insert ?size_map
-      ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // take_insert size_map
-      -[X in drop (c + X)](size_map (@fst _ _) preds') drop_insert subnDA addnK;
-      (have ->: c - maxn c _ = 0 by ssromega); rewrite shift_zero_ty;
-      move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
+      /unzip1 map_insert subst_shift_cancel_ty2 /= ?subn0 ?add0n ?size_insert
+      ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // take_insert
+      size_map -[X in drop (c + X)](size_map (@fst _ _) preds') drop_insert
+      subnDA addnK; (have ->: c - maxn c _ = 0 by ssromega);
+      rewrite shift_zero_ty; move: H; rewrite -subn_eq0 => /eqP -> /=;
+      rewrite cats0 cat_take_drop.
   - by split => /= H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
-      rewrite ?ltnS ?H //; move: {H0 H1} (H0 ty' P H1); rewrite
+      rewrite ?ltnS ?H //; move: {H0 H1} (H0 ty' P H1); rewrite /unzip1
         map_insert /= subst_shift_cancel_ty2 /= ?subn1 ?add1n ?ltnS ?size_insert
         ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // addSn /=
         take_insert size_map -[X in drop (c + X)](size_map (@fst _ _) preds')
@@ -919,7 +954,7 @@ Lemma subst_reducibility ty preds n tys t :
   n <= size preds ->
   (reducible (subst_typ n tys ty) preds t <->
    reducible ty
-     (insert [seq (subst_typ 0 [seq p.1 | p <- drop n preds] ty,
+     (insert [seq (subst_typ 0 (unzip1 (drop n preds)) ty,
                    reducible ty (drop n preds)) | ty <- tys]
              preds (tyvar 0, SNorm) n)
      t).
@@ -937,15 +972,45 @@ Proof.
       by move/minn_idPl: H0 => ->.
     + by rewrite nth_map' /=.
   - by move => H /=; split => H1 t' /IHtyl => /(_ H) /H1 /IHtyr => /(_ H);
-      rewrite map_insert -map_comp /funcomp /=
+      rewrite /unzip1 map_insert -map_comp /funcomp /=
               subst_subst_compose_ty ?map_drop // size_map.
   - move => /= H; split => H0 ty' P /(H0 ty' P) => {H0} H0.
-    + rewrite map_insert -map_comp /funcomp /=.
+    + rewrite /unzip1 map_insert -map_comp /funcomp /=.
       move/IHty: H0 => /= /(_ H).
-      by rewrite subst_subst_compose_ty /insert /= ?subSS size_map ?map_drop.
+      by rewrite /unzip1 subst_subst_compose_ty /insert /= ?subSS size_map
+                 ?map_drop.
     + apply IHty => //; move: H0.
-      by rewrite map_insert -map_comp /funcomp /= subst_subst_compose_ty
+      by rewrite /unzip1 map_insert -map_comp /funcomp /= subst_subst_compose_ty
                  /insert /= ?subSS size_map ?map_drop.
+Qed.
+
+Lemma abs_reducibility t tyl tyr preds :
+  Forall (fun p => RC (snd p)) preds ->
+  (forall t',
+   reducible tyl preds t' ->
+   reducible tyr preds (subst_term 0 0 [:: t'] t)) ->
+  reducible (tyl :->: tyr) preds (abs t).
+Proof.
+  move => /= H.
+  move: (reducible tyl preds) (reducible tyr preds)
+    (reducibility_isrc tyl H) (reducibility_isrc tyr H) => {H} P Q H H0.
+  move => H1 t' H2.
+  have H3 : SNorm t by
+    move: (rc_cr1 H0 (H1 _ H2));
+      apply acc_preservation => x y; apply subst_reduction1.
+  move: t H3 t' {H1 H2} (rc_cr1 H H2) (H2) (H1 _ H2).
+  refine (Acc_ind _ _) => t1 _ H1; refine (Acc_ind _ _) => t2 _ H2 H3 H4.
+  apply (rc_cr3 H0) => //= t' H5.
+  inversion H5; subst => //.
+  - inversion H10; subst; apply H1.
+    + apply H7.
+    + apply (rc_cr1 H H3).
+    + apply H3.
+    + by apply (rc_cr2 H0 (subst_reduction1 0 0 [:: t2] H7)).
+  - apply H2 => //; first by apply (rc_cr2 H H10).
+    move: H4; apply (CR2' H0).
+    apply (@subst_reduction t1 0 0 [:: (t2, t2')]) => //=; split => //.
+    by apply rtc_step.
 Qed.
 
 Lemma uabs_reducibility t ty preds :
@@ -958,15 +1023,10 @@ Proof.
   move: {H0} (@reducibility_isrc ty ((ty', P) :: preds)) (H0 ty' P H1)
     => /= /(_ (conj H1 H)).
   move: {P H H1} (reducible _ _) => P H H0.
-  move: (rc_cr1 H H0) => H1.
-  have {H1} H1: SNorm t.
-    move: ty' {1 2}(typemap _ _ _) H1
-      (erefl (typemap (subst_typ^~ [:: ty']) 0 t)) {ty P H H0} => ty t' H.
-    move: t' H t; refine (Acc_ind _ _) => t' _ H t H0; subst.
-    constructor => t' H0; apply (fun x => H _ x _ erefl) => {H}.
-    by apply substtyp_reduction1.
-  move: t H1 H0.
-  refine (Acc_ind _ _) => t _ H0 H1.
+  have H1: SNorm t by
+    move: (rc_cr1 H H0);
+      apply acc_preservation => x y; apply substtyp_reduction1.
+  move: t H1 H0; refine (Acc_ind _ _) => t _ H0 H1.
   apply (rc_cr3 H) => //= t' H2; inversion H2; subst => //.
   inversion H7; subst; apply H0 => //.
   apply (rc_cr2 H (substtyp_reduction1 _ _ H4) H1).
@@ -975,8 +1035,7 @@ Qed.
 Lemma uapp_reducibility t ty ty' preds :
   Forall (fun p => RC p.2) preds -> reducible (tyabs ty) preds t ->
   reducible (subst_typ 0 [:: ty'] ty) preds
-    ({t \: subst_typ 1 [seq p.1 | p <- preds] ty}@
-     subst_typ 0 [seq p.1 | p <- preds] ty').
+    ({t \: subst_typ 1 (unzip1 preds) ty}@ subst_typ 0 (unzip1 preds) ty').
 Proof.
   move => /= H H0.
   apply subst_reducibility => //=.
@@ -984,19 +1043,109 @@ Proof.
   by apply H0, reducibility_isrc.
 Qed.
 
-(*
-Lemma uapp_reducibility t ty ty' preds :
+Lemma reduce_lemma' ctx preds t ty :
+  typing [seq Some c.2 | c <- ctx] t ty ->
   Forall (fun p => RC p.2) preds ->
-  reducible (tyabs ty) preds
-    (typemap (subst_typ^~ [seq p.1 | p <- preds]) 0 t) ->
-  reducible (subst_typ 0 [:: ty'] ty) preds
-    (typemap (subst_typ^~ [seq p.1 | p <- preds]) 0 ({t \: ty}@ ty')).
+  Forall (fun c => reducible c.2 preds c.1) ctx ->
+  reducible ty preds
+    (subst_term 0 0 (unzip1 ctx) (typemap (subst_typ^~ (unzip1 preds)) 0 t)).
 Proof.
-  move => /= H H0.
-  apply subst_reducibility => //.
-  rewrite /insert take0 sub0n drop0 /=.
-  by apply H0, reducibility_isrc.
+  elim: t ty ctx preds => /=.
+  - move => v ty ctx preds H H0 H1.
+    rewrite shifttyp_zero shift_zero subn0 size_map.
+    elim: ctx v H H1 => //=; first by case.
+    case => t ty' ctx IH [] //=.
+    + by case/eqP => <- [].
+    + by move => v H [H1 H2]; rewrite subSS; apply IH.
+  - move => tl IHtl tr IHtr tty ty ctx preds /andP [H H0] H1 H2.
+    by move: (IHtl (tty :->: ty) ctx preds H H1 H2) => /=; apply; apply IHtr.
+  - move => t IHt [] // tyl tyr ctx preds H H0 H1.
+    apply abs_reducibility => // t' H2.
+    rewrite subst_app //=; apply (IHt tyr ((t', tyl) :: ctx)) => //.
+  - move => t IHt ttyl ttyr ty ctx preds /andP [] /eqP -> {ty} H H0 H1.
+    by apply uapp_reducibility => //; apply IHt.
+  - move => t IHt [] // ty ctx preds H H0 H1.
+    apply uabs_reducibility => // v P H2.
+    rewrite -(subst_substtyp_distr 0 [:: v]) // typemap_compose /=.
+    have /(typemap_eq 0 t) -> : forall i ty,
+      subst_typ (i + 0) [:: v] (subst_typ (i + 1) (unzip1 preds) ty) =
+      subst_typ i (unzip1 ((v, P) :: preds)) ty by
+        move => i ty'; rewrite addn0 addn1 subst_app_ty.
+    move: (IHt ty
+      (map (fun c => (c.1, shift_typ 1 0 c.2)) ctx) ((v, P) :: preds)).
+    rewrite /unzip1 -!map_comp /funcomp /=; apply => //=.
+    + by move: H; rewrite -map_comp /funcomp /=.
+    + elim: ctx H1 {t ty IHt H H0 H2} => //=;
+        case => t ty ctx IH [] H H0; split => /=; last by apply IH.
+      case: (shift_reducibility ty [:: (v, P)] t (leq0n (size preds))) => _.
+      by rewrite /insert take0 drop0 sub0n /=; apply.
 Qed.
-*)
+
+Lemma reduce_lemma ctx preds t ty :
+  typing (ctxmap (@snd _ _) ctx) t ty -> Forall (fun p => RC p.2) preds ->
+  Forall
+    (fun c => if c is Some c' then reducible c'.2 preds c'.1 else True) ctx ->
+  reducible ty preds
+    (subst_term 0 0 [seq if c is Some c' then c'.1 else var 0 | c <- ctx]
+      (typemap (subst_typ^~ (unzip1 preds)) 0 t)).
+Proof.
+  elim: t ty ctx preds => /=.
+  - move => n ty ctx preds H H0 H1.
+    rewrite shifttyp_zero shift_zero subn0 size_map.
+    elim: ctx n H H1 => //=; first by case.
+    case => [[t ty'] |] ctx IH [] //=.
+    + by case/eqP => <- [].
+    + by move => n H [H1 H2]; rewrite subSS; apply IH.
+    + by move => n H [_ H1]; rewrite subSS; apply IH.
+  - move => tl IHtl tr IHtr tty ty ctx preds /andP [H H0] H1 H2.
+    by move: (IHtl (tty :->: ty) ctx preds H H1 H2) => /=; apply; auto.
+  - move => t IHt [] // tyl tyr ctx preds H H0 H1.
+    apply abs_reducibility => // t' H2.
+    by rewrite subst_app //=; apply (IHt _ (Some (t', tyl) :: ctx)).
+  - move => t IHt ttyl ttyr ty ctx preds /andP [] /eqP -> {ty} H H0 H1.
+    by apply uapp_reducibility => //; apply IHt.
+  - move => t IHt [] // ty ctx preds H H0 H1.
+    apply uabs_reducibility => // v P H2.
+    rewrite -(subst_substtyp_distr 0 [:: v]) // typemap_compose /=.
+    have /(typemap_eq 0 t) -> : forall i ty,
+      subst_typ (i + 0) [:: v] (subst_typ (i + 1) (unzip1 preds) ty) =
+      subst_typ i (unzip1 ((v, P) :: preds)) ty by
+        move => i ty'; rewrite addn0 addn1 subst_app_ty.
+    move: {IHt} (IHt ty
+      (ctxmap (fun c => (c.1, shift_typ 1 0 c.2)) ctx) ((v, P) :: preds)).
+    set ctx1 := [seq if c is Some c' then c'.1 else var 0 | c <- _].
+    set ctx2 := [seq if c is Some c' then c'.1 else var 0 | c <- _].
+    have {ctx1} -> : ctx1 = ctx2 by
+      rewrite {}/ctx1 {}/ctx2;
+        elim: ctx {t ty H H1} => //=; case => [[t ty] |] cxt ->.
+    rewrite {}/ctx2; apply => //=.
+    + move: H.
+      set ctx1 := (ctxmap _ _); set ctx2 := (ctxmap _ _).
+      have -> // : ctx1 = ctx2.
+      rewrite {}/ctx1 {}/ctx2.
+      by elim: ctx {t ty v P H0 H1 H2} => //=; case => [[t ty] |] ctx ->.
+    + elim: ctx H1 {t ty H H0 H2} => //=.
+      case => [[t ty] |] ctx IH [] /= H H0; split => //=; try by apply IH.
+      case: (shift_reducibility ty [:: (v, P)] t (leq0n (size preds))) => _.
+      by rewrite /insert take0 drop0 sub0n /=; apply.
+Qed.
+
+Theorem typed_term_is_snorm ctx t ty : typing ctx t ty -> SNorm t.
+Proof.
+  move: (@reduce_lemma (ctxmap (pair (var 0)) ctx) [::] t ty) => /=.
+  set ctx' := ctxmap _ _.
+  have {ctx'} -> : ctx' = ctx by
+    rewrite {}/ctx'; elim: ctx {t ty} => //=; case => [ty |] ctx ->.
+  move => H H0; move: {H H0} (H H0 I).
+  set P := Forall _ _; move => H.
+  suff : P.
+    move => /H {P H} /rc_cr1; move => /(_ (reducibility_isrc _ _)) /= /(_ I).
+    set f := subst_term _ _ _; set g := typemap _ _.
+    rewrite -/((fun t => f (g t)) t); apply acc_preservation => x y H.
+    by rewrite {}/f {}/g; apply subst_reduction1, substtyp_reduction1.
+  rewrite {H}/P; elim: ctx {t ty} => //=.
+  case => [ty |] ctx IH /=; split => //.
+  by apply (fun x => CR4' 0 (reducibility_isrc ty x)).
+Qed.
 
 End strong_normalization_proof.
