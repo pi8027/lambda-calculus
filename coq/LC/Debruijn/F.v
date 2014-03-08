@@ -850,7 +850,7 @@ Proof.
   - by move => t H H0; constructor => t' H1; apply H0.
 Qed.
 
-Lemma rcfun_isrc (tyl tyr : typ) P Q :
+Lemma rcfun_isrc tyl P Q :
   RC P -> RC Q -> RC (fun u => forall v, P v -> Q (u @{v \: tyl})).
 Proof.
   move => H H0; constructor; move => /=.
@@ -894,8 +894,7 @@ Proof.
     + by case.
     + by move => n [H H0]; apply IH.
   - by move => H; apply
-      (@rcfun_isrc (subst_typ 0 (unzip1 preds) tyl)
-                   (subst_typ 0 (unzip1 preds) tyr));
+      (@rcfun_isrc (subst_typ 0 (unzip1 preds) tyl));
       [apply IHtyl | apply IHtyr].
   - move => H; constructor.
     + move => /= t /(_ 0 SNorm snorm_isrc)
