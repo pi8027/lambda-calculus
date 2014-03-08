@@ -232,11 +232,13 @@ Hint Resolve ctxleq_preserves_typing subject_subst subject_reduction.
 
 End subject_reduction_proof.
 
-Module strong_normalization_proof.
+Definition SNorm (t : term) : Prop := Acc (fun x y => betared1 y x) t.
+
+
+
+Module strong_normalization_proof_typed.
 
 Import subject_reduction_proof.
-
-Definition SNorm (t : term) : Prop := Acc (fun x y => betared1 y x) t.
 
 Fixpoint reducible (ctx : context typ) (t : term) (ty : typ) : Prop :=
   match ty with
@@ -361,4 +363,4 @@ Proof.
   by rewrite subst_nil; apply CR1.
 Qed.
 
-End strong_normalization_proof.
+End strong_normalization_proof_typed.

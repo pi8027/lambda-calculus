@@ -809,8 +809,6 @@ End subject_reduction_proof.
 
 Module strong_normalization_proof.
 
-Import subject_reduction_proof.
-
 Definition SNorm (t : term) : Prop := Acc (fun x y => reduction1 y x) t.
 
 Definition neutral (t : term) : bool :=
@@ -1044,26 +1042,24 @@ Proof.
 Qed.
 
 Lemma reduce_lemma ctx preds t ty :
-  typing (ctxmap (@snd _ _) ctx) t ty -> Forall (fun p => RC p.2) preds ->
-  Forall
-    (fun c => if c is Some c' then reducible c'.2 preds c'.1 else True) ctx ->
+  typing [seq Some c.2 | c <- ctx] t ty ->
+  Forall (fun p => RC p.2) preds ->
+  Forall (fun c => reducible c.2 preds c.1) ctx ->
   reducible ty preds
-    (subst_term 0 0 [seq if c is Some c' then c'.1 else var 0 | c <- ctx]
-      (typemap (subst_typ^~ (unzip1 preds)) 0 t)).
+    (subst_term 0 0 (unzip1 ctx) (typemap (subst_typ^~ (unzip1 preds)) 0 t)).
 Proof.
   elim: t ty ctx preds => /=.
-  - move => n ty ctx preds H H0 H1.
+  - move => v ty ctx preds H H0 H1.
     rewrite shifttyp_zero shift_zero subn0 size_map.
-    elim: ctx n H H1 => //=; first by case.
-    case => [[t ty'] |] ctx IH [] //=.
+    elim: ctx v H H1 => //=; first by case.
+    case => t ty' ctx IH [] //=.
     + by case/eqP => <- [].
-    + by move => n H [H1 H2]; rewrite subSS; apply IH.
-    + by move => n H [_ H1]; rewrite subSS; apply IH.
+    + by move => v H [H1 H2]; rewrite subSS; apply IH.
   - move => tl IHtl tr IHtr tty ty ctx preds /andP [H H0] H1 H2.
-    by move: (IHtl (tty :->: ty) ctx preds H H1 H2) => /=; apply; auto.
+    by move: (IHtl (tty :->: ty) ctx preds H H1 H2) => /=; apply; apply IHtr.
   - move => t IHt [] // tyl tyr ctx preds H H0 H1.
     apply abs_reducibility => // t' H2.
-    by rewrite subst_app //=; apply (IHt _ (Some (t', tyl) :: ctx)).
+    rewrite subst_app //=; apply (IHt tyr ((t', tyl) :: ctx)) => //.
   - move => t IHt ttyl ttyr ty ctx preds /andP [] /eqP -> {ty} H H0 H1.
     by apply uapp_reducibility => //; apply IHt.
   - move => t IHt [] // ty ctx preds H H0 H1.
@@ -1073,36 +1069,32 @@ Proof.
       subst_typ (i + 0) [:: v] (subst_typ (i + 1) (unzip1 preds) ty) =
       subst_typ i (unzip1 ((v, P) :: preds)) ty by
         move => i ty'; rewrite addn0 addn1 subst_app_ty.
-    move: {IHt} (IHt ty
-      (ctxmap (fun c => (c.1, shift_typ 1 0 c.2)) ctx) ((v, P) :: preds)).
-    set ctx1 := [seq if c is Some c' then c'.1 else var 0 | c <- _].
-    set ctx2 := [seq if c is Some c' then c'.1 else var 0 | c <- _].
-    have {ctx1} -> : ctx1 = ctx2 by
-      rewrite {}/ctx1 {}/ctx2;
-        elim: ctx {t ty H H1} => //=; case => [[t ty] |] cxt ->.
-    rewrite {}/ctx2; apply => //=.
-    + move: H.
-      set ctx1 := (ctxmap _ _); set ctx2 := (ctxmap _ _).
-      have -> // : ctx1 = ctx2.
-      rewrite {}/ctx1 {}/ctx2.
-      by elim: ctx {t ty v P H0 H1 H2} => //=; case => [[t ty] |] ctx ->.
-    + elim: ctx H1 {t ty H H0 H2} => //=.
-      case => [[t ty] |] ctx IH [] /= H H0; split => //=; try by apply IH.
+    move: (IHt ty
+      (map (fun c => (c.1, shift_typ 1 0 c.2)) ctx) ((v, P) :: preds)).
+    rewrite /unzip1 -!map_comp /funcomp /=; apply => //=.
+    + by move: H; rewrite -map_comp /funcomp /=.
+    + elim: ctx H1 {t ty IHt H H0 H2} => //=;
+        case => t ty ctx IH [] H H0; split => /=; last by apply IH.
       case: (shift_reducibility ty [:: (v, P)] t (leq0n (size preds))) => _.
       by rewrite /insert take0 drop0 sub0n /=; apply.
 Qed.
 
 Theorem typed_term_is_snorm ctx t ty : typing ctx t ty -> SNorm t.
 Proof.
-  move: (@reduce_lemma (ctxmap (pair (var 0)) ctx) [::] t ty) => /=.
-  set ctx' := ctxmap _ _.
-  have {ctx'} -> : ctx' = ctx by
-    rewrite {}/ctx'; elim: ctx {t ty} => //=; case => [ty |] ctx ->.
-  move => H H0; move: {H H0} (H H0 I); set P := Forall _ _; move => H.
-  have : P.
-    rewrite {H}/P; elim: ctx {t ty} => //=.
-    by case => [ty |] ctx IH /=; split => //; apply CR4', reducibility_isrc.
-  move => /H {P H} /rc_cr1; move => /(_ (reducibility_isrc _ _)) /= /(_ I).
+  move => H.
+  move: (@reduce_lemma
+    (map (oapp (pair (var 0)) (var 0, tyvar 0)) ctx) [::] t ty) => /=.
+  rewrite -map_comp /funcomp /=.
+  have {H} H: typing
+    [seq Some (oapp (pair (var 0)) (var 0, tyvar 0) x).2 | x <- ctx] t ty by
+    move: H; apply subject_reduction_proof.ctxleq_preserves_typing;
+      elim: ctx {t ty} => //; case => // ty ctx H; rewrite ctxleqE eqxx /=.
+  move/(_ H I) {H}.
+  have H: Forall (fun c => reducible c.2 [::] c.1)
+                 (map (oapp (pair (var 0)) (var 0, tyvar 0)) ctx) by
+    elim: ctx {t ty} => //= ty ctx IH; split => // {IH};
+      rewrite /oapp /snd; case: ty => [ty |]; apply CR4', reducibility_isrc.
+  move/(_ H) => {H} /(rc_cr1 (reducibility_isrc _ _)) /= /(_ I).
   set f := subst_term _ _ _; set g := typemap _ _.
   rewrite -/((fun t => f (g t)) t); apply acc_preservation => x y H.
   by rewrite {}/f {}/g; apply subst_reduction1, substtyp_reduction1.
