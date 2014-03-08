@@ -392,23 +392,21 @@ Lemma abstraction_lemma ctx t tyl tyr :
   reducible ctx (tyl :->: tyr) (abs t).
 Proof.
   move => /= H H0 t' ctx' H1 H2 H3.
-  have H4: typing ctx' (substitute 0 [:: t'] t) tyr
-    by apply (subject_subst0 [:: (t', tyl)]); rewrite /= ?H2 //;
+  move: t' {H2 H3} (CR1 H2 H3) (H2) (H3); refine (Acc_ind _ _) => t' _ H2 H3 H4.
+  have H5: typing ctx' (substitute 0 [:: t'] t) tyr by
+    apply (subject_subst0 [:: (t', tyl)]); rewrite /= ?H3 //;
       move: H; apply ctxleq_preserves_typing; rewrite ctxleqss eqxx.
-  have H5: SN t by
-    move: (CR1 H4 (H0 t' ctx' H1 H2 H3));
+  have {H5} H5: SN t by
+    move: (CR1 H5 (H0 t' ctx' H1 H3 H4));
       apply acc_preservation => x y; apply subst_betared1.
-  move: (CR1 H2 H3) => H6; move: t H5 t' H6 H H0 H1 H2 H3 {H4}.
-  refine (Acc_ind _ _) => t H H0.
-  refine (Acc_ind _ _) => t' H1 H2 H3 H4 H5 H6 H7.
-  apply CR3 => //=.
-  - by rewrite H6 andbT; move: H3;
+  move: t H5 H H0 H2; refine (Acc_ind _ _) => t _ H H0 H2 H5; apply CR3 => //=.
+  - by rewrite H3 andbT; move: H0;
       apply ctxleq_preserves_typing; rewrite ctxleqss eqxx.
-  - move => t'' H8.
-    inversion H8; subst => {H8}; eauto.
-    inversion H13; subst => {H13}.
-    apply H0 => //; eauto => t'' ctx'' H8 H10 H11.
-    by apply (CR2 (subst_betared1 0 [:: t''] H9)), H4.
+  - move => t'' H6.
+    inversion H6; subst => {H6}; eauto.
+    inversion H11; subst => {H11}; eauto.
+    apply H => //; eauto => t'' ctx'' H6 H8 H9.
+    by apply (CR2 (subst_betared1 0 [:: t''] H7)), H2.
 Qed.
 
 Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
