@@ -285,17 +285,13 @@ Lemma abstraction_lemma t tyl tyr :
   reducible (tyl :->: tyr) (abs t).
 Proof.
   move => /= H t' H0.
-  have H1: SN t by
-    move: (CR1 (H t' H0)); apply acc_preservation => x y; apply subst_betared1.
-  move: (CR1 H0) => H2.
-  move: t H1 t' H2 H H0.
-  refine (Acc_ind _ _) => t _ H; refine (Acc_ind _ _) => t' H0 H1 H2 H3.
-  apply CR3 => //= t'' H4.
-  inversion H4; subst => {H4}; eauto.
-  inversion H9; subst => {H9}; eauto.
-  apply H; eauto.
-  - by constructor.
-  - by move => t'' H4; apply (CR2 (subst_betared1 0 [:: t''] H5)), H2.
+  move: t' {H0} (CR1 H0) (H0); refine (Acc_ind _ _) => t' _ H0 H1.
+  have H2: SN t by
+    move: (CR1 (H t' H1)); apply acc_preservation => x y; apply subst_betared1.
+  move: t H2 H H0; refine (Acc_ind _ _) => t _ H H0 H2.
+  apply CR3 => //= t'' H3.
+  inversion H3; subst => {H3}; eauto; inversion H8; subst => {H8}; eauto.
+  by apply H; eauto => t'' H3; apply (CR2 (subst_betared1 0 [:: t''] H4)), H0.
 Qed.
 
 Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
