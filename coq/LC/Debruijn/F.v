@@ -496,6 +496,8 @@ Proof.
   by apply rt1n_trans with (uabs t') => //; constructor.
 Qed.
 
+Hint Resolve redappl redappr redapp redabs reduapp reduabs.
+
 Lemma shifttyp_reduction1 t t' d c :
   t ->r1 t' -> typemap (shift_typ d) c t ->r1 typemap (shift_typ d) c t'.
 Proof.
@@ -538,21 +540,15 @@ Lemma subst_reduction t n m ts :
   Forall (fun t => t.1 ->r t.2) ts ->
   subst_term n m (unzip1 ts) t ->r subst_term n m (unzip2 ts) t.
 Proof.
-  move => H; elim: t n m => //=.
-  - move => v n m; rewrite !size_map; elimif_omega.
-    elim: ts v H => //=; case => t t' ts IH [[H _] | v] //=.
-    + move: H.
-      apply (rtc_map' (f := fun x =>
-        typemap (shift_typ m) 0 (shift_term n 0 x))) => t1 t2 H.
-      by apply shifttyp_reduction1, shift_reduction1.
-    + by move => [_ H]; rewrite subSS; apply IH.
-  - by move => tl IHtl tr IHtr ty n m; apply redapp.
-  - by move => tl IHtl tr IHtr; apply redabs.
-  - by move => t IHt ty ty' n m; apply reduapp.
-  - by move => t IHt n m; apply reduabs.
+  move => H; elim: t n m => //=;
+    auto => v n m; rewrite !size_map; elimif_omega.
+  elim: ts v H => //=; case => t t' ts IH [[H _] | v] //=.
+  - move: H.
+    apply (rtc_map' (f := fun x =>
+      typemap (shift_typ m) 0 (shift_term n 0 x))) => t1 t2 H.
+    by apply shifttyp_reduction1, shift_reduction1.
+  - by move => [_ H]; rewrite subSS; apply IH.
 Qed.
-
-Hint Resolve redappl redappr redabs reduapp reduabs.
 
 Module confluence_proof.
 
@@ -604,8 +600,6 @@ Proof.
   - move => t t' ty1 ty2 H H0.
     apply rtc_trans' with ({uabs t' \: ty1}@ ty2); auto.
     by apply rtc_step.
-  - move => t1 t1' t2 t2' ty H H0 H1 H2.
-    by apply rtc_trans' with (t1 @{t2' \: ty}); auto.
 Qed.
 
 Lemma shift_parred t t' d c :
@@ -673,8 +667,7 @@ Qed.
 
 Theorem betared_confluent : confluent reduction.
 Proof.
-  apply (rtc_confluent'
-    betared1_in_parred parred_in_betared parred_confluent).
+  apply (rtc_confluent' betared1_in_parred parred_in_betared parred_confluent).
 Qed.
 
 End confluence_proof.
