@@ -97,7 +97,7 @@ Fixpoint typing (ctx : context typ) (t : term) (ty : typ) : bool :=
     | _, _ => false
   end.
 
-Notation SN t := (Acc (fun x y => betared1 y x) t).
+Notation SN := (Acc (fun x y => betared1 y x)).
 
 Definition neutral t := if t is abs _ then false else true.
 

@@ -809,14 +809,14 @@ End subject_reduction_proof.
 
 Module strong_normalization_proof.
 
-Definition SNorm (t : term) : Prop := Acc (fun x y => reduction1 y x) t.
+Notation SN := (Acc (fun x y => reduction1 y x)).
 
 Definition neutral (t : term) : bool :=
   match t with abs _ => false | uabs _ => false | _ => true end.
 
 Section CRs.
 Variable (P : term -> Prop).
-Definition CR1 := forall t, P t -> SNorm t.
+Definition CR1 := forall t, P t -> SN t.
 Definition CR2 := forall t t', t ->r1 t' -> P t -> P t'.
 Definition CR3 := forall t,
   neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
@@ -843,7 +843,7 @@ Proof. by case => _ _ H H0 H1; apply H => // t' H2; move: (H1 _ H2). Qed.
 Lemma CR4' P (v : nat) : RC P -> P v.
 Proof. move => H; apply: (CR4 H) => // t' H0; inversion H0. Qed.
 
-Lemma snorm_isrc : RC SNorm.
+Lemma snorm_isrc : RC SN.
 Proof.
   constructor; move => /=; try tauto.
   - by move => t t' H []; apply.
@@ -866,7 +866,7 @@ Qed.
 
 Fixpoint reducible ty (preds : seq (typ * (term -> Prop))) t : Prop :=
   match ty with
-    | tyvar v => nth SNorm (unzip2 preds) v t
+    | tyvar v => nth SN (unzip2 preds) v t
     | tyfun tyl tyr => forall t',
       reducible tyl preds t' ->
       reducible tyr preds (t @{t' \: subst_typ 0 (unzip1 preds) tyl})
@@ -887,7 +887,7 @@ Proof.
       (@rcfun_isrc (subst_typ 0 (unzip1 preds) tyl));
       [apply IHtyl | apply IHtyr].
   - move => H; constructor.
-    + move => /= t /(_ 0 SNorm snorm_isrc)
+    + move => /= t /(_ 0 SN snorm_isrc)
         /(rc_cr1 (IHty ((_, _) :: _) (conj snorm_isrc H))).
       rewrite -/((fun t => {t \: subst_typ 1 (unzip1 preds) ty}@ 0) t).
       by apply acc_preservation => x y H0; constructor.
@@ -915,7 +915,7 @@ Qed.
 Lemma shift_reducibility c ty preds preds' t :
   c <= size preds ->
   (reducible (shift_typ (size preds') c ty)
-     (insert preds' preds (tyvar 0, SNorm) c) t <->
+     (insert preds' preds (tyvar 0, SN) c) t <->
    reducible ty preds t).
 Proof.
   elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
@@ -943,12 +943,12 @@ Lemma subst_reducibility ty preds n tys t :
    reducible ty
      (insert [seq (subst_typ 0 (unzip1 (drop n preds)) ty,
                    reducible ty (drop n preds)) | ty <- tys]
-             preds (tyvar 0, SNorm) n)
+             preds (tyvar 0, SN) n)
      t).
 Proof.
   elim: ty preds n tys t =>
     [v | tyl IHtyl tyr IHtyr | ty IHty] preds n tys t.
-  - rewrite /= -(nth_map' (@snd _ _) (tyvar 0, SNorm)) /= nth_insert size_map.
+  - rewrite /= -(nth_map' (@snd _ _) (tyvar 0, SN)) /= nth_insert size_map.
     elimif_omega.
     + by rewrite nth_default ?leq_addr //= nth_map' addnC.
     + move => H0.
@@ -982,7 +982,7 @@ Proof.
   move: (reducible tyl preds) (reducible tyr preds)
     (reducibility_isrc tyl H) (reducibility_isrc tyr H) => {H} P Q HP HQ.
   move => H t' H0.
-  have H1: SNorm t by
+  have H1: SN t by
     move: (rc_cr1 HQ (H _ H0));
       apply acc_preservation => x y; apply subst_reduction1.
   move: t H1 t' {H H0} (rc_cr1 HP H0) (H0) (H _ H0).
@@ -1007,7 +1007,7 @@ Proof.
   move: {H0} (@reducibility_isrc ty ((ty', P) :: preds)) (H0 ty' P H1)
     => /= /(_ (conj H1 H)).
   move: {P H H1} (reducible _ _) => P H H0.
-  have H1: SNorm t by
+  have H1: SN t by
     move: (rc_cr1 H H0);
       apply acc_preservation => x y; apply substtyp_reduction1.
   move: t H1 H0; refine (Acc_ind _ _) => t _ H0 H1.
@@ -1065,7 +1065,7 @@ Proof.
       by rewrite /insert take0 drop0 sub0n /=; apply.
 Qed.
 
-Theorem typed_term_is_snorm ctx t ty : typing ctx t ty -> SNorm t.
+Theorem typed_term_is_snorm ctx t ty : typing ctx t ty -> SN t.
 Proof.
   move => H.
   move: (@reduce_lemma
