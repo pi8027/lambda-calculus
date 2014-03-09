@@ -6,6 +6,10 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Import Prenex Implicits.
 
+Definition natE :=
+  (addSn, addnS, add0n, addn0, sub0n, subn0, subSS,
+   min0n, minn0, max0n, maxn0, leq0n).
+
 (* Extended comparison predicates. *)
 
 CoInductive leq_xor_gtn' m n :
@@ -118,13 +122,10 @@ Ltac simpl_natarith3 m n :=
   end.
 
 Ltac simpl_natarith :=
-  let rlemmas :=
-    constr: (addSn, addnS, add0n, addn0, sub0n, subn0, subSS,
-             min0n, minn0, max0n, maxn0, leq0n) in
   let tac :=
     lazymatch goal with
-      | |- ?x = ?x -> _ => move => _; rewrite !rlemmas
-      | _ => move => ->; rewrite ?rlemmas
+      | |- ?x = ?x -> _ => move => _; rewrite !natE
+      | _ => move => ->; rewrite ?natE
     end in
   repeat match goal with
     | H : context [?m - ?n] |- _ => move: H; simpl_natarith3 m n; tac => H
@@ -164,7 +165,7 @@ Tactic Notation "find_minneq_hyp" constr(m) constr(n) :=
     | H : is_true (m < n) |- _ => rewrite (minn_idPl (ltnW H))
     | H : is_true (n < m) |- _ => rewrite (minn_idPr (ltnW H))
     | |- _ => case (leqP' m n)
-  end.
+  end; rewrite ?natE.
 
 Tactic Notation "find_maxneq_hyp" constr(m) constr(n) :=
   match goal with
@@ -173,7 +174,7 @@ Tactic Notation "find_maxneq_hyp" constr(m) constr(n) :=
     | H : is_true (m < n) |- _ => rewrite (maxn_idPr (ltnW H))
     | H : is_true (n < m) |- _ => rewrite (maxn_idPl (ltnW H))
     | |- _ => case (leqP' m n)
-  end.
+  end; rewrite ?natE.
 
 Ltac replace_minn_maxn :=
   try (rewrite <- minnE in * || rewrite <- maxnE in * );

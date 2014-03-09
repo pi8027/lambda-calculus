@@ -148,6 +148,11 @@ Infix "->r" := reduction (at level 70, no associativity).
 
 Hint Constructors reduction1.
 
+Notation SN := (Acc (fun x y => reduction1 y x)).
+
+Definition neutral (t : term) : bool :=
+  match t with abs _ => false | uabs _ => false | _ => true end.
+
 Ltac congruence' := move => /=; try (move: addSn addnS; congruence).
 
 Lemma shift_zero_ty n t : shift_typ 0 n t = t.
@@ -176,8 +181,7 @@ Lemma subst_shift_distr_ty n d c ts t :
   shift_typ d c (subst_typ n ts t) =
   subst_typ n (map (shift_typ d (c - n)) ts) (shift_typ d (size ts + c) t).
 Proof.
-  elimleq; elim: t n; congruence' => v n;
-    rewrite size_map; elimif_omega.
+  elimleq; elim: t n; congruence' => v n; rewrite size_map; elimif_omega.
   - rewrite !nth_default ?size_map /=; elimif_omega.
   - rewrite -shift_shift_distr_ty // nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
@@ -192,11 +196,10 @@ Lemma subst_shift_cancel_ty1 n d c ts t :
   subst_typ n (drop (c + d - n) ts)
     (shift_typ (d - minn (c + d - n) (size ts)) c t).
 Proof.
-  elimleq; elim: t c; congruence' => v c; elimif_omega;
-    rewrite size_drop nth_drop;
-    case (leqP' d n); elimleq; case: (leqP' d.+1 (size ts)).
-  - move => H0; elimif_omega.
-  - rewrite ltnS; elimleq; rewrite !nth_default //; ssromega.
+  elimleq; elim: t c; congruence' => v c; rewrite size_drop nth_drop.
+  case (leqP' d n); elimif_omega; elimleq.
+  case (leqP' d.+1 (size ts)) => H0; elimif_omega.
+  rewrite !nth_default //; ssromega.
 Qed.
 
 Lemma subst_shift_cancel_ty2 n d c ts t :
@@ -808,11 +811,6 @@ Qed.
 End subject_reduction_proof.
 
 Module strong_normalization_proof.
-
-Notation SN := (Acc (fun x y => reduction1 y x)).
-
-Definition neutral (t : term) : bool :=
-  match t with abs _ => false | uabs _ => false | _ => true end.
 
 Section CRs.
 Variable (P : term -> Prop).
