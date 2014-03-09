@@ -864,16 +864,6 @@ Proof.
       subst => //= _; auto; apply H3 => //; apply (rc_cr2 H H9 H4).
 Qed.
 
-Lemma rcall_isrc (PF : (term -> Prop) -> (term -> Prop)) :
-  (forall P, RC P -> RC (PF P)) ->
-  RC (fun t => forall P, RC P -> PF P t).
-Proof.
-  move => H; constructor; move => /=.
-  - by move => t /(_ SNorm snorm_isrc) /(rc_cr1 (H _ snorm_isrc)).
-  - by move => t t' H0 H1 P H2; apply (rc_cr2 (H _ H2) H0), H1.
-  - by move => t H0 H1 P H2; apply (rc_cr3 (H _ H2)) => // t' H3; apply H1.
-Qed.
-
 Fixpoint reducible ty (preds : seq (typ * (term -> Prop))) t : Prop :=
   match ty with
     | tyvar v => nth SNorm (unzip2 preds) v t
@@ -990,22 +980,19 @@ Lemma abs_reducibility t tyl tyr preds :
 Proof.
   move => /= H.
   move: (reducible tyl preds) (reducible tyr preds)
-    (reducibility_isrc tyl H) (reducibility_isrc tyr H) => {H} P Q H H0.
-  move => H1 t' H2.
-  have H3 : SNorm t by
-    move: (rc_cr1 H0 (H1 _ H2));
+    (reducibility_isrc tyl H) (reducibility_isrc tyr H) => {H} P Q HP HQ.
+  move => H t' H0.
+  have H1: SNorm t by
+    move: (rc_cr1 HQ (H _ H0));
       apply acc_preservation => x y; apply subst_reduction1.
-  move: t H3 t' {H1 H2} (rc_cr1 H H2) (H2) (H1 _ H2).
-  refine (Acc_ind _ _) => t1 _ H1; refine (Acc_ind _ _) => t2 _ H2 H3 H4.
-  apply (rc_cr3 H0) => //= t' H5.
-  inversion H5; subst => //.
-  - inversion H10; subst; apply H1.
-    + apply H7.
-    + apply (rc_cr1 H H3).
-    + apply H3.
-    + by apply (rc_cr2 H0 (subst_reduction1 0 0 [:: t2] H7)).
-  - apply H2 => //; first by apply (rc_cr2 H H10).
-    move: H4; apply (CR2' H0).
+  move: t H1 t' {H H0} (rc_cr1 HP H0) (H0) (H _ H0).
+  refine (Acc_ind _ _) => t1 _ H; refine (Acc_ind _ _) => t2 _ H0 H1 H2.
+  apply rc_cr3 => // t' H3; inversion H3; subst => //.
+  - inversion H8; subst; apply H; auto.
+    + apply (rc_cr1 HP H1).
+    + by apply (rc_cr2 HQ (subst_reduction1 0 0 [:: t2] H5)).
+  - apply H0 => //; first by apply (rc_cr2 HP H8).
+    move: H2; apply (CR2' HQ).
     apply (@subst_reduction t1 0 0 [:: (t2, t2')]) => //=; split => //.
     by apply rtc_step.
 Qed.
