@@ -1,14 +1,24 @@
-# A Formalization of Typed and Untyped Lambda-Calculus in Coq and Agda2
+# A Formalization of Typed and Untyped λ-Calculus in SSReflect-Coq and Agda2
 
 This formalization contains the following definitions and theorems:
 
-* SKI combinator calculus
+* SKI combinator calculus: coq/CL.v
     * Confluence of weak reduction
-* Untyped lambda-calculus
+* Untyped lambda calculus: coq/LC/Debruijn/Untyped.v
     * Confluence of beta reduction
-* STLC (simply typed lambda calculus)
-    * Subject reduction theorem
+* STLC (simply typed lambda calculus): coq/LC/Debruijn/STLC.v
+    * Subject reduction (type preservation) theorem
     * Strong normalization theorem
-* System F
-    * Subject reduction theorem
+        * Using a type-free version of the reducibility predicate
+        * Using a typed version of the reducibility predicate (depends on a part of the subject reduction proof)
+* System F (second order typed lambda calculus): coq/LC/Debruijn/F.v
+    * Subject reduction (type preservation) theorem
     * Strong normalization theorem
+        * Using a type-free version of the reducibility candidates
+
+## References
+
+* J.H. Gallier. On Girard's “Candidats de Réductibilité". In Logic and Computer Science. P. Odifreddi, Editor, Academic Press, 123-203, 1989.
+* J.-Y. Girard. Proofs and Types. Cambridge University Press, 1989.
+* J.R. Hindley and J.P. Seldin. Lambda-Calculus and Combinators: an Introduction. Cambridge University Press, 2008. 3rd edition.
+* M. Takahashi. Parallel Reductions in λ-Calculus. Information and Computation, Volume 118, Issue 1, April 1995, Pages 120-127.
