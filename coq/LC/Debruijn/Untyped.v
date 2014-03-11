@@ -108,8 +108,8 @@ Lemma subst_subst_distr n m xs ys t :
 Proof.
   elimleq; elim: t m; congruence' => v m; elimif_omega.
   - rewrite nth_default ?(@subst_shift_cancel m) // ?size_map /=; elimif_omega.
-  - rewrite size_map -shift_subst_distr // nth_map' /=.
-    f_equal; apply nth_equal; rewrite size_map; elimif_omega.
+  - rewrite -shift_subst_distr // nth_map' /=; f_equal;
+      apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 Lemma subst_app n xs ys t :
@@ -160,19 +160,18 @@ Proof. elim: t; auto. Qed.
 Lemma betaredappl t1 t1' t2 : t1 ->b t1' -> app t1 t2 ->b app t1' t2.
 Proof.
   elim => // {t1 t1'} t1 t1' t1'' H H0 H1.
-  apply rt1n_trans with (app t1' t2) => //; auto.
+  apply rt1n_trans with (app t1' t2); auto.
 Qed.
 
 Lemma betaredappr t1 t2 t2' : t2 ->b t2' -> app t1 t2 ->b app t1 t2'.
 Proof.
   elim => // {t2 t2'} t2 t2' t2'' H H0 H1.
-  apply rt1n_trans with (app t1 t2') => //; auto.
+  apply rt1n_trans with (app t1 t2'); auto.
 Qed.
 
 Lemma betaredabs t t' : t ->b t' -> abs t ->b abs t'.
 Proof.
-  elim => // {t t'} t t' t'' H H0 H1.
-  apply rt1n_trans with (abs t') => //; auto.
+  elim => // {t t'} t t' t'' H H0 H1; apply rt1n_trans with (abs t'); auto.
 Qed.
 
 Hint Resolve parred_refl betaredappl betaredappr betaredabs.
@@ -182,11 +181,9 @@ Proof. apply betared1_ind; auto. Qed.
 
 Lemma parred_in_betared : inclusion parred betared.
 Proof.
-  apply parred_ind => //.
-  - move => t1 t1' t2 t2' H H0 H1 H2; apply rtc_trans' with (app t1' t2); auto.
-  - auto.
-  - move => t1 t1' t2 t2' H H0 H1 H2.
-    apply rtc_trans' with (app (abs t1') t2); auto.
+  apply parred_ind; auto => t1 t1' t2 t2' H H0 H1 H2.
+  - apply rtc_trans' with (app t1' t2); auto.
+  - apply rtc_trans' with (app (abs t1') t2); auto.
     apply rtc_trans' with (app (abs t1') t2'); auto.
     by apply rtc_step.
 Qed.
