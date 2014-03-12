@@ -21,4 +21,5 @@ This formalization contains the following definitions and theorems:
 * J.H. Gallier. On Girard's “Candidats de Réductibilité". In Logic and Computer Science. P. Odifreddi, Editor, Academic Press, 123-203, 1989.
 * J.-Y. Girard. Proofs and Types. Cambridge University Press, 1989.
 * J.R. Hindley and J.P. Seldin. Lambda-Calculus and Combinators: an Introduction. Cambridge University Press, 2008. 3rd edition.
-* M. Takahashi. Parallel Reductions in λ-Calculus. Information and Computation, Volume 118, Issue 1, April 1995, Pages 120-127.
+* T. Nipkow. More Church–Rosser Proofs (in Isabelle/HOL). Journal of Automated Reasoning, 26(1), 51–66, 2001.
+* M. Takahashi. Parallel Reductions in λ-Calculus. Information and Computation, 118(1), 120-127, 1995.
