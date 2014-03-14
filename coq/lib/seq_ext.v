@@ -86,6 +86,20 @@ Proof.
   - rewrite nth_take //; apply nth_equal; ssromega.
 Qed.
 
+Lemma take_insert n (xs ys : seq A) d :
+  take n (insert xs ys d n) = take n ys ++ nseq (n - size ys) d.
+Proof.
+  by rewrite /insert take_cat size_take ltnNge geq_minl /= minnE subKn
+             ?leq_subr // take_cat size_nseq ltnn subnn take0 cats0.
+Qed.
+
+Lemma drop_insert n (xs ys : seq A) d :
+  drop (n + size xs) (insert xs ys d n) = drop n ys.
+Proof.
+  rewrite /insert !catA drop_cat !size_cat size_take size_nseq drop_addn.
+  elimif_omega.
+Qed.
+
 End Insert.
 
 (* context *)
