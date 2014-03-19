@@ -158,21 +158,13 @@ Lemma parred_refl t : parred t t.
 Proof. elim: t; auto. Qed.
 
 Lemma betaredappl t1 t1' t2 : t1 ->b t1' -> app t1 t2 ->b app t1' t2.
-Proof.
-  elim => // {t1 t1'} t1 t1' t1'' H H0 H1.
-  apply rt1n_trans with (app t1' t2); auto.
-Qed.
+Proof. apply (rtc_map' (fun x y => @betared1appl x y t2)). Qed.
 
 Lemma betaredappr t1 t2 t2' : t2 ->b t2' -> app t1 t2 ->b app t1 t2'.
-Proof.
-  elim => // {t2 t2'} t2 t2' t2'' H H0 H1.
-  apply rt1n_trans with (app t1 t2'); auto.
-Qed.
+Proof. apply (rtc_map' (@betared1appr t1)). Qed.
 
 Lemma betaredabs t t' : t ->b t' -> abs t ->b abs t'.
-Proof.
-  elim => // {t t'} t t' t'' H H0 H1; apply rt1n_trans with (abs t'); auto.
-Qed.
+Proof. apply (rtc_map' betared1abs). Qed.
 
 Hint Resolve parred_refl betaredappl betaredappr betaredabs.
 

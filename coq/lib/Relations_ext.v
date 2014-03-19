@@ -24,9 +24,7 @@ Proof.
 Qed.
 
 Lemma rtc_step A (R : relation A) : inclusion R [* R].
-Proof.
-  by move => x y H; apply rt1n_trans with y.
-Qed.
+Proof. by move => x y H; apply rt1n_trans with y. Qed.
 
 Lemma rtc_map A (R R' : relation A) : inclusion R R' -> inclusion [* R] [* R'].
 Proof.

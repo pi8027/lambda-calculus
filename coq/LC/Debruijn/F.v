@@ -460,41 +460,26 @@ Proof.
 Qed.
 
 Lemma redappl t1 t1' t2 ty : t1 ->r t1' -> t1 @{t2 \: ty} ->r t1' @{t2 \: ty}.
-Proof.
-  elim => // {t1 t1'} t1 t1' t1'' H H0 H1.
-  by apply rt1n_trans with (t1' @{t2 \: ty}) => //; constructor.
-Qed.
+Proof. apply (rtc_map' (fun x y => @red1appl x y t2 ty)). Qed.
 
 Lemma redappr t1 t2 t2' ty : t2 ->r t2' -> t1 @{t2 \: ty} ->r t1 @{t2' \: ty}.
-Proof.
-  elim => // {t2 t2'} t2 t2' t2'' H H0 H1.
-  by apply rt1n_trans with (t1 @{t2' \: ty}) => //; constructor.
-Qed.
+Proof. apply (rtc_map' (fun x y => @red1appr t1 x y ty)). Qed.
 
 Lemma redapp t1 t1' t2 t2' ty :
   t1 ->r t1' -> t2 ->r t2' -> t1 @{t2 \: ty} ->r t1' @{t2' \: ty}.
 Proof.
-  by move => H H0; apply rtc_trans' with (t1' @{t2 \: ty});
+  by move => H H0; eapply rtc_trans' with (t1' @{t2 \: ty});
     [apply redappl | apply redappr].
 Qed.
 
 Lemma redabs t t' : t ->r t' -> abs t ->r abs t'.
-Proof.
-  elim => // {t t'} t t' t'' H H0 H1.
-  by apply rt1n_trans with (abs t') => //; constructor.
-Qed.
+Proof. apply (rtc_map' red1abs). Qed.
 
 Lemma reduapp t t' ty1 ty2 : t ->r t' -> {t \: ty1}@ ty2 ->r {t' \: ty1}@ ty2.
-Proof.
-  elim => // {t t'} t t' t'' H H0 H1.
-  by apply rt1n_trans with ({t' \: ty1}@ ty2) => //; constructor.
-Qed.
+Proof. apply (rtc_map' (fun x y => @red1uapp x y ty1 ty2)). Qed.
 
 Lemma reduabs t t' : t ->r t' -> uabs t ->r uabs t'.
-Proof.
-  elim => // {t t'} t t' t'' H H0 H1.
-  by apply rt1n_trans with (uabs t') => //; constructor.
-Qed.
+Proof. apply (rtc_map' red1uabs). Qed.
 
 Hint Resolve redappl redappr redapp redabs reduapp reduabs.
 
