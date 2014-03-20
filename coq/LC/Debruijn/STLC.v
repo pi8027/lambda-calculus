@@ -177,7 +177,7 @@ Proof.
   elim: t ty ctx1 ctx2 => [n | tl IHtl tr IHtr tty | t IHt []] //=.
   - by move => ty ctx1 ctx2 /ctxleqP; apply.
   - by move => ty ctx1 ctx2 H /andP [] /IHtl -> //=; apply IHtr.
-  - by move => tyl tyr ctx1 ctx2 H; apply IHt; rewrite ctxleqss eqxx.
+  - by move => tyl tyr ctx1 ctx2 H; apply IHt; rewrite ctxleqE eqxx.
 Qed.
 
 Lemma subject_shift t ty c ctx1 ctx2 :
@@ -205,7 +205,8 @@ Proof.
               drop_take_nil drop0 cats0 -catA -{4}(cat_take_drop n ctx).
       apply ctxleq_preserves_typing; rewrite ctxleq_appl.
       by case: (leqP' n (size ctx)) =>
-        //= /ltnW /drop_oversize ->; rewrite cats0 ctxleql0 size_nseq.
+        //= /ltnW /drop_oversize ->; rewrite cats0;
+        apply/ctxleqP => /= n' ty' /eqP; rewrite nth_nseq if_same.
   - by move => ty n ctx H /andP [] /IHtl -> //=; apply IHtr.
   - by move => tyl tyr n ctx H; apply (IHt tyr n.+1 (Some tyl :: ctx)).
 Qed.
@@ -395,13 +396,13 @@ Proof.
   move: t' {H2 H3} (CR1 H2 H3) (H2) (H3); refine (Acc_ind _ _) => t' _ H2 H3 H4.
   have H5: typing ctx' (substitute 0 [:: t'] t) tyr by
     apply (subject_subst0 [:: (t', tyl)]); rewrite /= ?H3 //;
-      move: H; apply ctxleq_preserves_typing; rewrite ctxleqss eqxx.
+      move: H; apply ctxleq_preserves_typing; rewrite ctxleqE eqxx.
   have {H5} H5: SN t by
     move: (CR1 H5 (H0 t' ctx' H1 H3 H4));
       apply acc_preservation => x y; apply subst_betared1.
   move: t H5 H H0 H2; refine (Acc_ind _ _) => t _ H H0 H2 H5; apply CR3 => //=.
   - by rewrite H3 andbT; move: H0;
-      apply ctxleq_preserves_typing; rewrite ctxleqss eqxx.
+      apply ctxleq_preserves_typing; rewrite ctxleqE eqxx.
   - move => t'' H6.
     inversion H6; subst => {H6}; eauto.
     inversion H11; subst => {H11}; eauto.
@@ -434,7 +435,7 @@ Proof.
       rewrite subst_app /=.
       apply (IHt tyr ctx2 ((t2, tyl) :: ctx')) => /=.
       * move: H; apply ctxleq_preserves_typing.
-        by rewrite ctxleqss eqxx ctxleq_appl /=.
+        by rewrite ctxleqE eqxx ctxleq_appl /=.
       * rewrite H3 /=; move: H0; apply sub_all => p; eauto.
       * split => //; move: H1; apply Forall_impl; eauto.
 Qed.

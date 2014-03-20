@@ -666,7 +666,7 @@ Proof.
     [n | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
   - by move => ty ctx1 ctx2 /ctxleqP; apply.
   - by move => ty ctx1 ctx2 H /andP [] /(IHtl _ _ _ H) ->; apply IHtr.
-  - by move => tyl tyr ctx1 ctx2 H; apply IHt; rewrite ctxleqss eqxx.
+  - by move => tyl tyr ctx1 ctx2 H; apply IHt; rewrite ctxleqE eqxx.
   - by move => ty ctx1 ctx2 H /andP [] ->; apply IHt.
   - by move => ty ctx1 ctx2 H; apply IHt, ctxleq_map.
 Qed.
@@ -741,8 +741,9 @@ Proof.
       rewrite /insert take0 sub0n take_minn minnn size_take minnE subKn
               ?leq_subr //= drop_take_nil cats0 drop0 -catA
               -{4}(cat_take_drop n ctx) ctxleq_appl.
-      case (leqP' n (size ctx)) => //= H0.
-      by rewrite drop_oversize ?(ltnW H0) //= cats0 ctxleql0 size_nseq.
+      by case (leqP' n (size ctx)) => //= H0;
+        rewrite drop_oversize ?(ltnW H0) //= cats0;
+        apply/ctxleqP => /= m ty' /eqP; rewrite nth_nseq if_same.
   - by move => ty n ctx ctx' H /andP [] /IHtl -> //=; apply IHtr.
   - by move => tyl tyr n ctx ctx' H H0; apply IHt.
   - by move => ty n ctx ctx' H /andP [] ->; apply IHt.

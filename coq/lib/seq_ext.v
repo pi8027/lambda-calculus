@@ -137,55 +137,16 @@ Proof.
   by case/boolP: (Some x == None) => // _; rewrite orbF.
 Qed.
 
-Lemma ctxleq0l xs : [::] <=c xs.
-Proof. done. Qed.
-
-Lemma ctxleql0 ys : (ys <=c [::]) = (ys == nseq (size ys) None).
-Proof. by elim: ys => //=; case. Qed.
-
-Lemma ctxleqnl xs ys : (None :: xs <=c ys) = (xs <=c behead ys).
-Proof. by case: ys. Qed.
-
-Lemma ctxleqln xs ys :
-  (xs <=c None :: ys) = (head None xs == None) && (behead xs <=c ys).
-Proof. by move: xs => [] //= []. Qed.
-
-Lemma ctxleqsl x xs ys :
-  (Some x :: xs <=c ys) = (Some x == head None ys) && (xs <=c behead ys).
-Proof. by move: ys => [] //= []. Qed.
-
-Lemma ctxleqls xs y ys :
-  (xs <=c Some y :: ys) =
-  ((head None xs == None) || (head None xs == Some y)) && (behead xs <=c ys).
-Proof. by move: xs => [] //= []. Qed.
-
-Lemma ctxleqss x xs y ys :
-  (Some x :: xs <=c Some y :: ys) = (x == y) && (xs <=c ys).
-Proof. by rewrite ctxleqsl. Qed.
-
-Lemma ctxleqcc x xs y ys :
-  (x :: xs <=c y :: ys) = ((x == y) || (x == None)) && (xs <=c ys).
-Proof. by rewrite ctxleqE. Qed.
-
-Lemma ctxleqcl x xs ys :
-  (x :: xs <=c ys) = ((x == head None ys) || (x == None)) && (xs <=c behead ys).
-Proof. by rewrite ctxleqE. Qed.
-
-Lemma ctxleqlc xs y ys :
-  (xs <=c y :: ys) =
-  ((head None xs == y) || (head None xs == None)) && (behead xs <=c ys).
-Proof. by rewrite ctxleqE. Qed.
-
 Lemma ctxleqP (xs ys : context A) :
   reflect (forall n a, ctxindex xs n a -> ctxindex ys n a) (ctxleq xs ys).
 Proof.
   apply: (iffP idP); elim: xs ys => [| x xs IH].
   - by move => ys _ n a; rewrite nth_nil.
-  - by case => [| y ys]; rewrite ctxleqcl /= =>
+  - by case => [| y ys]; rewrite ctxleqE /= =>
       /andP [] /orP [] /eqP -> H [] //= n a /(IH _ H) //; rewrite nth_nil.
-  - by move => ys; rewrite ctxleq0l.
-  - by case => [| y ys]; rewrite ctxleqcl /= => H; apply/andP;
-      (apply conj;
+  - by move => ys; rewrite ctxleqE eqxx orbT.
+  - by case => [| y ys]; rewrite ctxleqE /= => H; apply/andP;
+      (split;
        [ case: x H; rewrite ?eqxx ?orbT // => x H; rewrite (H 0 x) |
          apply IH => n a /(H n.+1 a) ]).
 Qed.
@@ -202,7 +163,7 @@ Lemma ctxleq_app (xs xs' ys ys' : context A) :
   (xs ++ ys) <=c (xs' ++ ys') = (xs <=c xs') && (ys <=c ys').
 Proof.
   elim: xs xs' => [| x xs IH] [] //= x' xs' [].
-  by rewrite !ctxleqcc; move/IH => ->; rewrite andbA.
+  by rewrite ctxleqE /=; move/IH => ->; apply esym; rewrite ctxleqE /= andbA.
 Qed.
 
 Lemma ctxleq_appl (xs ys zs : context A) :
@@ -210,16 +171,13 @@ Lemma ctxleq_appl (xs ys zs : context A) :
 Proof. by rewrite ctxleq_app // ctxleqxx. Qed.
 
 Lemma ctxleq_appr (xs ys : context A) : xs <=c (xs ++ ys).
-Proof. by rewrite -{1}(cats0 xs) ctxleq_appl ctxleq0l. Qed.
+Proof. by rewrite -{1}(cats0 xs) ctxleq_appl. Qed.
 
 End Context1.
 
-Hint Resolve ctxleq0l ctxleql0 ctxleqnl ctxleqln ctxleqsl ctxleqls ctxleqss
-             ctxleqcc ctxleqcl ctxleqlc.
-
 Infix "<=c" := ctxleq (at level 70, no associativity).
 
-Section Context3.
+Section Context2.
 
 Variable (A B : eqType).
 
@@ -235,7 +193,7 @@ Proof.
   by case: (nth None xs n) => //= a' /(_ a' (eqxx _)) /eqP => <-.
 Qed.
 
-End Context3.
+End Context2.
 
 Hint Resolve ctxindex_map ctxleqxx ctxleq_trans ctxleq_app
              ctxleq_appl ctxleq_appr ctxleq_map.
