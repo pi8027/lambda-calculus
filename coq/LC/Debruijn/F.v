@@ -532,7 +532,7 @@ Proof.
     apply (rtc_map' (f := fun x =>
       typemap (shift_typ m) 0 (shift_term n 0 x))) => t1 t2 H.
     by apply shifttyp_reduction1, shift_reduction1.
-  - by move => [_ H]; rewrite subSS; apply IH.
+  - by case => _ H; rewrite subSS; apply IH.
 Qed.
 
 Module confluence_proof.
