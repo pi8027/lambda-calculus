@@ -1,6 +1,8 @@
 # A Formalization of Typed and Untyped λ-Calculus in SSReflect-Coq and Agda2
 
-This formalization contains the following definitions and theorems:
+By Kazuhiko Sakaguchi, Nov. 2011 - July 2014.
+
+This is a formalization of the λ-calculus written in SSReflect-Coq and Agda2, and it contains the following definitions and theorems:
 
 * SKI combinator calculus: coq/CL.v
     * Confluence of weak reduction
@@ -18,6 +20,7 @@ This formalization contains the following definitions and theorems:
 
 ## References
 
+* N.G. de Bruijn. Lambda Calculus Notation with Nameless Dummies: A Tool for Automatic Formula Manipulation, with Application to the Church-Rosser Theorem. Indagationes Mathematicae, 75(5), 381–392, 1972.
 * J.H. Gallier. On Girard's “Candidats de Réductibilité". In Logic and Computer Science. P. Odifreddi, Editor, Academic Press, 123-203, 1989.
 * J.-Y. Girard. Proofs and Types. Cambridge University Press, 1989.
 * J.R. Hindley and J.P. Seldin. Lambda-Calculus and Combinators: an Introduction. Cambridge University Press, 2008. 3rd edition.

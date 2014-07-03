@@ -114,10 +114,10 @@ Definition cl_comb_b : clterm := clatoms @ (clatomk @ clatoms) @ clatomk.
 Example example_2_11 t1 t2 t3 : cl_comb_b @ t1 @ t2 @ t3 ->w t1 @ (t2 @ t3).
 Proof.
   rewrite /cl_comb_b.
-  apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
-  apply: rt1n_trans ;
+  eapply rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
+  eapply rt1n_trans;
     first apply weakred_left, weakred_left, weakred_left, weakred_k.
-  apply: rt1n_trans; first apply weakred_s.
+  eapply rt1n_trans; first apply weakred_s.
   apply rtc_step; apply weakred_left, weakred_k.
 Qed.
 
@@ -129,12 +129,12 @@ Definition cl_comb_c : clterm :=
 Example example_2_12 t1 t2 t3 : cl_comb_c @ t1 @ t2 @ t3 ->w t1 @ t3 @ t2.
 Proof.
   rewrite /cl_comb_c.
-  apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
-  apply: rtc_trans'; first (do 3 apply weakred_rtc_left; apply example_2_11).
-  apply: rtc_trans'; first apply weakred_rtc_left, example_2_11.
-  apply: rt1n_trans; first apply weakred_s.
+  eapply rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
+  eapply rtc_trans'; first (do 3 apply weakred_rtc_left; apply example_2_11).
+  eapply rtc_trans'; first apply weakred_rtc_left, example_2_11.
+  eapply rt1n_trans; first apply weakred_s.
   apply weakred_rtc_right.
-  apply: rt1n_trans; first apply weakred_left, weakred_left, weakred_k.
+  eapply rt1n_trans; first apply weakred_left, weakred_left, weakred_k.
   apply rtc_step; apply weakred_k.
 Qed.
 
@@ -168,7 +168,7 @@ Lemma substlemma_a t1 t2 v :
   t1 ->w t2 -> cl_occurs (clvar v) t2 -> cl_occurs (clvar v) t1.
 Proof.
   elim => // x y z H H0 H1 H2.
-  apply: substlemma_a'; eauto.
+  eapply substlemma_a'; eauto.
 Qed.
 
 Lemma substlemma_b t1 t2 t3 v :
@@ -281,7 +281,7 @@ Qed.
 
 Lemma exercise_2_16 t : clatoms @ clatomk @ clatomk @ t ->w t.
 Proof.
-  apply: rt1n_trans.
+  eapply rt1n_trans.
   - apply weakred_s.
   - apply rtc_step, weakred_k.
 Qed.
