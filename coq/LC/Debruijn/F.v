@@ -107,8 +107,7 @@ Fixpoint shift_term d c t :=
 
 Notation subst_termv ts m n n' :=
   (typemap (shift_typ n') 0
-    (shift_term n 0
-      (nth (var (m - n - size ts)) ts (m - n)))) (only parsing).
+    (shift_term n 0 (nth (var (m - n - size ts)) ts (m - n)))) (only parsing).
 
 Fixpoint subst_term n n' ts t :=
   match t with
@@ -789,7 +788,7 @@ Qed.
 
 End subject_reduction_proof.
 
-Module strong_normalization_proof.
+Module strong_normalization_proof_typefree.
 
 Section CRs.
 Variable (P : term -> Prop).
@@ -813,12 +812,11 @@ Proof.
   by apply H2, (rc_cr2 H H0).
 Qed.
 
-Lemma CR4 P t : RC P ->
-  neutral t -> (forall t', ~ t ->r1 t') -> P t.
-Proof. by case => _ _ H H0 H1; apply H => // t' H2; move: (H1 _ H2). Qed.
+Lemma CR4 P t : RC P -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
+Proof. by case => _ _ H H0 H1; apply H => // t' /H1. Qed.
 
 Lemma CR4' P (v : nat) : RC P -> P v.
-Proof. move => H; apply: (CR4 H) => // t' H0; inversion H0. Qed.
+Proof. by move/CR4; apply => // t' H; inversion H. Qed.
 
 Lemma snorm_isrc : RC SN.
 Proof.
@@ -836,7 +834,7 @@ Proof.
       apply acc_preservation => x y H1; constructor.
   - by move => t t' H1 H2 v /H2; apply (rc_cr2 H0); constructor.
   - move => t1 H1 H2 t2 H3; move: t2 {H3} (rc_cr1 H H3) (H3).
-    refine (Acc_rect _ _) => t2 _ H3 H4.
+    refine (Acc_ind _ _) => t2 _ H3 H4.
     apply (rc_cr3 H0) => //= t3 H5; move: H1; inversion H5;
       subst => //= _; auto; apply H3 => //; apply (rc_cr2 H H9 H4).
 Qed.
@@ -1049,4 +1047,112 @@ Proof.
   by rewrite {}/f {}/g; apply subst_reduction1, substtyp_reduction1.
 Qed.
 
-End strong_normalization_proof.
+End strong_normalization_proof_typefree.
+
+Module strong_normalization_proof_typed.
+
+Import subject_reduction_proof.
+
+Section CRs.
+Variable (ty : typ) (P : context typ -> term -> Prop).
+Definition CR_typed := forall ctx t, P ctx t -> typing ctx t ty.
+Definition CR0 := forall ctx ctx' t, ctx <=c ctx' -> P ctx t -> P ctx' t.
+Definition CR1 := forall ctx t, P ctx t -> SN t.
+Definition CR2 := forall ctx t t', t ->r1 t' -> P ctx t -> P ctx t'.
+Definition CR3 := forall ctx t,
+  typing ctx t ty -> neutral t ->
+  (forall t', t ->r1 t' -> P ctx t') -> P ctx t.
+End CRs.
+
+Record RC (ty : typ) (P : context typ -> term -> Prop) : Prop :=
+  reducibility_candidate {
+    rc_typed : CR_typed ty P;
+    rc_cr0 : CR0 P ;
+    rc_cr1 : CR1 P ;
+    rc_cr2 : CR2 P ;
+    rc_cr3 : CR3 ty P
+  }.
+
+Lemma CR2' ty P ctx t t' : RC ty P -> t ->r t' -> P ctx t -> P  ctx t'.
+Proof.
+  move => H; move: t t'.
+  refine (clos_refl_trans_1n_ind _ _ _ _ _) => //= x y z H0 H1 H2 H3.
+  by apply H2, (rc_cr2 H H0).
+Qed.
+
+Lemma CR4 ty P ctx t : RC ty P ->
+  typing ctx t ty -> neutral t -> (forall t', ~ t ->r1 t') -> P ctx t.
+Proof. by case => _ _ _ _ H H0 H1 H2; apply H => // t' /H2. Qed.
+
+Lemma CR4' ty P ctx (v : nat) : RC ty P -> ctxindex ctx v ty -> P ctx v.
+Proof. move/CR4 => H H0; apply H => // t' H1; inversion H1. Qed.
+
+Lemma snorm_isrc ty : RC ty (fun ctx t => typing ctx t ty /\ SN t).
+Proof.
+  (constructor; move => /=) =>
+    [ctx t [] // | ctx ctx' t H [H0 H1] | ctx t [] // |
+     ctx t t' H [H0 [H1]] | ctx t ]; split; auto.
+  - by apply (ctxleq_preserves_typing H).
+  - by apply (subject_reduction H).
+  - by constructor => t' /H1 [].
+Qed.
+
+Lemma ctxindex_last (A : eqType) ctx (x : A) :
+  ctxindex (ctx ++ [:: Some x]) (size ctx) x.
+Proof. by rewrite nth_cat ltnn subnn. Qed.
+
+Lemma rcfun_isrc tyl tyr P Q :
+  RC tyl P -> RC tyr Q ->
+  RC (tyl :->: tyr) (fun ctx u => forall ctx' v,
+                     ctx <=c ctx' -> P ctx' v -> Q ctx (u @{v \: tyl})).
+Proof.
+  move => HP HQ; constructor; move => /=.
+  - by move => ctx t
+      /(_ _ _ (ctxleq_appr _ _) (CR4' HP (ctxindex_last ctx tyl)))
+      /(rc_typed HQ) /= /andP [].
+  - move => ctx ctx' t H H0 ctx'' t' H1 H2.
+    by apply (rc_cr0 HQ H), (H0 ctx'') => //; apply ctxleq_trans with ctx'.
+  - move => ctx t /(_ _ _ (ctxleq_appr _ _) (CR4' HP (ctxindex_last ctx tyl)))
+            /(rc_cr1 HQ).
+    by apply (acc_preservation (f := fun t => t @{size ctx \: tyl})); auto.
+  - by move => ctx t t' H H0 ctx' t'' /H0 {H0} H0 /H0 {H0};
+      apply (rc_cr2 HQ); constructor.
+  - move => ctx t H H0 H1 ctx' t' H2 H3.
+    move: t' {H3} (rc_cr1 HP H3) (H3).
+    refine (Acc_ind _ _) => t' _ IH H3.
+    apply (rc_cr3 HQ) => //.
+    + rewrite /= H /=.
+      admit.
+    + move => t'' H4; move: H0; inversion H4; subst => //= _.
+      * by apply (H1 _ H8 ctx').
+      * by apply IH => //; apply (rc_cr2 HP H8).
+Abort.
+
+Lemma rcfun_isrc tyl tyr P Q :
+  RC tyl P -> RC tyr Q ->
+  RC (tyl :->: tyr) (fun ctx u => forall ctx' v,
+                     ctx <=c ctx' -> P ctx' v -> Q ctx' (u @{v \: tyl})).
+Proof.
+  move => HP HQ; constructor; move => /=.
+  - move => ctx t H.
+    admit.
+  - move => ctx ctx' t H H0 ctx'' t' H1 H2.
+    by apply (H0 ctx'' t') => //; apply ctxleq_trans with ctx'.
+  - move => ctx t /(_ _ _ (ctxleq_appr _ _) (CR4' HP (ctxindex_last ctx tyl)))
+            /(rc_cr1 HQ).
+    by apply (acc_preservation (f := fun t => t @{size ctx \: tyl})); auto.
+  - by move => ctx t t' H H0 ctx' t'' /H0 {H0} H0 /H0 {H0};
+      apply (rc_cr2 HQ); constructor.
+  - move => ctx t H H0 H1 ctx' t' H2 H3; move: t' {H3} (rc_cr1 HP H3) (H3).
+    refine (Acc_ind _ _) => t' _ IH H3.
+    apply (rc_cr3 HQ) => //=; first (apply/andP; split).
+    + by apply (ctxleq_preserves_typing H2).
+    + by apply (rc_typed HP).
+    + move => t'' H4; move: H0; inversion H4; subst => //= _.
+      * by apply (H1 _ H8 ctx').
+      * by apply IH => //; apply (rc_cr2 HP H8).
+Abort.
+
+
+
+End strong_normalization_proof_typed.
