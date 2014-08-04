@@ -1103,55 +1103,31 @@ Proof. by rewrite nth_cat ltnn subnn. Qed.
 
 Lemma rcfun_isrc tyl tyr P Q :
   RC tyl P -> RC tyr Q ->
-  RC (tyl :->: tyr) (fun ctx u => forall ctx' v,
-                     ctx <=c ctx' -> P ctx' v -> Q ctx (u @{v \: tyl})).
+  RC (tyl :->: tyr) (fun ctx u =>
+    typing ctx u (tyl :->: tyr) /\
+    forall ctx' v, ctx <=c ctx' -> P ctx' v -> Q ctx' (u @{v \: tyl})).
 Proof.
   move => HP HQ; constructor; move => /=.
-  - by move => ctx t
-      /(_ _ _ (ctxleq_appr _ _) (CR4' HP (ctxindex_last ctx tyl)))
-      /(rc_typed HQ) /= /andP [].
-  - move => ctx ctx' t H H0 ctx'' t' H1 H2.
-    by apply (rc_cr0 HQ H), (H0 ctx'') => //; apply ctxleq_trans with ctx'.
-  - move => ctx t /(_ _ _ (ctxleq_appr _ _) (CR4' HP (ctxindex_last ctx tyl)))
-            /(rc_cr1 HQ).
+  - by move => ctx t [].
+  - move => ctx ctx' t H [H0 H1]; split; last move => ctx'' t' H2 H3.
+    + by apply (ctxleq_preserves_typing H).
+    + by apply (H1 ctx'' t') => //; apply ctxleq_trans with ctx'.
+  - move => ctx t [H]
+      /(_ _ _ (ctxleq_appr _ _) (CR4' HP (ctxindex_last ctx tyl))) /(rc_cr1 HQ).
     by apply (acc_preservation (f := fun t => t @{size ctx \: tyl})); auto.
-  - by move => ctx t t' H H0 ctx' t'' /H0 {H0} H0 /H0 {H0};
-      apply (rc_cr2 HQ); constructor.
-  - move => ctx t H H0 H1 ctx' t' H2 H3.
+  - move => ctx t t' H [H0 H1]; split; last move => ctx' t''.
+    + by apply (subject_reduction H).
+    + by move => /H1 {H1} H1 /H1 {H1}; apply (rc_cr2 HQ); constructor.
+  - move => ctx t H H0 H1; split => // ctx' t' H2 H3.
     move: t' {H3} (rc_cr1 HP H3) (H3).
-    refine (Acc_ind _ _) => t' _ IH H3.
-    apply (rc_cr3 HQ) => //.
-    + rewrite /= H /=.
-      admit.
-    + move => t'' H4; move: H0; inversion H4; subst => //= _.
-      * by apply (H1 _ H8 ctx').
-      * by apply IH => //; apply (rc_cr2 HP H8).
-Abort.
-
-Lemma rcfun_isrc tyl tyr P Q :
-  RC tyl P -> RC tyr Q ->
-  RC (tyl :->: tyr) (fun ctx u => forall ctx' v,
-                     ctx <=c ctx' -> P ctx' v -> Q ctx' (u @{v \: tyl})).
-Proof.
-  move => HP HQ; constructor; move => /=.
-  - move => ctx t H.
-    admit.
-  - move => ctx ctx' t H H0 ctx'' t' H1 H2.
-    by apply (H0 ctx'' t') => //; apply ctxleq_trans with ctx'.
-  - move => ctx t /(_ _ _ (ctxleq_appr _ _) (CR4' HP (ctxindex_last ctx tyl)))
-            /(rc_cr1 HQ).
-    by apply (acc_preservation (f := fun t => t @{size ctx \: tyl})); auto.
-  - by move => ctx t t' H H0 ctx' t'' /H0 {H0} H0 /H0 {H0};
-      apply (rc_cr2 HQ); constructor.
-  - move => ctx t H H0 H1 ctx' t' H2 H3; move: t' {H3} (rc_cr1 HP H3) (H3).
     refine (Acc_ind _ _) => t' _ IH H3.
     apply (rc_cr3 HQ) => //=; first (apply/andP; split).
     + by apply (ctxleq_preserves_typing H2).
     + by apply (rc_typed HP).
     + move => t'' H4; move: H0; inversion H4; subst => //= _.
-      * by apply (H1 _ H8 ctx').
+      * by apply (proj2 (H1 _ H8) ctx').
       * by apply IH => //; apply (rc_cr2 HP H8).
-Abort.
+Qed.
 
 
 
