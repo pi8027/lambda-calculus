@@ -762,7 +762,7 @@ Proof.
     set ctx'' := (map _ (map _ _)).
     have {ctx''} ->: ctx'' = unzip1
         [seq (typemap (shift_typ 1) 0 p.1, shift_typ 1 0 p.2) | p <- ctx']
-      by rewrite /unzip1 /ctx'' -!map_comp /funcomp /=.
+      by rewrite /unzip1 /ctx'' -!map_comp /comp /=.
     apply IHt.
     + move: H {t ty IHt H0}; rewrite all_map; apply sub_all.
       rewrite /subpred /preim /pred_of_simpl; case => /= t ty.
@@ -908,28 +908,26 @@ Lemma subst_reducibility ty preds n tys t :
              preds (tyvar 0, SN) n)
      t).
 Proof.
-  elim: ty preds n tys t =>
-    [v | tyl IHtyl tyr IHtyr | ty IHty] preds n tys t.
-  - rewrite /= -(nth_map' (@snd _ _) (tyvar 0, SN)) /= nth_insert size_map.
-    elimif_omega.
-    + by rewrite nth_default ?leq_addr //= nth_map' addnC.
+  elim: ty preds n tys t => [v | tyl IHtyl tyr IHtyr | ty IHty] preds n tys t.
+  - rewrite /= /unzip2 map_insert /= -map_comp /comp /=
+            nth_insert size_map -/unzip2; elimif_omega.
+    + by rewrite nth_default ?leq_addr //= addnC.
     + move => H0.
       rewrite (nth_map (tyvar (v - size tys))) //=.
       move: (shift_reducibility (nth (tyvar (v - size tys)) tys v)
         (take n preds) t (leq0n (size (drop n preds)))).
       rewrite /insert take0 drop0 sub0n /= cat_take_drop size_take.
       by move/minn_idPl: H0 => ->.
-    + by rewrite nth_map' /=.
   - by move => H /=; split => H1 t' /IHtyl => /(_ H) /H1 /IHtyr => /(_ H);
-      rewrite /unzip1 map_insert -map_comp /funcomp /=
+      rewrite /unzip1 map_insert -map_comp /comp /=
               subst_subst_compose_ty ?map_drop // size_map.
   - move => /= H; split => H0 ty' P /(H0 ty' P) => {H0} H0.
-    + rewrite /unzip1 map_insert -map_comp /funcomp /=.
+    + rewrite /unzip1 map_insert -map_comp /comp /=.
       move/IHty: H0 => /= /(_ H).
       by rewrite /unzip1 subst_subst_compose_ty /insert /= ?subSS size_map
                  ?map_drop.
     + apply IHty => //; move: H0.
-      by rewrite /unzip1 map_insert -map_comp /funcomp /= subst_subst_compose_ty
+      by rewrite /unzip1 map_insert -map_comp /comp /= subst_subst_compose_ty
                  /insert /= ?subSS size_map ?map_drop.
 Qed.
 
@@ -1019,8 +1017,8 @@ Proof.
         move => i ty'; rewrite addn0 addn1 subst_app_ty.
     move: (IHt ty
       (map (fun c => (c.1, shift_typ 1 0 c.2)) ctx) ((v, P) :: preds)).
-    rewrite /unzip1 -!map_comp /funcomp /=; apply => //=.
-    + by move: H; rewrite -map_comp /funcomp /=.
+    rewrite /unzip1 -!map_comp /comp /=; apply => //=.
+    + by move: H; rewrite -map_comp /comp /=.
     + elim: ctx H1 {t ty IHt H H0 H2} => //=;
         case => t ty ctx IH [] H H0; split => /=; last by apply IH.
       case: (shift_reducibility ty [:: (v, P)] t (leq0n (size preds))) => _.
@@ -1032,7 +1030,7 @@ Proof.
   move => H.
   move: (@reduce_lemma
     (map (oapp (pair (var 0)) (var 0, tyvar 0)) ctx) [::] t ty) => /=.
-  rewrite -map_comp /funcomp /=.
+  rewrite -map_comp /comp /=.
   have {H} H: typing
     [seq Some (oapp (pair (var 0)) (var 0, tyvar 0) x).2 | x <- ctx] t ty by
     move: H; apply subject_reduction_proof.ctxleq_preserves_typing;
@@ -1186,6 +1184,39 @@ Proof.
             subst_shift_cancel_ty4 ?size_map //.
     by split => H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
       rewrite ?ltnS ?H //; apply H0.
+Qed.
+
+Lemma subst_reducibility ty preds n tys ctx t :
+  n <= size preds ->
+  (reducible (subst_typ n tys ty) preds ctx t <->
+   reducible ty
+     (insert [seq (subst_typ 0 (unzip1 (drop n preds)) ty,
+                   reducible ty (drop n preds)) | ty <- tys]
+             preds (tyvar 0, SN' 0) n)
+     ctx t).
+Proof.
+  elim: ty preds n tys ctx t =>
+    [v | tyl IHtyl tyr IHtyr | ty IHty] preds n tys ctx t.
+  - rewrite /= size_insert size_map /unzip2 map_insert /= -map_comp /comp /=
+            nth_insert size_map -/unzip2; elimif_omega.
+    + by move/maxn_idPr => ->; rewrite nth_default ?leq_addr //= addnC.
+    + move => H0.
+      rewrite (nth_map (tyvar (v - size tys))) //=.
+      move: (shift_reducibility (nth (tyvar (v - size tys)) tys v)
+        (take n preds) ctx t (leq0n (size (drop n preds)))).
+      rewrite /insert take0 drop0 sub0n /= cat_take_drop size_take.
+      by move/minn_idPl: H0 => ->.
+    + by move => H; rewrite (_ : v - size preds = 0) //; ssromega.
+  - move => H /=; rewrite /rcfun /= /unzip1 map_insert -!map_comp /comp /=
+      {1 2}map_drop -!subst_subst_compose_ty ?size_map // -/unzip1 add0n.
+    by split; case => H1 H2; split =>
+      // ctx' t' H3 /IHtyl => /(_ H) /(H2 _ _ H3) /IHtyr => /(_ H);
+      rewrite /unzip1 map_drop subst_subst_compose_ty ?size_map.
+  - move => H /=; rewrite /unzip1 map_insert -!map_comp /comp /= {2}map_drop
+      -subst_subst_compose_ty ?size_map // add1n -/unzip1.
+    split => H0 ty' P /H0 {H0}.
+    + by move/IHty => /= /(_ H); rewrite /insert /= subSS.
+    + by move => H0; apply IHty.
 Qed.
 
 
