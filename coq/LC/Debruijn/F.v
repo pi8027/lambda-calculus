@@ -862,9 +862,8 @@ Proof.
   - move => H; constructor.
     + move => /= t /(_ 0 SN snorm_isrc)
         /(rc_cr1 (IHty ((_, _) :: _) (conj snorm_isrc H))).
-      rewrite -/((fun t => {t \: subst_typ 1 (unzip1 preds) ty}@ 0) t).
-      by apply acc_preservation => x y H0; constructor.
-    + move => /= t t' H0 H1 ty' P H2; move/(H1 ty'): (H2).
+      by apply (acc_preservation (f := uapp^~_^~_)) => x y H0; constructor.
+    + move => /= t t' H0 H1 ty' P H2; move: (H1 ty' _ H2).
       by apply (rc_cr2 (IHty ((_, _) :: _) (conj H2 H))); constructor.
     + move => /= t H0 H1 ty' P H2.
       apply (rc_cr3 (IHty ((_, _) :: _) (conj H2 H))) => //= t' H3.
@@ -1085,7 +1084,9 @@ Proof. by case => _ _ _ _ H H0 H1 H2; apply H => // t' /H2. Qed.
 Lemma CR4' ty P ctx (v : nat) : RC ty P -> ctxindex ctx v ty -> P ctx v.
 Proof. move/CR4 => H H0; apply H => // t' H1; inversion H1. Qed.
 
-Lemma snorm_isrc ty : RC ty (fun ctx t => typing ctx t ty /\ SN t).
+Notation SN' ty := (fun ctx t => typing ctx t ty /\ SN t).
+
+Lemma snorm_isrc ty : RC ty (SN' ty).
 Proof.
   (constructor; move => /=) =>
     [ctx t [] // | ctx ctx' t H [H0 H1] | ctx t [] // |
@@ -1108,7 +1109,7 @@ Proof.
     + by apply (H1 ctx'' t') => //; apply ctxleq_trans with ctx'.
   - move => ctx t [H]
       /(_ _ _ (ctxleq_appr _ _) (CR4' HP (ctxindex_last ctx tyl))) /(rc_cr1 HQ).
-    by apply (acc_preservation (f := fun t => t @{size ctx \: tyl})); auto.
+    by apply (acc_preservation (f := app^~_^~_)); auto.
   - move => ctx t t' H [H0 H1]; split; last move => ctx' t''.
     + by apply (subject_reduction H).
     + by move => /H1 {H1} H1 /H1 {H1}; apply (rc_cr2 HQ); constructor.
@@ -1126,8 +1127,7 @@ Qed.
 Fixpoint reducible ty (preds : seq (typ * (context typ -> term -> Prop))) :
     context typ -> term -> Prop :=
   match ty with
-    | tyvar v =>
-      nth (fun ctx t => typing ctx t (v - size preds) /\ SN t) (unzip2 preds) v
+    | tyvar v => nth (SN' (v - size preds)) (unzip2 preds) v
     | tyfun tyl tyr =>
       rcfun
         (subst_typ 0 (unzip1 preds) tyl) (subst_typ 0 (unzip1 preds) tyr)
@@ -1156,15 +1156,13 @@ Proof.
       by apply; apply H1.
     + move => /= ctx t /(_ 0 _ (snorm_isrc _))
         /(rc_cr1 (IHty ((_, _) :: _) (conj (snorm_isrc _) H))).
-      rewrite -/((fun t => {t \: _}@ _) t).
-      by apply acc_preservation => x y H0; constructor.
+      by apply (acc_preservation (f := uapp^~_^~_)) => x y H0; constructor.
     + move => /= ctx t t' H0 H1 ty' P H2; move: (H1 _ _ H2).
       by apply (rc_cr2 (IHty ((_, _) :: _) (conj H2 H))); constructor.
     + move => /= ctx t H0 H1 H2 ty' P H3.
       apply (rc_cr3 (IHty ((_, _) :: _) (conj H3 H))) => //=.
       * by rewrite subst_app_ty /= eqxx.
-      * move => t' H4.
-        by move: H0; inversion H4; subst => //= _; apply H2.
+      * by move => t' H4; move: H0; inversion H4; subst => //= _; apply H2.
 Qed.
 
 
