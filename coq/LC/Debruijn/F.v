@@ -903,7 +903,7 @@ Lemma subst_reducibility ty preds n tys t :
   n <= size preds ->
   (reducible (subst_typ n tys ty) preds t <->
    reducible ty
-     (insert [seq (subst_typ 0 (unzip1 (drop n preds)) ty,
+     (insert [seq (subst_typ 0 (drop n (unzip1 preds)) ty,
                    reducible ty (drop n preds)) | ty <- tys]
              preds (tyvar 0, SN) n)
      t).
@@ -920,15 +920,12 @@ Proof.
       by move/minn_idPl: H0 => ->.
   - by move => H /=; split => H1 t' /IHtyl => /(_ H) /H1 /IHtyr => /(_ H);
       rewrite /unzip1 map_insert -map_comp /comp /=
-              subst_subst_compose_ty ?map_drop // size_map.
-  - move => /= H; split => H0 ty' P /(H0 ty' P) => {H0} H0.
-    + rewrite /unzip1 map_insert -map_comp /comp /=.
-      move/IHty: H0 => /= /(_ H).
-      by rewrite /unzip1 subst_subst_compose_ty /insert /= ?subSS size_map
-                 ?map_drop.
-    + apply IHty => //; move: H0.
-      by rewrite /unzip1 map_insert -map_comp /comp /= subst_subst_compose_ty
-                 /insert /= ?subSS size_map ?map_drop.
+              subst_subst_compose_ty // size_map.
+  - move => H /=; rewrite /unzip1 map_insert -!map_comp /comp /=
+      -subst_subst_compose_ty ?size_map // add1n -/unzip1.
+    split => H0 ty' P /(H0 ty') {H0}.
+    + by move/IHty => /= /(_ H); rewrite /insert /= subSS.
+    + by move => H0; apply IHty.
 Qed.
 
 Lemma abs_reducibility t tyl tyr preds :
@@ -983,7 +980,7 @@ Lemma uapp_reducibility t ty ty' preds :
 Proof.
   move => /= H H0.
   apply subst_reducibility => //=.
-  rewrite /insert take0 sub0n drop0 /=.
+  rewrite /insert take0 sub0n !drop0 /=.
   by apply H0, reducibility_isrc.
 Qed.
 
@@ -1190,7 +1187,7 @@ Lemma subst_reducibility ty preds n tys ctx t :
   n <= size preds ->
   (reducible (subst_typ n tys ty) preds ctx t <->
    reducible ty
-     (insert [seq (subst_typ 0 (unzip1 (drop n preds)) ty,
+     (insert [seq (subst_typ 0 (drop n (unzip1 preds)) ty,
                    reducible ty (drop n preds)) | ty <- tys]
              preds (tyvar 0, SN' 0) n)
      ctx t).
@@ -1208,11 +1205,11 @@ Proof.
       by move/minn_idPl: H0 => ->.
     + by move => H; rewrite (_ : v - size preds = 0) //; ssromega.
   - move => H /=; rewrite /rcfun /= /unzip1 map_insert -!map_comp /comp /=
-      {1 2}map_drop -!subst_subst_compose_ty ?size_map // -/unzip1 add0n.
+      -!subst_subst_compose_ty ?size_map // -/unzip1 add0n.
     by split; case => H1 H2; split =>
       // ctx' t' H3 /IHtyl => /(_ H) /(H2 _ _ H3) /IHtyr => /(_ H);
-      rewrite /unzip1 map_drop subst_subst_compose_ty ?size_map.
-  - move => H /=; rewrite /unzip1 map_insert -!map_comp /comp /= {2}map_drop
+      rewrite /unzip1 subst_subst_compose_ty ?size_map.
+  - move => H /=; rewrite /unzip1 map_insert -!map_comp /comp /=
       -subst_subst_compose_ty ?size_map // add1n -/unzip1.
     split => H0 ty' P /H0 {H0}.
     + by move/IHty => /= /(_ H); rewrite /insert /= subSS.
