@@ -1129,9 +1129,8 @@ Fixpoint reducible ty (preds : seq (typ * (context typ -> term -> Prop))) :
   match ty with
     | tyvar v => nth (SN' (v - size preds)) (unzip2 preds) v
     | tyfun tyl tyr =>
-      rcfun
-        (subst_typ 0 (unzip1 preds) tyl) (subst_typ 0 (unzip1 preds) tyr)
-        (reducible tyl preds) (reducible tyr preds)
+      let s := subst_typ 0 (unzip1 preds) in
+      rcfun (s tyl) (s tyr) (reducible tyl preds) (reducible tyr preds)
     | tyabs ty => fun ctx t => forall ty' P, RC ty' P ->
       reducible ty ((ty', P) :: preds) ctx
         ({t \: subst_typ 1 (unzip1 preds) ty}@ ty')
