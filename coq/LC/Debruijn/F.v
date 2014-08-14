@@ -876,22 +876,21 @@ Lemma shift_reducibility c ty preds preds' t :
      (insert preds' preds (tyvar 0, SN) c) t <->
    reducible ty preds t).
 Proof.
+  have submaxn m n : m - maxn m n = 0 by ssromega.
   elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
   - rewrite /= /unzip2 map_insert nth_insert size_map; elimif_omega.
   - by split => /= H0 t' /(IHtyl c _ _ H) /H0 /(IHtyr c _ _ H); rewrite
       /unzip1 map_insert subst_shift_cancel_ty2 /= ?subn0 ?add0n ?size_insert
       ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // take_insert
       size_map -[X in drop (c + X)](size_map (@fst _ _) preds') drop_insert
-      subnDA addnK; (have ->: c - maxn c _ = 0 by ssromega);
-      rewrite shift_zero_ty; move: H; rewrite -subn_eq0 => /eqP -> /=;
-      rewrite cats0 cat_take_drop.
+      subnDA addnK submaxn shift_zero_ty;
+      move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
   - by split => /= H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
       rewrite ?ltnS ?H //; move: {H0 H1} (H0 ty' P H1); rewrite /unzip1
         map_insert /= subst_shift_cancel_ty2 /= ?subn1 ?add1n ?ltnS ?size_insert
         ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // addSn /=
         take_insert size_map -[X in drop (c + X)](size_map (@fst _ _) preds')
-        drop_insert subSS subnDA addnK;
-      (have ->: c - maxn c _ = 0 by ssromega); rewrite shift_zero_ty;
+        drop_insert subSS subnDA addnK submaxn shift_zero_ty;
       move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
 Qed.
 
