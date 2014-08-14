@@ -202,6 +202,14 @@ Proof.
 Qed.
 
 Lemma subst_shift_cancel_ty2 n d c ts t :
+  c <= n -> size ts + n <= d + c ->
+  subst_typ n ts (shift_typ d c t) = shift_typ (d - size ts) c t.
+Proof.
+  move => H H0; rewrite subst_shift_cancel_ty1 ?drop_oversize ?subst_nil_ty;
+    f_equal; ssromega.
+Qed.
+
+Lemma subst_shift_cancel_ty3 n d c ts t :
   n <= c <= n + size ts ->
   subst_typ n ts (shift_typ d c t) =
   subst_typ n (take (c - n) ts ++ drop (c + d - n) ts)
@@ -216,19 +224,22 @@ Proof.
   - rewrite nth_take; first apply nth_equal; elimif_omega.
 Qed.
 
-Lemma subst_shift_cancel_ty3 n d c ts t :
-  c <= n -> size ts + n <= d + c ->
-  subst_typ n ts (shift_typ d c t) = shift_typ (d - size ts) c t.
+Lemma subst_shift_cancel_ty4 n c ts ts' t t' :
+  c <= size ts ->
+  subst_typ n (insert ts' ts t' c) (shift_typ (size ts') (n + c) t) =
+  subst_typ n ts t.
 Proof.
-  move => H H0; rewrite subst_shift_cancel_ty1 ?drop_oversize ?subst_nil_ty;
-    f_equal; ssromega.
+  rewrite subst_shift_cancel_ty3 ?size_insert; last ssromega.
+  rewrite -addnA subnDA !addKn subnDA addnK take_insert drop_insert /leq.
+  move/eqP => -> /=;
+    rewrite cats0 cat_take_drop (_ : _ - _ = 0) ?shift_zero_ty //; ssromega.
 Qed.
 
 Lemma subst_app_ty n xs ys t :
   subst_typ n xs (subst_typ (size xs + n) ys t) = subst_typ n (xs ++ ys) t.
 Proof.
   elim: t n; congruence' => v n; rewrite size_cat nth_cat; elimif_omega.
-  rewrite subst_shift_cancel_ty3; elimif_omega.
+  rewrite subst_shift_cancel_ty2; elimif_omega.
 Qed.
 
 Lemma subst_subst_distr_ty n m xs ys t :
@@ -237,7 +248,7 @@ Lemma subst_subst_distr_ty n m xs ys t :
   subst_typ m (map (subst_typ (n - m) xs) ys) (subst_typ (size ys + n) xs t).
 Proof.
   elimleq; elim: t m; congruence' => v m; elimif_omega.
-  - rewrite (@subst_shift_cancel_ty3 m) ?size_map 1?nth_default //=;
+  - rewrite (@subst_shift_cancel_ty2 m) ?size_map 1?nth_default //=;
       elimif_omega.
   - rewrite size_map -shift_subst_distr_ty //= nth_map' /=.
     f_equal; apply nth_equal; rewrite size_map; elimif_omega.
@@ -362,7 +373,7 @@ Proof.
   elimleq; elim: t n m'; congruence' => v n m'; elimif_omega.
   rewrite -!shift_typemap_distr typemap_compose.
   f_equal; apply typemap_eq => {v n ts} n t.
-  rewrite subst_shift_cancel_ty3; f_equal; ssromega.
+  rewrite subst_shift_cancel_ty2; f_equal; ssromega.
 Qed.
 
 Lemma substtyp_subst_distr n m m' tys ts t :
@@ -783,7 +794,7 @@ Proof.
     set ctx' := ctxmap _ _; have {ctx'} -> //: ctx' = ctx.
       rewrite /ctx' -map_comp -{2}(map_id ctx).
       apply eq_map; case => //= ty.
-      by rewrite subst_shift_cancel_ty3 //= shift_zero_ty.
+      by rewrite subst_shift_cancel_ty2 //= shift_zero_ty.
 Qed.
 
 End subject_reduction_proof.
@@ -879,19 +890,13 @@ Proof.
   have submaxn m n : m - maxn m n = 0 by ssromega.
   elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
   - rewrite /= /unzip2 map_insert nth_insert size_map; elimif_omega.
-  - by split => /= H0 t' /(IHtyl c _ _ H) /H0 /(IHtyr c _ _ H); rewrite
-      /unzip1 map_insert subst_shift_cancel_ty2 /= ?subn0 ?add0n ?size_insert
-      ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // take_insert
-      size_map -[X in drop (c + X)](size_map (@fst _ _) preds') drop_insert
-      subnDA addnK submaxn shift_zero_ty;
-      move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
-  - by split => /= H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
-      rewrite ?ltnS ?H //; move: {H0 H1} (H0 ty' P H1); rewrite /unzip1
-        map_insert /= subst_shift_cancel_ty2 /= ?subn1 ?add1n ?ltnS ?size_insert
-        ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // addSn /=
-        take_insert size_map -[X in drop (c + X)](size_map (@fst _ _) preds')
-        drop_insert subSS subnDA addnK submaxn shift_zero_ty;
-      move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
+  - rewrite /= /unzip1 map_insert -(size_map (@fst _ _)) -{2}(add0n c)
+            subst_shift_cancel_ty4 ?size_map //.
+    by split => /= H0 t' /(IHtyl c _ _ H) /H0 /(IHtyr c _ _ H).
+  - rewrite /= /unzip1 map_insert -(size_map (@fst _ _)) -add1n
+            subst_shift_cancel_ty4 ?size_map //.
+    by split => H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
+      rewrite ?ltnS ?H //; apply H0.
 Qed.
 
 Lemma subst_reducibility ty preds n tys t :
@@ -1173,22 +1178,14 @@ Proof.
   elim: ty c preds ctx t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds ctx t H.
   - rewrite /= /unzip2 map_insert nth_insert size_map size_insert; elimif_omega.
     rewrite (_ : v - size preds = 0) //; ssromega.
-  - rewrite /= /rcfun /unzip1 map_insert -/unzip1 /=.
-    rewrite !(subst_shift_cancel_ty2 (size preds'));
-      try by rewrite size_insert leq0n /=; ssromega.
-    rewrite subn0 take_insert /unzip1 size_map -/unzip1.
-    move: (H); rewrite /leq => /eqP -> /=; rewrite cats0.
-    rewrite subn0 -(size_map (@fst _ _)) -/unzip1 drop_insert cat_take_drop
-      add0n size_insert subnDA addnK submaxn !shift_zero_ty size_map.
+  - rewrite /= /rcfun /unzip1 map_insert -(size_map (@fst _ _)) /=
+            !subst_shift_cancel_ty4 ?size_map //.
     by split; case => H0 H1; split => // ctx' t' H2
       /(IHtyl c _ _ _ H) /(H1 _ _ H2) /(IHtyr c _ _ _ H).
-  - by split => /= H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
-      rewrite ?ltnS ?H //; move: {H0 H1} (H0 ty' P H1); rewrite /unzip1
-        map_insert /= subst_shift_cancel_ty2 /= ?subn1 ?add1n ?ltnS ?size_insert
-        ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // addSn /=
-        take_insert size_map -[X in drop (c + X)](size_map (@fst _ _) preds')
-        drop_insert subSS subnDA addnK submaxn shift_zero_ty;
-      move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
+  - rewrite /= /unzip1 map_insert -(size_map (@fst _ _)) -add1n
+            subst_shift_cancel_ty4 ?size_map //.
+    by split => H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
+      rewrite ?ltnS ?H //; apply H0.
 Qed.
 
 
