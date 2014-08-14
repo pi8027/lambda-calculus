@@ -1163,6 +1163,34 @@ Proof.
       * by move => t' H4; move: H0; inversion H4; subst => //= _; apply H2.
 Qed.
 
+Lemma shift_reducibility c ty preds preds' ctx t :
+  c <= size preds ->
+  (reducible (shift_typ (size preds') c ty)
+     (insert preds' preds (tyvar 0, SN' 0) c) ctx t <->
+   reducible ty preds ctx t).
+Proof.
+  have submaxn m n : m - maxn m n = 0 by ssromega.
+  elim: ty c preds ctx t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds ctx t H.
+  - rewrite /= /unzip2 map_insert nth_insert size_map size_insert; elimif_omega.
+    rewrite (_ : v - size preds = 0) //; ssromega.
+  - rewrite /= /rcfun /unzip1 map_insert -/unzip1 /=.
+    rewrite !(subst_shift_cancel_ty2 (size preds'));
+      try by rewrite size_insert leq0n /=; ssromega.
+    rewrite subn0 take_insert /unzip1 size_map -/unzip1.
+    move: (H); rewrite /leq => /eqP -> /=; rewrite cats0.
+    rewrite subn0 -(size_map (@fst _ _)) -/unzip1 drop_insert cat_take_drop
+      add0n size_insert subnDA addnK submaxn !shift_zero_ty size_map.
+    by split; case => H0 H1; split => // ctx' t' H2
+      /(IHtyl c _ _ _ H) /(H1 _ _ H2) /(IHtyr c _ _ _ H).
+  - by split => /= H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
+      rewrite ?ltnS ?H //; move: {H0 H1} (H0 ty' P H1); rewrite /unzip1
+        map_insert /= subst_shift_cancel_ty2 /= ?subn1 ?add1n ?ltnS ?size_insert
+        ?size_map ?(leq_trans (leq_maxl _ _) (leq_addl _ _)) // addSn /=
+        take_insert size_map -[X in drop (c + X)](size_map (@fst _ _) preds')
+        drop_insert subSS subnDA addnK submaxn shift_zero_ty;
+      move: H; rewrite -subn_eq0 => /eqP -> /=; rewrite cats0 cat_take_drop.
+Qed.
+
 
 
 End strong_normalization_proof_typed.
