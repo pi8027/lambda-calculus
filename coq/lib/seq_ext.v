@@ -173,6 +173,9 @@ Proof. by rewrite ctxleq_app // ctxleqxx. Qed.
 Lemma ctxleq_appr (xs ys : context A) : xs <=c (xs ++ ys).
 Proof. by rewrite -{1}(cats0 xs) ctxleq_appl. Qed.
 
+Lemma ctxindex_last ctx (x : A) : ctxindex (ctx ++ [:: Some x]) (size ctx) x.
+Proof. by rewrite nth_cat ltnn subnn. Qed.
+
 End Context1.
 
 Infix "<=c" := ctxleq (at level 70, no associativity).

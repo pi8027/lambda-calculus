@@ -357,15 +357,14 @@ Proof.
   elim: ty; first by [].
   move => /= tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2].
   split => [ctx t H H0 | ctx tl H H0 H1 tr ctx' H2 H3 H4].
-  - have H1: ctxindex (ctx ++ [:: Some tyl]) (size ctx) tyl
-      by rewrite nth_cat ltnn subnn.
+  - set H1 := ctxindex_last ctx tyl.
     have H2: typing (ctx ++ [:: Some tyl]) (t @{size ctx \: tyl}) tyr
       by rewrite /= H1 andbT; eauto.
     suff : SN ((fun t => t @{size ctx \: tyl}) t) by
       rewrite -/((fun t => t @{size ctx \: tyl}) t);
         apply acc_preservation => x y H3; constructor.
     apply (IHtyr1 _ _ H2), IHtyr2 => // t' H3.
-    apply (CR2 H3), H0; auto.
+    apply (CR2 H3), H0 => //=.
     apply IHtyl2 => // x H4; inversion H4.
   - have H5: SN tr by apply IHtyl1 with ctx'.
     move: tr H5 H2 H3 H4; refine (Acc_ind _ _) => tr _ IH H2 H3 H4.

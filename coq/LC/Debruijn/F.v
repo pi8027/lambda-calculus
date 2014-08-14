@@ -1097,18 +1097,14 @@ Proof.
   - by constructor => t' /H1 [].
 Qed.
 
-Lemma ctxindex_last (A : eqType) ctx (x : A) :
-  ctxindex (ctx ++ [:: Some x]) (size ctx) x.
-Proof. by rewrite nth_cat ltnn subnn. Qed.
+Definition rcfun tyl tyr (P Q : context typ -> term -> Prop) ctx u : Prop :=
+  typing ctx u (tyl :->: tyr) /\
+  forall ctx' v, ctx <=c ctx' -> P ctx' v -> Q ctx' (u @{v \: tyl}).
 
 Lemma rcfun_isrc tyl tyr P Q :
-  RC tyl P -> RC tyr Q ->
-  RC (tyl :->: tyr) (fun ctx u =>
-    typing ctx u (tyl :->: tyr) /\
-    forall ctx' v, ctx <=c ctx' -> P ctx' v -> Q ctx' (u @{v \: tyl})).
+  RC tyl P -> RC tyr Q -> RC (tyl :->: tyr) (rcfun tyl tyr P Q).
 Proof.
-  move => HP HQ; constructor; move => /=.
-  - by move => ctx t [].
+  move => HP HQ; rewrite /rcfun; constructor; move => /=; first tauto.
   - move => ctx ctx' t H [H0 H1]; split; last move => ctx'' t' H2 H3.
     + by apply (ctxleq_preserves_typing H).
     + by apply (H1 ctx'' t') => //; apply ctxleq_trans with ctx'.
