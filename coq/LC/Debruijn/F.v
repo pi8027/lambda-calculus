@@ -858,9 +858,7 @@ Proof.
     + move => n _; rewrite nth_nil; apply snorm_isrc.
     + by case.
     + by move => n [H H0]; apply IH.
-  - by move => H; apply
-      (@rcfun_isrc (subst_typ 0 (unzip1 preds) tyl));
-      [apply IHtyl | apply IHtyr].
+  - by move => H; apply rcfun_isrc; [apply IHtyl | apply IHtyr].
   - move => H; constructor.
     + move => /= t /(_ 0 SN snorm_isrc)
         /(rc_cr1 (IHty ((_, _) :: _) (conj snorm_isrc H))).
@@ -1123,6 +1121,50 @@ Proof.
     + move => t'' H4; move: H0; inversion H4; subst => //= _.
       * by apply (proj2 (H1 _ H8) ctx').
       * by apply IH => //; apply (rc_cr2 HP H8).
+Qed.
+
+Fixpoint reducible ty (preds : seq (typ * (context typ -> term -> Prop))) :
+    context typ -> term -> Prop :=
+  match ty with
+    | tyvar v =>
+      nth (fun ctx t => typing ctx t (v - size preds) /\ SN t) (unzip2 preds) v
+    | tyfun tyl tyr =>
+      rcfun
+        (subst_typ 0 (unzip1 preds) tyl) (subst_typ 0 (unzip1 preds) tyr)
+        (reducible tyl preds) (reducible tyr preds)
+    | tyabs ty => fun ctx t => forall ty' P, RC ty' P ->
+      reducible ty ((ty', P) :: preds) ctx
+        ({t \: subst_typ 1 (unzip1 preds) ty}@ ty')
+  end.
+
+Lemma reducibility_isrc ty preds :
+  Forall (fun p => RC (fst p) (snd p)) preds ->
+  RC (subst_typ 0 (unzip1 preds) ty) (reducible ty preds).
+Proof.
+  elim: ty preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] preds.
+  - rewrite shift_zero_ty subn0.
+    elim: preds n => [| P preds IH []] /=.
+    + move => n _; rewrite !nth_nil /= !subn0; apply snorm_isrc.
+    + by case.
+    + by move => n [H] /(IH n) {IH}; rewrite !subSS.
+  - by move => H; apply rcfun_isrc; [apply IHtyl | apply IHtyr].
+  - move => H; constructor.
+    + by move => /= ctx t /(_ 0 _ (snorm_isrc _)) /=
+        /(rc_typed (IHty ((_, _) :: _) (conj (snorm_isrc _) H))) /andP [].
+    + move => /= ctx ctx' t H0 H1 ty' P H2.
+      move: (rc_cr0 (IHty ((_, _) :: _) (conj H2 H))) => /(_ ctx ctx' _ H0).
+      by apply; apply H1.
+    + move => /= ctx t /(_ 0 _ (snorm_isrc _))
+        /(rc_cr1 (IHty ((_, _) :: _) (conj (snorm_isrc _) H))).
+      rewrite -/((fun t => {t \: _}@ _) t).
+      by apply acc_preservation => x y H0; constructor.
+    + move => /= ctx t t' H0 H1 ty' P H2; move: (H1 _ _ H2).
+      by apply (rc_cr2 (IHty ((_, _) :: _) (conj H2 H))); constructor.
+    + move => /= ctx t H0 H1 H2 ty' P H3.
+      apply (rc_cr3 (IHty ((_, _) :: _) (conj H3 H))) => //=.
+      * by rewrite subst_app_ty /= eqxx.
+      * move => t' H4.
+        by move: H0; inversion H4; subst => //= _; apply H2.
 Qed.
 
 
