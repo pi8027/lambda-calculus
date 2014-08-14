@@ -274,12 +274,8 @@ Proof.
     move: H; inversion H2; subst => // _; eauto.
 Qed.
 
-Lemma CR1 t ty : reducible ty t -> SN t.
-Proof. case: (CR1_and_CR3 ty) => H _; apply H. Qed.
-
-Lemma CR3 t ty :
-  neutral t -> (forall t', t ->b1 t' -> reducible ty t') -> reducible ty t.
-Proof. case: (CR1_and_CR3 ty) => _; apply. Qed.
+Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
+Definition CR3 t ty := proj2 (CR1_and_CR3 ty) t.
 
 Lemma abstraction_lemma t tyl tyr :
   (forall t', reducible tyl t' -> reducible tyr (substitute 0 [:: t'] t)) ->
@@ -378,13 +374,8 @@ Proof.
     move: H0; inversion H6; subst => // _; eauto.
 Qed.
 
-Lemma CR1 ctx t ty : typing ctx t ty -> reducible ctx ty t -> SN t.
-Proof. case: (CR1_and_CR3 ty) => H _; apply H. Qed.
-
-Lemma CR3 ctx t ty :
-  typing ctx t ty -> neutral t ->
-  (forall t', t ->b1 t' -> reducible ctx ty t') -> reducible ctx ty t.
-Proof. case: (CR1_and_CR3 ty) => _; apply. Qed.
+Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
+Definition CR3 t ty := proj2 (CR1_and_CR3 ty) t.
 
 Lemma abstraction_lemma ctx t tyl tyr :
   typing ctx (abs t) (tyl :->: tyr) ->
