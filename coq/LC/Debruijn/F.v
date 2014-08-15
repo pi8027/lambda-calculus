@@ -1216,6 +1216,37 @@ Proof.
     + by move => H0; apply IHty.
 Qed.
 
+Lemma abs_reducibility tyl tyr preds ctx t :
+  typing ctx (abs t) (subst_typ 0 (unzip1 preds) (tyl :->: tyr)) ->
+  Forall (fun p => RC (fst p) (snd p)) preds ->
+  (forall ctx' t', ctx <=c ctx' ->
+   reducible tyl preds ctx' t' ->
+   reducible tyr preds ctx' (subst_term 0 0 [:: t'] t)) ->
+  reducible (tyl :->: tyr) preds ctx (abs t).
+Proof.
+  move => /= H H0.
+  move: (reducible tyl preds) (reducible tyr preds)
+    (reducibility_isrc tyl H0) (reducibility_isrc tyr H0) => {H0} P Q HP HQ.
+  move => H0; split => // ctx' t' H1 H2.
+  have H3: SN t by
+    move: (rc_cr1 HQ (H0 _ _ H1 H2));
+      apply acc_preservation => x y; apply subst_reduction1.
+  move: t H3 t' {H0 H2} (rc_cr1 HP H2) H H1 (H2) (H0 _ _ H1 H2).
+  refine (Acc_ind _ _) => t1 _ H; refine (Acc_ind _ _) => t2 _ H0 H1 H2 H3 H4.
+  apply (rc_cr3 HQ) => //=; first (apply/andP; split).
+  - by move: H1; apply ctxleq_preserves_typing; rewrite ctxleqE eqxx.
+  - by apply (rc_typed HP).
+  - move => t' H5; inversion H5; subst => //.
+    + inversion H10; subst; apply H; auto.
+      * apply (rc_cr1 HP H3).
+      * by move: H1; apply subject_reduction.
+      * by apply (rc_cr2 HQ (subst_reduction1 0 0 [:: t2] H7)).
+    + apply H0 => //; first by apply (rc_cr2 HP H10).
+      move: H4; apply (CR2' HQ).
+      apply (@subst_reduction t1 0 0 [:: (t2, t2')]) => //=; split => //.
+      by apply rtc_step.
+Qed.
+
 
 
 End strong_normalization_proof_typed.
