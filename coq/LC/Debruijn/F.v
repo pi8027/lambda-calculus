@@ -1270,6 +1270,18 @@ Proof.
     + apply (rc_cr2 H0 (substtyp_reduction1 _ _ H5) H2).
 Qed.
 
+Lemma uapp_reducibility ty ty' preds ctx t :
+  Forall (fun p => RC p.1 p.2) preds ->
+  reducible (tyabs ty) preds ctx t ->
+  reducible (subst_typ 0 [:: ty'] ty) preds
+    ctx ({t \: subst_typ 1 (unzip1 preds) ty}@ subst_typ 0 (unzip1 preds) ty').
+Proof.
+  move => /= H H0.
+  apply subst_reducibility => //=.
+  rewrite /insert take0 sub0n !drop0 /=.
+  by apply H0, reducibility_isrc.
+Qed.
+
 
 
 End strong_normalization_proof_typed.
