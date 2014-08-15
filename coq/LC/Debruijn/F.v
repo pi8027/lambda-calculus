@@ -862,7 +862,7 @@ Fixpoint reducible ty (preds : seq (typ * (term -> Prop))) t : Prop :=
   end.
 
 Lemma reducibility_isrc ty preds :
-  Forall (fun p => RC (snd p)) preds -> RC (reducible ty preds).
+  Forall (fun p => RC p.2) preds -> RC (reducible ty preds).
 Proof.
   elim: ty preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] preds.
   - elim: preds n => [| P preds IH []] /=.
@@ -929,7 +929,7 @@ Proof.
 Qed.
 
 Lemma abs_reducibility t tyl tyr preds :
-  Forall (fun p => RC (snd p)) preds ->
+  Forall (fun p => RC p.2) preds ->
   (forall t',
    reducible tyl preds t' ->
    reducible tyr preds (subst_term 0 0 [:: t'] t)) ->
@@ -955,7 +955,7 @@ Proof.
 Qed.
 
 Lemma uabs_reducibility t ty preds :
-  Forall (fun p => RC (snd p)) preds ->
+  Forall (fun p => RC p.2) preds ->
   (forall v P, RC P ->
    reducible ty ((v, P) :: preds) (typemap (subst_typ^~ [:: v]) 0 t)) ->
   reducible (tyabs ty) preds (uabs t).
@@ -1136,7 +1136,7 @@ Fixpoint reducible ty (preds : seq (typ * (context typ -> term -> Prop))) :
   end.
 
 Lemma reducibility_isrc ty preds :
-  Forall (fun p => RC (fst p) (snd p)) preds ->
+  Forall (fun p => RC p.1 p.2) preds ->
   RC (subst_typ 0 (unzip1 preds) ty) (reducible ty preds).
 Proof.
   elim: ty preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] preds.
@@ -1218,7 +1218,7 @@ Qed.
 
 Lemma abs_reducibility tyl tyr preds ctx t :
   typing ctx (abs t) (subst_typ 0 (unzip1 preds) (tyl :->: tyr)) ->
-  Forall (fun p => RC (fst p) (snd p)) preds ->
+  Forall (fun p => RC p.1 p.2) preds ->
   (forall ctx' t', ctx <=c ctx' ->
    reducible tyl preds ctx' t' ->
    reducible tyr preds ctx' (subst_term 0 0 [:: t'] t)) ->
