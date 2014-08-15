@@ -1247,6 +1247,29 @@ Proof.
       by apply rtc_step.
 Qed.
 
+Lemma uabs_reducibility ty preds ctx t :
+  typing ctx (uabs t) (subst_typ 0 (unzip1 preds) (tyabs ty)) ->
+  Forall (fun p => RC p.1 p.2) preds ->
+  (forall v P, RC v P ->
+   reducible ty ((v, P) :: preds) ctx (typemap (subst_typ^~ [:: v]) 0 t)) ->
+  reducible (tyabs ty) preds ctx (uabs t).
+Proof.
+  move => /= H H0 H1 ty' P H2.
+  move: {H1} (@reducibility_isrc ty ((ty', P) :: preds)) (H1 ty' P H2)
+    => /= /(_ (conj H2 H0)).
+  move: {P H0 H2} (reducible _ _) => P H0 H1.
+  have H2: SN t by
+    move: (rc_cr1 H0 H1);
+      apply acc_preservation => x y; apply substtyp_reduction1.
+  move: t H2 H H1; refine (Acc_ind _ _) => t _ H1 H H2.
+  apply (rc_cr3 H0) => //=.
+  - by rewrite subst_app_ty eqxx.
+  - move => t' H3; inversion H3; subst => //.
+    inversion H8; subst; apply H1 => //.
+    + by apply (subject_reduction H5).
+    + apply (rc_cr2 H0 (substtyp_reduction1 _ _ H5) H2).
+Qed.
+
 
 
 End strong_normalization_proof_typed.
