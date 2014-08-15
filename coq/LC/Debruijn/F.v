@@ -733,40 +733,41 @@ Proof.
     by rewrite map_insert size_map.
 Qed.
 
-Lemma subject_subst t ty n ctx ctx' :
-  all (fun p => typing (drop n ctx) p.1 p.2) ctx' ->
+Lemma subject_subst t ty n m ctx ctx' :
+  all (fun p => typing (drop n ctx) (typemap (shift_typ m) 0 p.1) p.2) ctx' ->
   typing (ctxinsert [seq Some p.2 | p <- ctx'] ctx n) t ty ->
-  typing ctx (subst_term n 0 (unzip1 ctx') t) ty.
+  typing ctx (subst_term n m (unzip1 ctx') t) ty.
 Proof.
-  elim: t ty n ctx ctx' =>
-    [m | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
-  - move => ty n ctx ctx' H.
-    rewrite shifttyp_zero nth_insert !size_map; elimif_omega.
+  elim: t ty n m ctx ctx' =>
+    [v | tl IHtl tr IHtr tty | t IHt [] | t IHt ty1 ty2 | t IHt []] //=.
+  - move => ty n m ctx ctx' H.
+    rewrite nth_insert !size_map; elimif_omega.
     + by move => H0; rewrite nth_default ?size_map /= addnC // leq_addl.
     + rewrite !(nth_map (var 0, tyvar 0)) // => /eqP [] ->.
-      case: {ty m H0} (nth _ _ _) (all_nthP (var 0, tyvar 0) H m H0) =>
+      case: {ty v H0} (nth _ _ _) (all_nthP (var 0, tyvar 0) H v H0) =>
         /= t ty /(subject_shift 0 (ctxinsert [::] (take n ctx) n)).
-      rewrite size_insert size_take minnC minKn add0n.
+      rewrite size_insert size_take minnC minKn add0n shift_typemap_distr.
       apply ctxleq_preserves_typing.
       rewrite /insert take0 sub0n take_minn minnn size_take minnE subKn
               ?leq_subr //= drop_take_nil cats0 drop0 -catA
               -{4}(cat_take_drop n ctx) ctxleq_appl.
       by case (leqP' n (size ctx)) => //= H0;
         rewrite drop_oversize ?(ltnW H0) //= cats0;
-        apply/ctxleqP => /= m ty' /eqP; rewrite nth_nseq if_same.
-  - by move => ty n ctx ctx' H /andP [] /IHtl -> //=; apply IHtr.
-  - by move => tyl tyr n ctx ctx' H H0; apply IHt.
-  - by move => ty n ctx ctx' H /andP [] ->; apply IHt.
-  - move => ty n ctx ctx' H H0.
-    rewrite -{2}(addn0 1) -subst_shifttyp_app.
+        apply/ctxleqP => /= i ty' /eqP; rewrite nth_nseq if_same.
+  - by move => ty n m ctx ctx' H /andP [] /IHtl -> //=; apply IHtr.
+  - by move => tyl tyr n m ctx ctx' H H0; apply IHt.
+  - by move => ty n m ctx ctx' H /andP [] ->; apply IHt.
+  - move => ty n m ctx ctx' H H0.
+    rewrite -(addn0 m.+1) -subst_shifttyp_app.
     set ctx'' := (map _ (map _ _)).
     have {ctx''} ->: ctx'' = unzip1
-        [seq (typemap (shift_typ 1) 0 p.1, shift_typ 1 0 p.2) | p <- ctx']
+        [seq (typemap (shift_typ m.+1) 0 p.1, shift_typ 1 0 p.2) | p <- ctx']
       by rewrite /unzip1 /ctx'' -!map_comp /comp /=.
     apply IHt.
     + move: H {t ty IHt H0}; rewrite all_map; apply sub_all.
       rewrite /subpred /preim /pred_of_simpl; case => /= t ty.
-      rewrite -map_drop; apply shifttyp_preserves_typing.
+      rewrite -map_drop shifttyp_zero -(@shifttyp_add m _ 1 0) //.
+      apply shifttyp_preserves_typing.
     + by move: H0; rewrite map_insert -!map_comp.
 Qed.
 
@@ -775,7 +776,9 @@ Lemma subject_subst0 t ty ctx ctx' :
   typing ([seq Some p.2 | p <- ctx'] ++ ctx) t ty ->
   typing ctx (subst_term 0 0 (unzip1 ctx') t) ty.
 Proof.
-  by move: (@subject_subst t ty 0 ctx ctx'); rewrite /insert take0 sub0n drop0.
+  move => H; move: (@subject_subst t ty 0 0 ctx ctx');
+    rewrite /insert take0 sub0n drop0 /=; apply; move: H.
+  by apply sub_all; case => t' ty' /=; rewrite shifttyp_zero.
 Qed.
 
 Theorem subject_reduction ctx t t' ty :
