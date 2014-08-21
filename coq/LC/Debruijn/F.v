@@ -1351,6 +1351,31 @@ Proof.
         by rewrite /insert take0 drop0 sub0n => _ /=; apply.
 Qed.
 
-
+Theorem typed_term_is_snorm ctx t ty : typing ctx t ty -> SN t.
+Proof.
+  move => H.
+  have {H}: typing (map some (map (odflt (tyvar 0)) ctx)) t ty
+    by move: H; apply ctxleq_preserves_typing;
+      elim: ctx {t ty} => // [[]] // ty ctx H; rewrite ctxleqE eqxx.
+  move: {ctx} (map _ ctx) => ctx.
+  have ->: (map some ctx) =
+           [seq Some x.2 | x <- zip (map var (iota 0 (size ctx))) ctx]
+    by elim: ctx 0 => //= {t ty} ty ctx IH n; rewrite -IH.
+  move => /reduce_lemma; move => /(_ (map some ctx) [::]) /= /(_ I).
+  rewrite unzip1_zip ?size_map ?size_iota ?leqnn; last by [].
+  have H: Forall
+      (fun c => reducible c.2 [::] (map some ctx) c.1)
+      (zip (map var (iota 0 (size ctx))) ctx)
+    by apply Forall_nth; case => {t ty} t ty n; rewrite
+      size_zip size_map size_iota minnn nth_map' (nth_map' (@fst _ _)) /=
+      -/unzip1 -/unzip2 unzip1_zip ?unzip2_zip ?size_map ?size_iota // => H;
+      rewrite (nth_map 0 t var) ?size_iota // nth_iota // add0n;
+      apply (CR4' (@reducibility_isrc (nth ty ctx n) [::] I)) => //=;
+      rewrite subst_nil_ty (nth_map ty).
+  move/(_ H) => {H} /(rc_cr1 (reducibility_isrc _ _)) /= /(_ I).
+  set f := subst_term _ _ _; set g := typemap _ _.
+  rewrite -/((fun t => f (g t)) t); apply acc_preservation => x y H.
+  by rewrite {}/f {}/g; apply subst_reduction1, substtyp_reduction1.
+Qed.
 
 End strong_normalization_proof_typed.

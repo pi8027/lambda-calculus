@@ -1,6 +1,6 @@
 # A Formalization of Typed and Untyped λ-Calculus in SSReflect-Coq and Agda2
 
-By Kazuhiko Sakaguchi, Nov. 2011 - July 2014.
+By Kazuhiko Sakaguchi, Nov. 2011 - Aug. 2014.
 
 This is a formalization of the λ-calculus written in SSReflect-Coq and Agda2, and it contains the following definitions and theorems:
 
@@ -12,11 +12,12 @@ This is a formalization of the λ-calculus written in SSReflect-Coq and Agda2, a
     * Subject reduction (type preservation) theorem
     * Strong normalization theorem
         * Using a type-free version of the reducibility predicate
-        * Using a typed version of the reducibility predicate (depends on a part of the subject reduction proof)
+        * Using a typed version of the reducibility predicate
 * System F (second order typed lambda calculus): coq/LC/Debruijn/F.v
     * Subject reduction (type preservation) theorem
     * Strong normalization theorem
         * Using a type-free version of the reducibility candidates
+        * Using a typed version of the reducibility candidates (Girard's original proof)
 
 ## References
 
