@@ -537,7 +537,7 @@ Lemma subst_reduction t n m ts :
 Proof.
   move => H; elim: t n m => //=;
     auto => v n m; rewrite !size_map; elimif_omega.
-  elim: ts v H => //=; case => t t' ts IH [[H _] | v] //=.
+  elim: ts v H => //= [[t t']] ts IH [[H _] | v] //=.
   - move: H.
     apply (rtc_map' (f := fun x =>
       typemap (shift_typ m) 0 (shift_term n 0 x))) => t1 t2 H.
@@ -1015,13 +1015,12 @@ Proof.
       subst_typ (i + 0) [:: v] (subst_typ (i + 1) (unzip1 preds) ty) =
       subst_typ i (unzip1 ((v, P) :: preds)) ty by
         move => i ty'; rewrite addn0 addn1 subst_app_ty.
-    move: (IHt ty
-      (map (fun c => (c.1, shift_typ 1 0 c.2)) ctx) ((v, P) :: preds)).
+    move: (IHt ty [seq (c.1, shift_typ 1 0 c.2) | c <- ctx] ((v, P) :: preds)).
     rewrite /unzip1 -!map_comp /comp /=; apply => //=.
     + by move: H; rewrite -map_comp /comp /=.
-    + elim: ctx H1 {t ty IHt H H0 H2} => //=;
-        case => t ty ctx IH [] H H0; split => /=; last by apply IH.
-      case: (shift_reducibility ty [:: (v, P)] t (leq0n (size preds))) => _.
+    + apply Forall_map; move: H1; rewrite /comp /=; apply Forall_impl =>
+        {t ty IHt H H0 H2} [[t ty]] /=
+        /(proj2 (shift_reducibility ty [:: (v, P)] t (leq0n _))).
       by rewrite /insert take0 drop0 sub0n /=; apply.
 Qed.
 
