@@ -938,9 +938,8 @@ Lemma abs_reducibility t tyl tyr preds :
   reducible (tyl :->: tyr) preds (abs t).
 Proof.
   move => /= H.
-  move: (reducible tyl preds) (reducible tyr preds)
-    (reducibility_isrc tyl H) (reducibility_isrc tyr H) => {H} P Q HP HQ.
-  move => H t' H0.
+  move: (reducible tyl preds) (reducible tyr preds) (reducibility_isrc tyl H)
+    (reducibility_isrc tyr H) => {H} P Q HP HQ H t' H0.
   have H1: SN t by
     move: (rc_cr1 HQ (H _ H0));
       apply acc_preservation => x y; apply subst_reduction1.
@@ -963,9 +962,8 @@ Lemma uabs_reducibility t ty preds :
   reducible (tyabs ty) preds (uabs t).
 Proof.
   move => /= H H0 ty' P H1.
-  move: {H0} (@reducibility_isrc ty ((ty', P) :: preds)) (H0 ty' P H1)
-    => /= /(_ (conj H1 H)).
-  move: {P H H1} (reducible _ _) => P H H0.
+  move: (reducible _ _) (@reducibility_isrc ty ((ty', P) :: preds))
+    (H0 ty' P H1) => P' /= /(_ (conj H1 H)) {H H0 H1} H H0.
   have H1: SN t by
     move: (rc_cr1 H H0);
       apply acc_preservation => x y; apply substtyp_reduction1.
@@ -1227,8 +1225,8 @@ Lemma abs_reducibility tyl tyr preds ctx t :
 Proof.
   move => /= H H0.
   move: (reducible tyl preds) (reducible tyr preds)
-    (reducibility_isrc tyl H0) (reducibility_isrc tyr H0) => {H0} P Q HP HQ.
-  move => H0; split => // ctx' t' H1 H2.
+    (reducibility_isrc tyl H0) (reducibility_isrc tyr H0) =>
+    {H0} P Q HP HQ H0; split => // ctx' t' H1 H2.
   have H3: SN t by
     move: (rc_cr1 HQ (H0 _ _ H1 H2));
       apply acc_preservation => x y; apply subst_reduction1.
@@ -1256,9 +1254,8 @@ Lemma uabs_reducibility ty preds ctx t :
   reducible (tyabs ty) preds ctx (uabs t).
 Proof.
   move => /= H H0 H1 ty' P H2.
-  move: {H1} (@reducibility_isrc ty ((ty', P) :: preds)) (H1 ty' P H2)
-    => /= /(_ (conj H2 H0)).
-  move: {P H0 H2} (reducible _ _) => P H0 H1.
+  move: (reducible _ _) (@reducibility_isrc ty ((ty', P) :: preds))
+    (H1 ty' P H2) => P' /= /(_ (conj H2 H0)) {H0 H1 H2} H0 H1.
   have H2: SN t by
     move: (rc_cr1 H0 H1);
       apply acc_preservation => x y; apply substtyp_reduction1.
@@ -1290,14 +1287,14 @@ Lemma reduce_lemma ctx ctx' preds t ty :
   reducible ty preds ctx'
     (subst_term 0 0 (unzip1 ctx) (typemap (subst_typ^~ (unzip1 preds)) 0 t)).
 Proof.
-  have Hty: forall ctx ctx' preds t ty,
+  have Hty: forall t ty  ctx ctx' preds,
     typing [seq Some c.2 | c <- ctx] t ty ->
     Forall (fun p => RC p.1 p.2) preds ->
     Forall (fun c => reducible c.2 preds ctx' c.1) ctx ->
     typing ctx'
       (subst_term 0 0 (unzip1 ctx) (typemap (subst_typ^~ (unzip1 preds)) 0 t))
       (subst_typ 0 (unzip1 preds) ty).
-    clear => ctx ctx' preds t ty H H0 H1.
+    clear => t ty ctx ctx' preds H H0 H1.
     move: (fun t ty => @subject_subst0 t ty ctx'
       [seq (c.1, subst_typ 0 (unzip1 preds) c.2) | c <- ctx]).
     rewrite /unzip1 -!map_comp !/comp -/unzip1; apply => /=.
@@ -1316,7 +1313,7 @@ Proof.
     by move: (IHtl (tty :->: ty) ctx ctx' preds H H1 H2) => /= [_];
       apply => //; apply IHtr.
   - move => t IHt [] // tyl tyr ctx ctx' preds H H0 H1.
-    apply abs_reducibility => //; first by apply (Hty _ _ _ (abs t)).
+    apply abs_reducibility => //; first by apply (Hty (abs t)).
     move => ctx'' t' H2 H3; rewrite subst_app //=.
     apply (IHt tyr ((t', tyl) :: ctx)) => //=; split => //; move: H1.
     by apply Forall_impl => {t' H H3} [[t' ty]] /=;
@@ -1324,7 +1321,7 @@ Proof.
   - move => t IHt ttyl ttyr ty ctx ctx' preds /andP [] /eqP -> {ty} H H0 H1.
     by apply uapp_reducibility => //; apply IHt.
   - move => t IHt [] // ty ctx ctx' preds H H0 H1.
-    apply uabs_reducibility => //; first by apply (Hty _ _ _ (uabs t)).
+    apply uabs_reducibility => //; first by apply (Hty (uabs t)).
     move => v P H2.
     rewrite -(subst_substtyp_distr 0 [:: v]) // typemap_compose /=.
     have /(typemap_eq 0 t) -> : forall i ty,
