@@ -1300,12 +1300,11 @@ Proof.
     clear => ctx ctx' preds t ty H H0 H1.
     move: (fun t ty => @subject_subst0 t ty ctx'
       [seq (c.1, subst_typ 0 (unzip1 preds) c.2) | c <- ctx]).
-      rewrite /unzip1 -!map_comp !/comp -/unzip1; apply => /=.
+    rewrite /unzip1 -!map_comp !/comp -/unzip1; apply => /=.
     - by elim: ctx H1 {H} => //= [[]] /= t' ty' ctx IH []
         /(rc_typed (reducibility_isrc ty' H0)) ->.
-    - apply (ctxleq_preserves_typing (ctxleq_appr _ _)).
-      move/(substtyp_preserves_typing 0 (unzip1 preds)): H.
-      by rewrite /= -map_comp /comp /=.
+    - by move: (substtyp_preserves_typing 0 (unzip1 preds) H);
+        rewrite -map_comp; apply ctxleq_preserves_typing, ctxleq_appr.
   elim: t ty ctx ctx' preds => /=.
   - move => v ty ctx ctx' preds H H0 H1.
     rewrite shifttyp_zero shift_zero subn0 size_map.
