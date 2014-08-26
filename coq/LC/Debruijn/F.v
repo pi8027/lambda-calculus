@@ -1290,6 +1290,22 @@ Lemma reduce_lemma ctx ctx' preds t ty :
   reducible ty preds ctx'
     (subst_term 0 0 (unzip1 ctx) (typemap (subst_typ^~ (unzip1 preds)) 0 t)).
 Proof.
+  have Hty: forall ctx ctx' preds t ty,
+    typing [seq Some c.2 | c <- ctx] t ty ->
+    Forall (fun p => RC p.1 p.2) preds ->
+    Forall (fun c => reducible c.2 preds ctx' c.1) ctx ->
+    typing ctx'
+      (subst_term 0 0 (unzip1 ctx) (typemap (subst_typ^~ (unzip1 preds)) 0 t))
+      (subst_typ 0 (unzip1 preds) ty).
+    clear => ctx ctx' preds t ty H H0 H1.
+    move: (fun t ty => @subject_subst0 t ty ctx'
+      [seq (c.1, subst_typ 0 (unzip1 preds) c.2) | c <- ctx]).
+      rewrite /unzip1 -!map_comp !/comp -/unzip1; apply => /=.
+    - by elim: ctx H1 {H} => //= [[]] /= t' ty' ctx IH []
+        /(rc_typed (reducibility_isrc ty' H0)) ->.
+    - apply (ctxleq_preserves_typing (ctxleq_appr _ _)).
+      move/(substtyp_preserves_typing 0 (unzip1 preds)): H.
+      by rewrite /= -map_comp /comp /=.
   elim: t ty ctx ctx' preds => /=.
   - move => v ty ctx ctx' preds H H0 H1.
     rewrite shifttyp_zero shift_zero subn0 size_map.
@@ -1302,15 +1318,8 @@ Proof.
       apply => //; apply IHtr.
   - move => t IHt [] // tyl tyr ctx ctx' preds H H0 H1.
     apply abs_reducibility => //.
-    + rewrite -/(subst_term 0 0 _ (abs _)).
-      move: (fun t ty => @subject_subst0 t ty ctx'
-        [seq (c.1, subst_typ 0 (unzip1 preds) c.2) | c <- ctx]).
-      rewrite /unzip1 -!map_comp !/comp -/unzip1; apply => /=.
-      * by elim: ctx H1 {H} => //= [[]] /= t' ty ctx IH []
-          /(rc_typed (reducibility_isrc ty H0)) ->.
-      * apply (ctxleq_preserves_typing (ctxleq_appr (_ :: _) _)).
-        move/(substtyp_preserves_typing 0 (unzip1 preds)): H.
-        by rewrite /= -map_comp /comp /=.
+    + by rewrite -/(subst_term 0 0 _ (abs _)) -/(typemap _ _ (abs _));
+        apply Hty.
     + move => ctx'' t' H2 H3; rewrite subst_app //=.
       apply (IHt tyr ((t', tyl) :: ctx)) => //=; split => //; move: H1.
       by apply Forall_impl => {t' H H3} [[t' ty]] /=;
@@ -1319,20 +1328,8 @@ Proof.
     by apply uapp_reducibility => //; apply IHt.
   - move => t IHt [] // ty ctx ctx' preds H H0 H1.
     apply uabs_reducibility => //.
-    + rewrite -/(subst_term 0 0 _ (uabs _)).
-      move: (fun t ty => @subject_subst0 t ty ctx'
-        [seq (c.1, subst_typ 0 (unzip1 preds) c.2) | c <- ctx]).
-      rewrite /unzip1 -!map_comp !/comp -/unzip1; apply => /=.
-      * by elim: ctx H1 {H} => //= [[t' ty']] /= ctx IH []
-          /(rc_typed (reducibility_isrc ty' H0)) ->.
-      * rewrite map_cat.
-        apply (ctxleq_preserves_typing (ctxleq_appr _ _)).
-        move/(substtyp_preserves_typing 1 (unzip1 preds)): H.
-        rewrite -!map_comp !/comp /=.
-        set xs := map _ _; set ys := map _ _.
-        suff ->: xs = ys by [].
-        by rewrite {}/xs {}/ys; apply eq_in_map; case => /= t' ty' _;
-          rewrite shift_subst_distr_ty.
+    + by rewrite -/(subst_term 0 0 _ (uabs _)) -/(typemap _ _ (uabs _));
+        apply Hty => //.
     + move => v P H2.
       rewrite -(subst_substtyp_distr 0 [:: v]) // typemap_compose /=.
       have /(typemap_eq 0 t) -> : forall i ty,
