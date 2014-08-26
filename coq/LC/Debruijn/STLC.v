@@ -263,9 +263,8 @@ Proof.
   elim: ty; first by [].
   move => /= tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2];
     split => [t H | tl H H0 tr H1].
-  - suff : SN ((fun t => t @{0 \: tyl}) t) by
-      rewrite -/((fun t => t @{0 \: tyl}) t);
-        apply acc_preservation => x y H3; constructor.
+  - suff: SN ([fun t => t @{0 \: tyl}] t) by
+      apply acc_preservation; constructor.
     apply IHtyr1, IHtyr2 => // t' H0.
     apply (CR2 H0), H, IHtyl2 => // t'' H1; inversion H1.
   - move: (IHtyl1 tr H1) => H2.
@@ -358,11 +357,10 @@ Proof.
   move => /= tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2].
   split => [ctx t H H0 | ctx tl H H0 H1 tr ctx' H2 H3 H4].
   - set H1 := ctxindex_last ctx tyl.
-    have H2: typing (ctx ++ [:: Some tyl]) (t @{size ctx \: tyl}) tyr
-      by rewrite /= H1 andbT; eauto.
-    suff : SN ((fun t => t @{size ctx \: tyl}) t) by
-      rewrite -/((fun t => t @{size ctx \: tyl}) t);
-        apply acc_preservation => x y H3; constructor.
+    have H2: typing (ctx ++ [:: Some tyl]) (t @{size ctx \: tyl}) tyr by
+      rewrite /= H1 andbT; eauto.
+    suff: SN ([fun t => t @{size ctx \: tyl}] t) by
+      apply acc_preservation; constructor.
     apply (IHtyr1 _ _ H2), IHtyr2 => // t' H3.
     apply (CR2 H3), H0 => //=.
     apply IHtyl2 => // x H4; inversion H4.
@@ -418,16 +416,14 @@ Proof.
     move: (IHtl (tty :->: ty) ctx ctx') => /=; apply; auto.
     by apply subject_subst0.
   - move => t IHt [] //= tyl tyr ctx ctx' H H0 H1.
-    apply abstraction_lemma.
-    + rewrite -/(substitute 0 _ (abs t)).
-      by apply subject_subst0.
-    + move => t2 ctx2 H2 H3 H4.
-      rewrite subst_app /=.
-      apply (IHt tyr ctx2 ((t2, tyl) :: ctx')) => /=.
-      * move: H; apply ctxleq_preserves_typing.
-        by rewrite ctxleqE eqxx ctxleq_appl /=.
-      * rewrite H3 /=; move: H0; apply sub_all => p; eauto.
-      * split => //; move: H1; apply Forall_impl; eauto.
+    apply abstraction_lemma; first by apply (@subject_subst0 (abs t)).
+    move => t2 ctx2 H2 H3 H4.
+    rewrite subst_app /=.
+    apply (IHt tyr ctx2 ((t2, tyl) :: ctx')) => /=.
+    + move: H; apply ctxleq_preserves_typing.
+      by rewrite ctxleqE eqxx ctxleq_appl /=.
+    + rewrite H3 /=; move: H0; apply sub_all => p; eauto.
+    + split => //; move: H1; apply Forall_impl; eauto.
 Qed.
 
 Theorem typed_term_is_sn ctx t ty : typing ctx t ty -> SN t.

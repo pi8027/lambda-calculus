@@ -66,19 +66,16 @@ Qed.
 
 Lemma rtc_confluent A (R : relation A) : confluent R -> confluent [* R].
 Proof.
-  move => H.
-  apply rtc_semi_confluent.
-  move: (rtc_semi_confluent H) => {H} H t1 t2 t3 H0 H1.
-  by case: (H t1 t3 t2 H1 H0) => t4; case => H2 H3; exists t4.
+  move => H; apply rtc_semi_confluent => t1 t2 t3 H0 H1.
+  by case: (rtc_semi_confluent H H1 H0) => t4 [H2 H3]; exists t4.
 Qed.
 
 Lemma rtc_confluent' A (R R' : relation A) :
   inclusion R R' -> inclusion R' [* R] -> confluent R' -> confluent [* R].
 Proof.
   move => H H0 H1 t1 t2 t3 H2 H3.
-  case (rtc_confluent H1 (rtc_map H H2) (rtc_map H H3))
-    => t4 [H4 H5].
-  by exists t4; split; rewrite -rtc_nest_elim; apply (rtc_map H0).
+  case: (rtc_confluent H1 (rtc_map H H2) (rtc_map H H3)) => t4 [H4 H5].
+  by exists t4; split; apply rtc_nest_elim; apply (rtc_map H0).
 Qed.
 
 Lemma rtc_preservation A (P : A -> Prop) (R : relation A) :
