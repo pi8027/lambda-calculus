@@ -1317,32 +1317,28 @@ Proof.
     by move: (IHtl (tty :->: ty) ctx ctx' preds H H1 H2) => /= [_];
       apply => //; apply IHtr.
   - move => t IHt [] // tyl tyr ctx ctx' preds H H0 H1.
-    apply abs_reducibility => //.
-    + by rewrite -/(subst_term 0 0 _ (abs _)) -/(typemap _ _ (abs _));
-        apply Hty.
-    + move => ctx'' t' H2 H3; rewrite subst_app //=.
-      apply (IHt tyr ((t', tyl) :: ctx)) => //=; split => //; move: H1.
-      by apply Forall_impl => {t' H H3} [[t' ty]] /=;
-        apply (rc_cr0 (reducibility_isrc ty H0) H2).
+    apply abs_reducibility => //; first by apply (Hty _ _ _ (abs t)).
+    move => ctx'' t' H2 H3; rewrite subst_app //=.
+    apply (IHt tyr ((t', tyl) :: ctx)) => //=; split => //; move: H1.
+    by apply Forall_impl => {t' H H3} [[t' ty]] /=;
+      apply (rc_cr0 (reducibility_isrc ty H0) H2).
   - move => t IHt ttyl ttyr ty ctx ctx' preds /andP [] /eqP -> {ty} H H0 H1.
     by apply uapp_reducibility => //; apply IHt.
   - move => t IHt [] // ty ctx ctx' preds H H0 H1.
-    apply uabs_reducibility => //.
-    + by rewrite -/(subst_term 0 0 _ (uabs _)) -/(typemap _ _ (uabs _));
-        apply Hty => //.
-    + move => v P H2.
-      rewrite -(subst_substtyp_distr 0 [:: v]) // typemap_compose /=.
-      have /(typemap_eq 0 t) -> : forall i ty,
-        subst_typ (i + 0) [:: v] (subst_typ (i + 1) (unzip1 preds) ty) =
-        subst_typ i (unzip1 ((v, P) :: preds)) ty by
-          move => i ty'; rewrite addn0 addn1 subst_app_ty.
-      move: (IHt ty
-        [seq (c.1, shift_typ 1 0 c.2) | c <- ctx] ctx' ((v, P) :: preds)).
-      rewrite /unzip1 -!map_comp /comp /=; apply => //=.
-      + by move: H; rewrite -map_comp /comp /=.
-      + apply Forall_map; move: H1; apply Forall_impl => [[t' ty']] /=.
-        case (shift_reducibility ty' [:: (v, P)] ctx' t' (leq0n (size preds))).
-        rewrite /insert take0 drop0 sub0n => _ /=; apply.
+    apply uabs_reducibility => //; first by apply (Hty _ _ _ (uabs t)).
+    move => v P H2.
+    rewrite -(subst_substtyp_distr 0 [:: v]) // typemap_compose /=.
+    have /(typemap_eq 0 t) -> : forall i ty,
+      subst_typ (i + 0) [:: v] (subst_typ (i + 1) (unzip1 preds) ty) =
+      subst_typ i (unzip1 ((v, P) :: preds)) ty by
+        move => i ty'; rewrite addn0 addn1 subst_app_ty.
+    move: (IHt ty
+      [seq (c.1, shift_typ 1 0 c.2) | c <- ctx] ctx' ((v, P) :: preds)).
+    rewrite /unzip1 -!map_comp /comp /=; apply => //=.
+    + by move: H; rewrite -map_comp /comp /=.
+    + apply Forall_map; move: H1; apply Forall_impl => [[t' ty']] /=.
+      case (shift_reducibility ty' [:: (v, P)] ctx' t' (leq0n (size preds))).
+      rewrite /insert take0 drop0 sub0n => _ /=; apply.
 Qed.
 
 Theorem typed_term_is_snorm ctx t ty : typing ctx t ty -> SN t.
