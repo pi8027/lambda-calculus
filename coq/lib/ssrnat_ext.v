@@ -136,7 +136,8 @@ Ltac simpl_natarith :=
   end;
   try done;
   repeat match goal with
-    | H : is_true true |- _ => move => {H}
+    | H : is_true true |- _ => clear H
+                               (* "move => {H}" may unfold the "is_true" *)
   end.
 
 (* elimleq *)
