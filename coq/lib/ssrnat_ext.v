@@ -1,6 +1,6 @@
 Require Import
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
-  Ssreflect.ssrnat Omega.
+  Ssreflect.ssrnat Ssreflect.seq Omega LCAC.lib.seq_ext_base.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -122,18 +122,25 @@ Ltac simpl_natarith3 m n :=
   end.
 
 Ltac simpl_natarith :=
-  let tac :=
+  let tac x :=
     lazymatch goal with
       | |- ?x = ?x -> _ => move => _; rewrite !natE
       | _ => move => ->; rewrite ?natE
     end in
-  repeat match goal with
-    | H : context [?m - ?n] |- _ => move: H; simpl_natarith3 m n; tac => H
-    | |- context [?m - ?n] => simpl_natarith3 m n; tac
-    | H : context [?m <= ?n] |- _ =>
-      move: H; simpl_natarith3 m n; move/lem4_1; tac => H
-    | |- context [?m <= ?n] => simpl_natarith3 m n; move/lem4_1; tac
-  end;
+  repeat
+    (match goal with
+       H : context [?m - ?n] |- _ => move: H; simpl_natarith3 m n; tac 0 => H
+     end ||
+     match goal with
+       |- context [?m - ?n] => simpl_natarith3 m n; tac 0
+     end ||
+     match goal with
+       H : context [?m <= ?n] |- _ =>
+       move: H; simpl_natarith3 m n; move/lem4_1; tac 0 => H
+     end ||
+     match goal with
+       |- context [?m <= ?n] => simpl_natarith3 m n; move/lem4_1; tac 0
+     end);
   try done;
   repeat match goal with
     | H : is_true true |- _ => clear H
@@ -192,9 +199,9 @@ Ltac arith_hypo_ssrnat2coqnat :=
     | H : is_true false    |- _ => by move: H
     | H : is_true (_ && _) |- _ => let H0 := fresh "H" in case/andP: H => H H0
     | H : is_true (_ || _) |- _ => case/orP in H
-    | H : context [_ <  _] |- _ => move/ltP in H
-    | H : context [_ <= _] |- _ => move/leP in H
-    | H : context [_ == _] |- _ => move/eqP in H
+    | H : is_true (_ <  _) |- _ => move/ltP in H
+    | H : is_true (_ <= _) |- _ => move/leP in H
+    | H : is_true (_ == _) |- _ => move/eqP in H
   end.
 
 Ltac arith_goal_ssrnat2coqnat :=
@@ -216,21 +223,25 @@ Ltac ssromega :=
   do ?arith_goal_ssrnat2coqnat;
   omega.
 
-Ltac elimif :=
+Ltac elimif' :=
   (match goal with
      | |- context [if ?m < ?n then _ else _] => case (leqP' n m)
      | |- context [if ?m <= ?n then _ else _] => case (leqP' m n)
      | |- context [if ?b then _ else _] => case (ifP b)
    end;
-   move => //=; elimif; let hyp := fresh "H" in move => hyp) ||
+   move => //=; elimif'; let hyp := fresh "H" in move => hyp) ||
   idtac.
 
+Ltac elimif :=
+  elimif'; simpl_natarith;
+  repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end.
+
 Ltac elimif_omega :=
-  elimif; simpl_natarith;
-  repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end;
+  elimif;
   try (repeat match goal with
     | |- _ + _ = _ => idtac
     | |- _ - _ = _ => idtac
+    | |- nth _ _ _ = nth _ _ _ => apply nth_equal
     | |- _ => f_equal
   end; ssromega).
 

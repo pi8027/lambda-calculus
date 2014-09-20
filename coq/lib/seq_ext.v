@@ -1,60 +1,10 @@
 Require Import
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
-  Ssreflect.ssrnat Ssreflect.seq LCAC.lib.ssrnat_ext.
+  Ssreflect.ssrnat Ssreflect.seq LCAC.lib.seq_ext_base LCAC.lib.ssrnat_ext.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
 Import Prenex Implicits.
-
-Section Seq.
-
-Variable (A B : Type).
-
-(* drop and take *)
-
-Lemma drop_addn n m (xs : seq A) : drop n (drop m xs) = drop (n + m) xs.
-Proof.
-  elim: m xs => [| m IH] [] // x xs.
-  - by rewrite addn0.
-  - by rewrite addnS /= IH.
-Qed.
-
-Lemma take_minn n m (xs : seq A) : take n (take m xs) = take (minn n m) xs.
-Proof. by elim: n m xs => [| n IH] [| m] [] // x xs; rewrite minnSS /= IH. Qed.
-
-Lemma drop_take_distr n m (xs : seq A) :
-  drop n (take m xs) = take (m - n) (drop n xs).
-Proof.
-  elim: n m xs => [m xs | n IH [xs | m [] //= _ xs]].
-  - by rewrite !drop0 subn0.
-  - by rewrite sub0n !take0.
-  - by rewrite subSS IH.
-Qed.
-
-Lemma take_drop_distr n m (xs : seq A) :
-  take n (drop m xs) = drop m (take (n + m) xs).
-Proof. by rewrite drop_take_distr addnK. Qed.
-
-Lemma drop_take_nil n (xs : seq A) : drop n (take n xs) = [::].
-Proof. by rewrite drop_take_distr subnn take0. Qed.
-
-Lemma size_take n (xs : seq A) : size (take n xs) = minn n (size xs).
-Proof.
-  elim: n xs => [xs | n IH [] //= _ xs].
-  - by rewrite take0 min0n.
-  - by rewrite minnSS IH.
-Qed.
-
-(* nth *)
-
-Lemma nth_map' (f : A -> B) x xs n : f (nth x xs n) = nth (f x) (map f xs) n.
-Proof. by elim: xs n => [n | x' xs IH []] //=; rewrite !nth_nil. Qed.
-
-Lemma nth_equal (a b : A) xs n :
-  (size xs <= n -> a = b) -> nth a xs n = nth b xs n.
-Proof. by elim: xs n => [n /= -> | x xs IH []]. Qed.
-
-End Seq.
 
 (* insert *)
 
@@ -78,12 +28,9 @@ Lemma nth_insert (xs ys : seq A) d d' n m :
   if m < n then nth d' ys m else
   if m < n + size xs then nth d' xs (m - n) else nth d ys (m - size xs).
 Proof.
-  rewrite /insert !nth_cat size_take size_nseq -subnDA nth_drop.
+  rewrite /insert !nth_cat size_take size_nseq -subnDA nth_drop nth_take'.
   have ->: minn n (size ys) + (n - size ys) = n by ssromega.
-  elimif; try ssromega.
-  - apply nth_equal; ssromega.
-  - rewrite nth_nseq H0 nth_default //; ssromega.
-  - rewrite nth_take //; apply nth_equal; ssromega.
+  elimif_omega; rewrite nth_nseq H0 nth_default //; ssromega.
 Qed.
 
 Lemma take_insert n (xs ys : seq A) d :

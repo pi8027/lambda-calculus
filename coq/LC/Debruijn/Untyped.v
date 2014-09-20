@@ -2,7 +2,8 @@ Require Import
   Coq.Relations.Relations Coq.Relations.Relation_Operators
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
   Ssreflect.ssrnat Ssreflect.seq
-  LCAC.lib.Relations_ext LCAC.lib.ssrnat_ext LCAC.lib.seq_ext.
+  LCAC.lib.Relations_ext LCAC.lib.seq_ext_base LCAC.lib.ssrnat_ext
+  LCAC.lib.seq_ext.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -195,7 +196,7 @@ Proof.
   move => H H0; move: t t' H0 n.
   refine (parred_ind _ _ _ _) => /=; auto.
   - move => v n; elimif; rewrite !size_map; apply shift_parred.
-    elim: {v n H0} ps (v - n) H => //= [[t t']] ps IH [| v] [] //= H H0.
+    elim: ps v H => //= [[t t']] ps IH [| v] [] //= H H0.
     by rewrite subSS; apply IH.
   - move => t1 t1' t2 t2' H0 H1 H2 H3 n.
     by rewrite subst_subst_distr //= add1n subn0; auto.
