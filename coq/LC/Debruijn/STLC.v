@@ -486,7 +486,7 @@ Qed.
 End strong_normalization_proof_kripke.
 
 (*******************************************************************************
-  Strong normalization proof with the typed version of reducibility (incomplete)
+  Strong normalization proof with the typed version of reducibility
 *******************************************************************************)
 Module strong_normalization_proof_typed.
 
@@ -494,6 +494,40 @@ Import subject_reduction_proof.
 
 Fixpoint list_hyp ty : seq typ :=
   if ty is tyl :->: tyr then tyl :: list_hyp tyl ++ list_hyp tyr else [::].
+
+Fixpoint list_hyp' (ctx : context typ) t : seq typ :=
+  oapp list_hyp [::] (typing ctx t) ++
+  match t with
+    | var n => [::]
+    | app tl tr => list_hyp' ctx tl ++ list_hyp' ctx tr
+    | abs ty t => list_hyp' (Some ty :: ctx) t
+  end.
+
+Lemma list_hyp'E ctx t :
+  list_hyp' ctx t =
+  oapp list_hyp [::] (typing ctx t) ++
+  match t with
+    | var n => [::]
+    | app tl tr => list_hyp' ctx tl ++ list_hyp' ctx tr
+    | abs ty t => list_hyp' (Some ty :: ctx) t
+  end.
+Proof. by case: t. Qed.
+
+Lemma ctxleq_list_hyp' ctx ctx' t ty :
+  ctx <=c ctx' -> ctx \|- t \: ty -> list_hyp' ctx' t = list_hyp' ctx t.
+Proof.
+  elim: t ty ctx ctx' => //=.
+  - move => n ty ctx ctx' H H0.
+    by rewrite -(eqP (ctxleq_preserves_typing H H0)) -(eqP H0).
+  - move => tl IHtl tr IHtr tyr ctx ctx' H H0.
+    rewrite -(eqP (ctxleq_preserves_typing H H0)) -(eqP H0) /=; congr cat.
+    case/typing_appP: H0 => tyl H0 H1.
+    by rewrite (IHtl (tyl :->: tyr) ctx ctx') // (IHtr tyl ctx ctx').
+  - move => tyl t IHt ty ctx ctx' H H0.
+    rewrite -(eqP (ctxleq_preserves_typing H H0)) -(eqP H0) /=; congr cat.
+    case/typing_absP: H0 => tyr _ H0.
+    by rewrite (IHt tyr (Some tyl :: ctx) (Some tyl :: ctx')) // ctxleqE eqxx.
+Qed.
 
 Fixpoint reducible (ctx : context typ) (ty : typ) (t : term) : Prop :=
   match ty with
@@ -563,6 +597,53 @@ Proof.
     inversion H12; subst => {H12}; eauto.
     apply H2 => //; eauto => t'' ctx'' H8.
     by apply (CR2 (subst_betared1 0 [:: t''] H11)), H4.
+Qed.
+
+Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
+  [seq Some p.2 | p <- ctx'] ++ ctx \|- t \: ty ->
+  all (fun ty => Some ty \in ctx)
+      (list_hyp' ([seq Some p.2 | p <- ctx'] ++ ctx) t) ->
+  all (fun p => ctx \|- p.1 \: p.2) ctx' ->
+  Forall (fun p => reducible ctx p.2 p.1) ctx' ->
+  reducible ctx ty (substitute 0 [seq p.1 | p <- ctx'] t).
+Proof.
+  elim: t ty ctx ctx'.
+  - move => /= n ty ctx ctx' H.
+    rewrite -(eqP H) cats0 subn0 size_map shiftzero /=.
+    elim: ctx' n H => [| c' ctx' IH []] /=.
+    + move => n H H0 _ _; rewrite nth_nil subn0.
+      apply CR3 => // t' H1; inversion H1.
+    + case/eqP => ->; tauto.
+    + by move => n H H0 /andP [_ H1] [_]; apply IH.
+  - move => /= tl IHtl tr IHtr tyr ctx ctx' H.
+    rewrite -(eqP H) /=; case/typing_appP: H => tyl H H0.
+    rewrite !all_cat; case/and3P => H1 H2 H3 H4 H5.
+    move: (IHtl (tyl :->: tyr) ctx ctx') => /=; apply; auto.
+    by apply subject_subst0.
+  - move => /= tyl t IHt ty ctx ctx' H.
+    rewrite -(eqP H) /=; case/typing_absP: H => tyr -> H.
+    rewrite all_cat; case/andP => H0 H1 H2 H3.
+    simpl substitute; apply abstraction_lemma => //;
+      first by apply (@subject_subst0 (abs tyl t)) => //; rewrite typing_absE.
+    move => /= t2 H4 H5.
+    rewrite subst_app /=.
+    apply (IHt tyr ctx ((t2, tyl) :: ctx')) => //=.
+    by rewrite H4.
+Qed.
+
+Theorem typed_term_is_sn ctx t ty : ctx \|- t \: ty -> SN t.
+Proof.
+  move => H.
+  have H0: ctx ++ map some (list_hyp' ([::] ++ ctx) t) \|- t \: ty by
+    move: H; apply ctxleq_preserves_typing, ctxleq_appr.
+  move: (@reduce_lemma _ [::] _ _ H0) => /=.
+  rewrite (ctxleq_list_hyp' (ctxleq_appr ctx _) H).
+  have ->: forall xs ys, all (fun x => Some x \in xs ++ map some ys) ys by
+    move => A xs ys; apply/allP => x H1;
+      rewrite mem_cat; apply/orP/or_intror/map_f.
+  move/(_ erefl erefl I); rewrite subst_nil; apply CR1 => //.
+  by apply/allP => /= ty' H1; rewrite list_hyp'E mem_cat;
+    apply/orP/or_intror/map_f; rewrite mem_cat -(eqP H) H1.
 Qed.
 
 End strong_normalization_proof_typed.
