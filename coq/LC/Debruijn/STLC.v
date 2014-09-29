@@ -15,7 +15,7 @@ Inductive term := var of nat | app of term & term | abs of typ & term.
 Coercion tyvar : nat >-> typ.
 Coercion var : nat >-> term.
 
-Notation "ty :->: ty'" := (tyfun ty ty') (at level 70, no associativity).
+Notation "ty :->: ty'" := (tyfun ty ty') (at level 50, no associativity).
 Notation "t @ t'" := (app t t') (at level 60, no associativity).
 
 Fixpoint eqtyp t1 t2 :=
@@ -91,44 +91,41 @@ Fixpoint typing_rec (ctx : context typ) (t : term) : option typ :=
   match t with
     | var n => nth None ctx n
     | tl @ tr =>
-      match typing_rec ctx tl, typing_rec ctx tr with
-        | Some (tyl :->: tyr), Some tyl' =>
-          if tyl == tyl' then Some tyr else None
-        | _, _ => None
-      end
+      if typing_rec ctx tl is Some (tyl :->: tyr)
+        then (if typing_rec ctx tr == Some tyl then Some tyr else None)
+        else None
     | abs ty t => omap (tyfun ty) (typing_rec (Some ty :: ctx) t)
   end.
 
 Definition typing := nosimpl typing_rec.
 
 Notation "ctx \|- t \: ty" :=
-  (Some ty == typing ctx t) (at level 80, no associativity).
+  (Some ty == typing ctx t) (at level 69, no associativity).
 
-Lemma typing_varE ctx (n : nat) ty : (ctx \|- n \: ty) = ctxindex ctx n ty.
+Lemma typing_varE ctx (n : nat) ty : ctx \|- n \: ty = ctxindex ctx n ty.
 Proof. by rewrite /typing /=. Qed.
 
 Lemma typing_appP ctx t1 t2 ty :
-  reflect (exists2 tyl, (ctx \|- t1 \: tyl :->: ty) & (ctx \|- t2 \: tyl))
+  reflect (exists2 tyl, ctx \|- t1 \: tyl :->: ty & ctx \|- t2 \: tyl)
           (ctx \|- t1 @ t2 \: ty).
 Proof.
   apply: (iffP idP); rewrite /typing /=.
-  - move: (typing_rec ctx t1) (typing_rec ctx t2) =>
-      [] // [] // tyl tyr [] // tyl'; case: ifP => // /eqP <- /eqP [] ->.
-    by exists tyl; rewrite !eqxx.
+  - by move: (typing_rec ctx t1) => [] // [] // tyl tyr;
+      case: ifP => // /eqP -> /eqP [] ->; exists tyl.
   - by case => tyl /eqP <- /eqP <-; rewrite eqxx.
 Qed.
 
 Lemma typing_absP ctx (t : term) tyl ty :
-  reflect (exists2 tyr, ty = (tyl :->: tyr) & Some tyl :: ctx \|- t \: tyr)
+  reflect (exists2 tyr, ty = tyl :->: tyr & Some tyl :: ctx \|- t \: tyr)
           (ctx \|- abs tyl t \: ty).
 Proof.
   apply: (iffP idP); rewrite /typing /=.
   - by case: typing_rec => //= tyr /eqP [] ->; exists tyr.
-  - by case => tyr [] ->; case: typing_rec => // tyr' /eqP [] <-.
+  - by case => tyr ->; case: typing_rec => // tyr' /eqP [] <-.
 Qed.
 
 Lemma typing_absE ctx (t : term) tyl tyr :
-  (ctx \|- abs tyl t \: tyl :->: tyr) = (Some tyl :: ctx \|- t \: tyr).
+  ctx \|- abs tyl t \: tyl :->: tyr = Some tyl :: ctx \|- t \: tyr.
 Proof.
   by rewrite /typing /=; case: typing_rec => //= tyr';
     rewrite /eq_op /= /eq_op /= -/eq_op eqxx.
@@ -214,7 +211,7 @@ Proof.
   elim: t ty ctx1 ctx2 => /= [n | tl IHtl tr IHtr | tyl t IHt] ty ctx1 ctx2.
   - move/ctxleqP; apply.
   - by move => H /typing_appP [tyl H0 H1]; apply/typing_appP;
-      exists tyl; [apply (IHtl _ _ _ H) | apply (IHtr _ _ _ H)].
+      exists tyl; [apply (IHtl _ ctx1) | apply (IHtr _ ctx1)].
   - by move => H /typing_absP [tyr -> H0]; rewrite typing_absE;
       move: H0; apply IHt; rewrite ctxleqE eqxx.
 Qed.
@@ -247,8 +244,8 @@ Proof.
       by case: (leqP' n (size ctx)) =>
         //= /ltnW /drop_oversize ->; rewrite cats0;
         apply/ctxleqP => /= n' ty' /eqP; rewrite nth_nseq if_same.
-  - by case/typing_appP => tyl H0 H1; apply/typing_appP; exists tyl;
-      [apply (IHtl _ _ _ H) | apply (IHtr _ _ _ H)].
+  - by case/typing_appP => tyl H0 H1;
+      apply/typing_appP; exists tyl; [apply IHtl | apply IHtr].
   - by case/typing_absP => tyr -> H0; rewrite typing_absE; apply IHt.
 Qed.
 
