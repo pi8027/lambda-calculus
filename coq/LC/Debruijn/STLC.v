@@ -231,7 +231,7 @@ Qed.
 Lemma subject_subst t ty n ctx ctx' :
   all (fun p => drop n ctx \|- p.1 \: p.2) ctx' ->
   ctxinsert [seq Some p.2 | p <- ctx'] ctx n \|- t \: ty ->
-  ctx \|- substitute n [seq p.1 | p <- ctx'] t \: ty.
+  ctx \|- substitute n (unzip1 ctx') t \: ty.
 Proof.
   elim: t ty n ctx => /= [m | tl IHtl tr IHtr | tyl t IHt] ty n ctx H.
   - rewrite /typing /= nth_insert !size_map => /eqP ->; elimif.
@@ -254,7 +254,7 @@ Qed.
 Lemma subject_subst0 t ty ctx ctx' :
   all (fun p => ctx \|- p.1 \: p.2) ctx' ->
   [seq Some p.2 | p <- ctx'] ++ ctx \|- t \: ty ->
-  ctx \|- substitute 0 [seq p.1 | p <- ctx'] t \: ty.
+  ctx \|- substitute 0 (unzip1 ctx') t \: ty.
 Proof.
   by move: (@subject_subst t ty 0 ctx ctx'); rewrite /insert take0 sub0n drop0.
 Qed.
@@ -339,7 +339,7 @@ Qed.
 Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
   [seq Some p.2 | p <- ctx'] ++ ctx \|- t \: ty ->
   Forall (fun p => reducible p.2 p.1) ctx' ->
-  reducible ty (substitute 0 [seq p.1 | p <- ctx'] t).
+  reducible ty (substitute 0 (unzip1 ctx') t).
 Proof.
   elim: t ty ctx ctx'.
   - move => /= n ty ctx ctx'.
@@ -451,7 +451,7 @@ Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
   [seq Some p.2 | p <- ctx'] ++ ctx \|- t \: ty ->
   all (fun p => ctx \|- p.1 \: p.2) ctx' ->
   Forall (fun p => reducible ctx p.2 p.1) ctx' ->
-  reducible ctx ty (substitute 0 [seq p.1 | p <- ctx'] t).
+  reducible ctx ty (substitute 0 (unzip1 ctx') t).
 Proof.
   elim: t ty ctx ctx'.
   - move => /= n ty ctx ctx'.
@@ -604,7 +604,7 @@ Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
       (list_hyp' ([seq Some p.2 | p <- ctx'] ++ ctx) t) ->
   all (fun p => ctx \|- p.1 \: p.2) ctx' ->
   Forall (fun p => reducible ctx p.2 p.1) ctx' ->
-  reducible ctx ty (substitute 0 [seq p.1 | p <- ctx'] t).
+  reducible ctx ty (substitute 0 (unzip1 ctx') t).
 Proof.
   elim: t ty ctx ctx'.
   - move => /= n ty ctx ctx' H.
