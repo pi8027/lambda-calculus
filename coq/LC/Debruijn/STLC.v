@@ -246,8 +246,7 @@ Proof.
       by case: (leqP' n (size ctx)) =>
         //= /ltnW /drop_oversize ->; rewrite cats0;
         apply/ctxleqP => /= n' ty' /eqP; rewrite nth_nseq if_same.
-  - by case/typing_appP => tyl H0 H1;
-      apply/typing_appP; exists tyl; [apply IHtl | apply IHtr].
+  - by case/typing_appP => tyl H0 H1; apply/typing_appP; exists tyl; auto.
   - by case/typing_absP => tyr -> H0; rewrite typing_absE; apply IHt.
 Qed.
 
