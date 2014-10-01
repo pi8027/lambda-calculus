@@ -99,8 +99,10 @@ Fixpoint typing_rec (ctx : context typ) (t : term) : option typ :=
 
 Definition typing := nosimpl typing_rec.
 
-Notation "ctx \|- t \: ty" :=
-  (Some ty == typing ctx t) (at level 69, no associativity).
+Notation "ctx \|- t \: ty" := (Some ty == typing ctx t)
+  (at level 69, no associativity).
+Notation "ctx \|- t \: ty" := (Some (ty : typ) == typing ctx t)
+  (at level 69, no associativity, only parsing).
 
 Lemma typing_varE ctx (n : nat) ty : ctx \|- n \: ty = ctxindex ctx n ty.
 Proof. by rewrite /typing /=. Qed.
@@ -115,7 +117,7 @@ Proof.
   - by case => tyl /eqP <- /eqP <-; rewrite eqxx.
 Qed.
 
-Lemma typing_absP ctx (t : term) tyl ty :
+Lemma typing_absP ctx t tyl ty :
   reflect (exists2 tyr, ty = tyl :->: tyr & Some tyl :: ctx \|- t \: tyr)
           (ctx \|- abs tyl t \: ty).
 Proof.
@@ -124,7 +126,7 @@ Proof.
   - by case => tyr ->; case: typing_rec => // tyr' /eqP [] <-.
 Qed.
 
-Lemma typing_absE ctx (t : term) tyl tyr :
+Lemma typing_absE ctx t tyl tyr :
   ctx \|- abs tyl t \: tyl :->: tyr = Some tyl :: ctx \|- t \: tyr.
 Proof.
   by rewrite /typing /=; case: typing_rec => //= tyr';
@@ -220,10 +222,10 @@ Lemma typing_shift t c ctx1 ctx2 :
   typing (ctxinsert ctx2 ctx1 c) (shift (size ctx2) c t) = typing ctx1 t.
 Proof.
   rewrite /typing.
-  elim: t c ctx1 => /= [n | tl IHtl tr IHtr | tyl t IHt].
-  - by move => c ctx1; rewrite nth_insert; elimif_omega.
-  - by move => c ctx1; rewrite (IHtl c) (IHtr c).
-  - by move => c ctx1; rewrite -(IHt c.+1).
+  elim: t c ctx1 => /= [n | tl IHtl tr IHtr | tyl t IHt] c ctx1.
+  - by rewrite nth_insert; elimif_omega.
+  - by rewrite IHtl IHtr.
+  - by rewrite -(IHt c.+1).
 Qed.
 
 Lemma subject_subst t ty n ctx ctx' :
