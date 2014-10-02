@@ -908,14 +908,9 @@ Definition CR1 := forall t, P t -> SN t.
 Definition CR2 := forall t t', t ->r1 t' -> P t -> P t'.
 Definition CR3 := forall t,
   neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
+Record RC : Prop := reducibility_candidate
+  { rc_cr1 : CR1 ; rc_cr2 : CR2 ; rc_cr3 : CR3 }.
 End CRs.
-
-Record RC (P : term -> Prop) : Prop :=
-  reducibility_candidate {
-    rc_cr1 : CR1 P ;
-    rc_cr2 : CR2 P ;
-    rc_cr3 : CR3 P
-  }.
 
 Lemma CR2' P t t' : RC P -> t ->r t' -> P t -> P t'.
 Proof.
@@ -925,7 +920,7 @@ Proof.
 Qed.
 
 Lemma CR4 P t : RC P -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
-Proof. by case => _ _ H H0 H1; apply H => // t' /H1. Qed.
+Proof. by move/rc_cr3 => H H0 H1; apply H => // t' /H1. Qed.
 
 Lemma CR4' P (v : nat) : RC P -> P v.
 Proof. by move/CR4; apply => // t' H; inversion H. Qed.
@@ -1136,6 +1131,79 @@ Module strong_normalization_proof_typed.
 
 Import subject_reduction_proof.
 
+Notation bottom := (tyabs (tyvar 0)).
+Notation "# ctx" := (rcons ctx (Some bottom)) (at level 65, no associativity).
+
+Section CRs.
+Variable (ctx : context typ) (ty : typ) (P : term -> Prop).
+Definition CR1 := forall t, # ctx \|- t \: ty -> P t -> SN t.
+Definition CR2 := forall t t', # ctx \|- t \: ty -> t ->r1 t' -> P t -> P t'.
+Definition CR3 := forall t,
+  # ctx \|- t \: ty -> neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
+Record RC : Prop := reducibility_candidate
+  { rc_cr1 : CR1 ; rc_cr2 : CR2 ; rc_cr3 : CR3 }.
+End CRs.
+
+Lemma CR2' ctx ty P t t' :
+  RC ctx ty P -> # ctx \|- t \: ty -> t ->r t' -> P t -> P t'.
+Proof.
+  move => H H0 H1; move: t t' H1 H0.
+  refine (clos_refl_trans_1n_ind _ _ _ _ _) => //= x y z H0 H1 H2 H3 H4.
+  by apply H2; [apply (subject_reduction H0) | apply (rc_cr2 H H3)].
+Qed.
+
+Lemma CR4 ctx ty P t : RC ctx ty P ->
+  # ctx \|- t \: ty -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
+Proof. by move/rc_cr3 => H H0 H1 H2; apply H => // t' /H2. Qed.
+
+Lemma CR4' ctx ty P (v : nat) : RC ctx ty P -> ctxindex (# ctx) v ty -> P v.
+Proof. move/CR4 => H H0; apply H => // => t' H1; inversion H1. Qed.
+
+Lemma snorm_isrc ctx ty : RC ctx ty SN.
+Proof.
+  constructor; move => /=; auto.
+  - by move => t t' H H0 []; apply.
+  - by move => t _ _ /(Acc_intro t).
+Qed.
+
+Lemma rcfun_isrc ctx tyl tyr P Q :
+  RC ctx tyl P -> RC ctx tyr Q ->
+  RC ctx (tyl :->: tyr)
+    (fun u => forall v, # ctx \|- v \: tyl -> P v -> Q (u @ v)).
+Proof.
+  move => HP HQ; constructor; move => /=.
+  - move => t H /(_ ((size ctx) @' tyl)).
+    have H0 : #ctx \|- size ctx @' tyl \: tyl by
+      apply/typing_uappP; exists 0 => //=;
+        rewrite ?shift_zero_ty // /typing /= nth_rcons ltnn eqxx.
+    have H1 t': ~ size ctx @' tyl ->r1 t' by
+      move => H1; inversion H1; subst; inversion H5.
+    move/(_ H0 (CR4 HP H0 erefl H1))/(rc_cr1 HQ) => {H1}.
+    have -> : #ctx \|- t @ (size ctx @' tyl) \: tyr by
+      apply/typing_appP; exists tyl.
+    by move/(_ erefl); apply (acc_preservation (f := app^~_)); auto.
+  - move => t t' H H0 H1 v H2 /(H1 _ H2); apply (rc_cr2 HQ).
+    + by apply/typing_appP; exists tyl.
+    + by constructor.
+  - move => t H H0 H1 v H2 H3.
+    move: v {H2 H3} (rc_cr1 HP H2 H3) (H2) (H3).
+    refine (Acc_ind _ _) => v _ IH H2 H3.
+    apply (rc_cr3 HQ) => //=; first by apply/typing_appP; exists tyl.
+    move => t'' H4; move: H0; inversion H4; subst => //= _.
+    + by apply (H1 _ H7).
+    + apply IH => //.
+      * by apply (subject_reduction H7).
+      * by apply (rc_cr2 HP H2 H7).
+Qed.
+
+
+
+End strong_normalization_proof_typed.
+
+Module strong_normalization_proof_kripke.
+
+Import subject_reduction_proof.
+
 Section CRs.
 Variable (ty : typ) (P : context typ -> term -> Prop).
 Definition CR_typed := forall ctx t, P ctx t -> ctx \|- t \: ty.
@@ -1144,18 +1212,17 @@ Definition CR1 := forall ctx t, P ctx t -> SN t.
 Definition CR2 := forall ctx t t', t ->r1 t' -> P ctx t -> P ctx t'.
 Definition CR3 := forall ctx t,
   ctx \|- t \: ty -> neutral t -> (forall t', t ->r1 t' -> P ctx t') -> P ctx t.
+Record RC : Prop :=
+  reducibility_candidate {
+    rc_typed : CR_typed ;
+    rc_cr0 : CR0 ;
+    rc_cr1 : CR1 ;
+    rc_cr2 : CR2 ;
+    rc_cr3 : CR3
+  }.
 End CRs.
 
-Record RC (ty : typ) (P : context typ -> term -> Prop) : Prop :=
-  reducibility_candidate {
-    rc_typed : CR_typed ty P;
-    rc_cr0 : CR0 P ;
-    rc_cr1 : CR1 P ;
-    rc_cr2 : CR2 P ;
-    rc_cr3 : CR3 ty P
-  }.
-
-Lemma CR2' ty P ctx t t' : RC ty P -> t ->r t' -> P ctx t -> P  ctx t'.
+Lemma CR2' ty P ctx t t' : RC ty P -> t ->r t' -> P ctx t -> P ctx t'.
 Proof.
   move => H; move: t t'.
   refine (clos_refl_trans_1n_ind _ _ _ _ _) => //= x y z H0 H1 H2 H3.
@@ -1164,7 +1231,7 @@ Qed.
 
 Lemma CR4 ty P ctx t : RC ty P ->
   ctx \|- t \: ty -> neutral t -> (forall t', ~ t ->r1 t') -> P ctx t.
-Proof. by case => _ _ _ _ H H0 H1 H2; apply H => // t' /H2. Qed.
+Proof. by move/rc_cr3 => H H0 H1 H2; apply H => // t' /H2. Qed.
 
 Lemma CR4' ty P ctx (v : nat) : RC ty P -> ctxindex ctx v ty -> P ctx v.
 Proof. move/CR4 => H H0; apply H => // t' H1; inversion H1. Qed.
@@ -1459,4 +1526,4 @@ Proof.
   by apply subst_reduction1, substtyp_reduction1.
 Qed.
 
-End strong_normalization_proof_typed.
+End strong_normalization_proof_kripke.
