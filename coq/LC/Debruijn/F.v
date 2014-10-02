@@ -1136,16 +1136,16 @@ Notation "# ctx" := (rcons ctx (Some bottom)) (at level 65, no associativity).
 
 Section CRs.
 Variable (ctx : context typ) (ty : typ) (P : term -> Prop).
-Definition CR1 := forall t, # ctx \|- t \: ty -> P t -> SN t.
-Definition CR2 := forall t t', # ctx \|- t \: ty -> t ->r1 t' -> P t -> P t'.
+Definition CR1 := forall t, #ctx \|- t \: ty -> P t -> SN t.
+Definition CR2 := forall t t', #ctx \|- t \: ty -> t ->r1 t' -> P t -> P t'.
 Definition CR3 := forall t,
-  # ctx \|- t \: ty -> neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
+  #ctx \|- t \: ty -> neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
 Record RC : Prop := reducibility_candidate
   { rc_cr1 : CR1 ; rc_cr2 : CR2 ; rc_cr3 : CR3 }.
 End CRs.
 
 Lemma CR2' ctx ty P t t' :
-  RC ctx ty P -> # ctx \|- t \: ty -> t ->r t' -> P t -> P t'.
+  RC ctx ty P -> #ctx \|- t \: ty -> t ->r t' -> P t -> P t'.
 Proof.
   move => H H0 H1; move: t t' H1 H0.
   refine (clos_refl_trans_1n_ind _ _ _ _ _) => //= x y z H0 H1 H2 H3 H4.
@@ -1153,10 +1153,10 @@ Proof.
 Qed.
 
 Lemma CR4 ctx ty P t : RC ctx ty P ->
-  # ctx \|- t \: ty -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
+  #ctx \|- t \: ty -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
 Proof. by move/rc_cr3 => H H0 H1 H2; apply H => // t' /H2. Qed.
 
-Lemma CR4' ctx ty P (v : nat) : RC ctx ty P -> ctxindex (# ctx) v ty -> P v.
+Lemma CR4' ctx ty P (v : nat) : RC ctx ty P -> ctxindex (#ctx) v ty -> P v.
 Proof. move/CR4 => H H0; apply H => // => t' H1; inversion H1. Qed.
 
 Lemma snorm_isrc ctx ty : RC ctx ty SN.
@@ -1169,13 +1169,12 @@ Qed.
 Lemma rcfun_isrc ctx tyl tyr P Q :
   RC ctx tyl P -> RC ctx tyr Q ->
   RC ctx (tyl :->: tyr)
-    (fun u => forall v, # ctx \|- v \: tyl -> P v -> Q (u @ v)).
+    (fun u => forall v, #ctx \|- v \: tyl -> P v -> Q (u @ v)).
 Proof.
   move => HP HQ; constructor; move => /=.
-  - move => t H /(_ ((size ctx) @' tyl)).
+  - move => t H /(_ (size ctx @' tyl)).
     have H0 : #ctx \|- size ctx @' tyl \: tyl by
-      apply/typing_uappP; exists 0 => //=;
-        rewrite ?shift_zero_ty // /typing /= nth_rcons ltnn eqxx.
+      rewrite /typing /= nth_rcons ltnn eqxx /= shift_zero_ty.
     have H1 t': ~ size ctx @' tyl ->r1 t' by
       move => H1; inversion H1; subst; inversion H5.
     move/(_ H0 (CR4 HP H0 erefl H1))/(rc_cr1 HQ) => {H1}.
@@ -1194,6 +1193,48 @@ Proof.
     + apply IH => //.
       * by apply (subject_reduction H7).
       * by apply (rc_cr2 HP H2 H7).
+Qed.
+
+Fixpoint reducible ctx ty (preds : seq (typ * (term -> Prop))) t : Prop :=
+  match ty with
+    | tyvar v => nth SN (unzip2 preds) v t
+    | tyfun tyl tyr => forall v,
+      #ctx \|- v \: subst_typ 0 (unzip1 preds) tyl ->
+        reducible ctx tyl preds v -> reducible ctx tyr preds (t @ v)
+    | tyabs ty =>
+      forall ty' P, RC ctx ty' P ->
+        reducible ctx ty ((ty', P) :: preds) (t @' ty')
+  end.
+
+Lemma reducibility_isrc ctx ty preds :
+  Forall (fun p => RC ctx p.1 p.2) preds ->
+  RC ctx (subst_typ 0 (unzip1 preds) ty) (reducible ctx ty preds).
+Proof.
+  elim: ty preds => /= [n | tyl IHtyl tyr IHtyr | ty IHty] preds.
+  - rewrite shift_zero_ty subn0.
+    elim: preds n => [| P preds IH []] /=.
+    + move => n _; rewrite !nth_nil /= !subn0; apply snorm_isrc.
+    + by case.
+    + by move => n [H] /(IH n) {IH}; rewrite !subSS.
+  - by move => H; apply rcfun_isrc; [apply IHtyl | apply IHtyr].
+  - move => H; constructor.
+    + move => /= t H0 /(_ 0 _ (snorm_isrc _ _))
+        /(rc_cr1 (IHty ((_, _) :: _) (conj (snorm_isrc _ _) H))) /=.
+      suff: #ctx \|- t @' 0 \: subst_typ 0 (tyvar 0 :: unzip1 preds) ty by
+        move => -> /(_ erefl);
+        apply (acc_preservation (f := uapp^~_)) => x y H1; constructor.
+      by apply/typing_uappP;
+        exists (subst_typ 1 (unzip1 preds) ty) => //; rewrite subst_app_ty.
+    + move => /= t t' H0 H1 H2 ty' P H3.
+      move: (H2 _ _ H3); apply (rc_cr2 (IHty ((_, _) :: _) (conj H3 H))).
+      * by apply/typing_uappP;
+          exists (subst_typ 1 (unzip1 preds) ty) => //; rewrite subst_app_ty.
+      * by constructor.
+    + move => /= t H0 H1 H2 ty' P H3.
+      apply (rc_cr3 (IHty ((_, _) :: _) (conj H3 H))) => //=.
+      + by apply/typing_uappP;
+          exists (subst_typ 1 (unzip1 preds) ty) => //; rewrite subst_app_ty.
+      * by move => t' H4; move: H0; inversion H4; subst => //= _; apply H2.
 Qed.
 
 
