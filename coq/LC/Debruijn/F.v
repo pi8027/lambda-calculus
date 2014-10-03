@@ -1253,6 +1253,33 @@ Proof.
       apply (IHty c.+1 ((ty', P) :: preds)) => //; apply H0.
 Qed.
 
+Lemma subst_reducibility ty preds n tys ctx t :
+  n <= size preds ->
+  (reducible ctx (subst_typ n tys ty) preds t <->
+   reducible ctx ty
+     (insert [seq (subst_typ 0 (drop n (unzip1 preds)) ty,
+                   reducible ctx ty (drop n preds)) | ty <- tys]
+             preds (tyvar 0, SN) n)
+     t).
+Proof.
+  elim: ty preds n tys t => [v | tyl IHtyl tyr IHtyr | ty IHty] preds n tys t.
+  - rewrite /= /unzip2 map_insert /= -map_comp /comp /=
+            nth_insert size_map -/unzip2; elimif_omega.
+    + by rewrite nth_default ?leq_addr //= addnC.
+    + move => H0.
+      rewrite (nth_map (tyvar (v - size tys))) //=.
+      move: (shift_reducibility (nth (tyvar (v - size tys)) tys v)
+        (take n preds) ctx t (leq0n (size (drop n preds)))).
+      rewrite /insert take0 drop0 sub0n /= cat_take_drop size_take.
+      by move/minn_idPl: H0 => ->.
+  - by move => H /=;
+      split => H0 t' H1 /IHtyl => /(_ H) /H0 /IHtyr => /(_ H); apply; move: H1;
+      rewrite /unzip1 map_insert -map_comp /= subst_subst_compose_ty ?size_map.
+  - move => H /=; split => H0 ty' P /H0.
+    + by move/IHty => /(_ H); rewrite /insert /= subSS.
+    + by move => H1; apply IHty.
+Qed.
+
 
 
 End strong_normalization_proof_typed.
