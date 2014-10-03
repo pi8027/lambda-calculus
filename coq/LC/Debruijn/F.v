@@ -984,8 +984,8 @@ Proof.
   elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
   - rewrite /= /unzip2 map_insert nth_insert size_map; elimif_omega.
   - by split => /= H0 t' /(IHtyl c _ _ H) /H0 /(IHtyr c _ _ H).
-  - by split => H0 ty' P H1; apply (IHty c.+1 ((ty', P) :: preds));
-      rewrite ?ltnS ?H //; apply H0.
+  - by split => H0 ty' P H1;
+      apply (IHty c.+1 ((ty', P) :: preds)) => //; apply H0.
 Qed.
 
 Lemma subst_reducibility ty preds n tys t :
@@ -1237,6 +1237,22 @@ Proof.
       * by move => t' H4; move: H0; inversion H4; subst => //= _; apply H2.
 Qed.
 
+Lemma shift_reducibility c ty preds preds' ctx t :
+  c <= size preds ->
+  (reducible ctx (shift_typ (size preds') c ty)
+     (insert preds' preds (tyvar 0, SN) c) t <->
+   reducible ctx ty preds t).
+Proof.
+  have submaxn m n : m - maxn m n = 0 by ssromega.
+  elim: ty c preds t => [v | tyl IHtyl tyr IHtyr | ty IHty] c preds t H.
+  - rewrite /= /unzip2 map_insert nth_insert size_map; elimif_omega.
+  - rewrite /= /unzip1 map_insert -(size_map (@fst _ _)) /=
+            !subst_shift_cancel_ty4 ?size_map //.
+    by split => H0 v H1 /(IHtyl c _ _ H) /(H0 _ H1) /(IHtyr c _ _ H).
+  - by split => /= H0 ty' P H1;
+      apply (IHty c.+1 ((ty', P) :: preds)) => //; apply H0.
+Qed.
+
 
 
 End strong_normalization_proof_typed.
@@ -1378,7 +1394,7 @@ Proof.
   - rewrite /= /unzip1 map_insert -(size_map (@fst _ _)) -add1n
             subst_shift_cancel_ty4 ?size_map //.
     by split; case => H0 H1; split => // ty' P H2;
-      apply (IHty c.+1 ((ty', P) :: preds)); rewrite ?ltnS ?H //; apply H1.
+      apply (IHty c.+1 ((ty', P) :: preds)) => //; apply H1.
 Qed.
 
 Lemma subst_reducibility ty preds n tys ctx t :
