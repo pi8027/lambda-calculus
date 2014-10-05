@@ -164,8 +164,8 @@ Lemma subst_shift_distr n d c ts t :
 Proof.
   elimleq; elim: t n; congruence' => v n; elimif_omega.
   - rewrite !nth_default ?size_map /=; elimif_omega.
-  - rewrite -shift_shift_distr // nth_map' /=;
-      f_equal; apply nth_equal; rewrite size_map; elimif_omega.
+  - rewrite -shift_shift_distr // nth_map' /=.
+      congr shift; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 Lemma subst_shift_cancel n d c ts t :
@@ -183,8 +183,8 @@ Lemma subst_subst_distr n m xs ys t :
 Proof.
   elimleq; elim: t m; congruence' => v m /=; elimif_omega.
   - rewrite (@subst_shift_cancel m) // size_map 1?nth_default /=; elimif_omega.
-  - rewrite size_map -shift_subst_distr // nth_map' /=.
-    f_equal; apply nth_equal; rewrite size_map; elimif_omega.
+  - rewrite size_map -shift_subst_distr // nth_map' /=;
+      congr shift; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 Lemma subst_app n xs ys t :
