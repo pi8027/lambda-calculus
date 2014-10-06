@@ -874,13 +874,21 @@ Proof.
   by apply sub_all; case => t' ty' /=; rewrite shifttyp_zero.
 Qed.
 
+Lemma subject_subst0' ctx tyl tyr t t' :
+  Some tyl :: ctx \|- t \: tyr -> ctx \|- t' \: tyl ->
+  ctx \|- subst_term 0 0 [:: t'] t \: tyr.
+Proof.
+  by move => H H0;
+    apply (@subject_subst0 _ _ _ [:: (t', tyl)]); rewrite //= andbT.
+Qed.
+
 Theorem subject_reduction ctx t t' ty :
   t ->r1 t' -> ctx \|- t \: ty -> ctx \|- t' \: ty.
 Proof.
   move => H; move: t t' H ctx ty; refine (reduction1_ind _ _ _ _ _ _ _) => /=.
-  - move => tyl t1 t2 ctx ty
-      /typing_appP [tyl']; rewrite typing_absE' => /andP [] /eqP <- H H0.
-    by apply (@subject_subst0 _ _ ctx [:: (t2, tyl)]) => //=; rewrite H0.
+  - by move => tyl t1 t2 ctx ty
+      /typing_appP [tyl']; rewrite typing_absE' => /andP [] /eqP <- H H0;
+      apply (subject_subst0' H).
   - move => t tyr ctx ty /typing_uappP [tyl] ->; rewrite typing_uabsE.
     move/(substtyp_preserves_typing 0 [:: tyr]).
     set ctx' := ctxmap _ _; have {ctx'} -> //: ctx' = ctx.
@@ -1279,6 +1287,42 @@ Proof.
   - move => H /=; split => H0 ty' P /H0.
     + by move/IHty => /(_ H); rewrite /insert /= subSS.
     + by move => H1; apply IHty.
+Qed.
+
+Lemma abs_reducibility tyl tyr preds ctx t :
+  #ctx \|- abs (subst_typ 0 (unzip1 preds) tyl) t
+        \: subst_typ 0 (unzip1 preds) (tyl :->: tyr) ->
+  Forall (fun p => RC ctx p.1 p.2) preds ->
+  (forall t',
+   reducible ctx tyl preds t' ->
+   reducible ctx tyr preds (subst_term 0 0 [:: t'] t)) ->
+  reducible ctx (tyl :->: tyr) preds (abs (subst_typ 0 (unzip1 preds) tyl) t).
+Proof.
+  case/typing_absP => tyr' [<-] {tyr'} H H0 /=.
+  move: (reducible ctx tyl preds) (reducible ctx tyr preds)
+    (reducibility_isrc tyl H0) (reducibility_isrc tyr H0) =>
+    {H0} P Q HP HQ H0 t' H1 H2.
+  have H3: SN t by
+    move: (rc_cr1 HQ (subject_subst0' H H1) (H0 t' H2));
+      apply acc_preservation => x y; apply subst_reduction1.
+  move: t H3 t' {H0 H1 H2} (rc_cr1 HP H1 H2) H (H1) (H2) (H0 _ H2).
+  refine (Acc_ind _ _) => t1 _ IHt1;
+    refine (Acc_ind _ _) => t2 _ IHt2 H H0 H1 H2.
+  apply (rc_cr3 HQ) => //=.
+  - by apply/typing_appP;
+      exists (subst_typ 0 (unzip1 preds) tyl) => //; rewrite typing_absE.
+  - move => t' H3; inversion H3; subst => //.
+    + inversion H7; subst; apply IHt1; auto.
+      * apply (rc_cr1 HP H0 H1).
+      * by move: H; apply subject_reduction.
+      * by apply (@rc_cr2 _ _ _ HQ (subst_term 0 0 [:: t2] t1)) => //;
+          [apply (subject_subst0' H) | apply subst_reduction1].
+    + apply IHt2 => //.
+      * by apply (subject_reduction H7).
+      * by apply (rc_cr2 HP H0 H7).
+      * move: H2; apply (CR2' HQ); first by apply (subject_subst0' H).
+        apply (@subst_reduction t1 0 0 [:: (t2, t2')]) => //=; split => //.
+        by apply rtc_step.
 Qed.
 
 
