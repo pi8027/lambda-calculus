@@ -1,21 +1,21 @@
-# A Formalization of Typed and Untyped λ-Calculus in SSReflect-Coq and Agda2
+# SSReflect-Coq と Agda2 でのλ計算の形式化
 
-By Kazuhiko Sakaguchi, Nov. 2011 - Oct. 2014.
+坂口和彦 2011/11-2014/10
 
-This is a formalization of the λ-calculus written in SSReflect-Coq and Agda2, and it contains the following definitions and theorems:
+現時点でこの形式化は、以下の定義と定理を含んでいる。
 
-* SKI combinator calculus: coq/CL.v
-    * Confluence of weak reduction
-* Untyped lambda calculus: coq/LC/Debruijn/Untyped.v, agda/Lambda/*.agda
-    * Confluence of beta reduction
-* STLC (simply typed lambda calculus): coq/LC/Debruijn/STLC.v
-    * Subject reduction (type preservation) theorem
-    * Strong normalization theorem (three different proofs are available)
-* System F (second order typed lambda calculus): coq/LC/Debruijn/F.v
-    * Subject reduction (type preservation) theorem
-    * Strong normalization theorem (three different proofs are available)
+* SKIコンビネータ計算: coq/CL.v
+    * weak reduction の合流性
+* 型無しλ計算: coq/LC/Debruijn/Untyped.v, agda/Lambda/*.agda
+    * beta reduction の合流性
+* 単純型付きλ計算: coq/LC/Debruijn/STLC.v
+    * 主部簡約(型保存)定理
+    * 強正規化定理(3通りの異なる方法で証明)
+* System F (二階型付きλ計算): coq/LC/Debruijn/F.v
+    * 主部簡約(型保存)定理
+    * 強正規化定理(3通りの異なる方法で証明)
 
-## References
+## 参考文献
 
 * T. Altenkirch. A Formalization of the Strong Normalization Proof for System F in LEGO. Typed Lambda Calculi and Applications, 13-28, 1993.
 * N.G. de Bruijn. Lambda Calculus Notation with Nameless Dummies: A Tool for Automatic Formula Manipulation, with Application to the Church-Rosser Theorem. Indagationes Mathematicae, 75(5), 381–392, 1972.
