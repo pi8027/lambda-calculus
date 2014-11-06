@@ -915,8 +915,7 @@ Section CRs.
 Variable (P : term -> Prop).
 Definition CR1 := forall t, P t -> SN t.
 Definition CR2 := forall t t', t ->r1 t' -> P t -> P t'.
-Definition CR3 := forall t,
-  neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
+Definition CR3 := forall t, neutral t -> (forall t', t ->r1 t' -> P t') -> P t.
 Record RC : Prop := reducibility_candidate
   { rc_cr1 : CR1 ; rc_cr2 : CR2 ; rc_cr3 : CR3 }.
 End CRs.

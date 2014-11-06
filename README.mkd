@@ -1,6 +1,6 @@
 # A Formalization of Typed and Untyped λ-Calculus in SSReflect-Coq and Agda2
 
-By Kazuhiko Sakaguchi, Nov. 2011 - Oct. 2014.
+By Kazuhiko Sakaguchi, Nov. 2011 - Nov. 2014.
 
 This is a formalization of the λ-calculus written in SSReflect-Coq and Agda2, and it contains the following definitions and theorems:
 
@@ -24,7 +24,7 @@ This is a formalization of the λ-calculus written in SSReflect-Coq and Agda2, a
 * J.-Y. Girard, Y. Lafont and P. Taylor. Proofs and Types. Cambridge University Press, 1989.
 * J.R. Hindley and J.P. Seldin. Lambda-Calculus and Combinators: an Introduction. Cambridge University Press, 2008. 3rd edition.
 * C.-K. Hur. Heq : a Coq library for Heterogeneous Equality. http://sf.snu.ac.kr/gil.hur/Heq/
-* T. Nipkow. More Church–Rosser Proofs (in Isabelle/HOL). Journal of Automated Reasoning, 26(1), 51–66, 2001.
+* T. Nipkow. More Church-Rosser Proofs (in Isabelle/HOL). Journal of Automated Reasoning, 26(1), 51–66, 2001.
 * A. Popescu, C.J. Osborn and E.L. Gunter. Strong Normalization for System F by HOAS on Top of FOAS. Logic in Computer Science, 31-40, 2010.
 * M. Takahashi. Parallel Reductions in λ-Calculus. Information and Computation, 118(1), 120-127, 1995.
 * 大堀淳. プログラミング言語の基礎理論, 情報数学講座, 第9巻, 共立出版, 1997.
