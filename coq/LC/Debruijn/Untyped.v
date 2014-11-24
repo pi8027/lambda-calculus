@@ -7,7 +7,7 @@ Require Import
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-Import Prenex Implicits.
+Unset Printing Implicit Defensive.
 
 Inductive term : Set := var of nat | app of term & term | abs of term.
 

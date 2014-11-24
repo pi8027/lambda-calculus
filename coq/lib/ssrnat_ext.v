@@ -4,7 +4,7 @@ Require Import
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-Import Prenex Implicits.
+Unset Printing Implicit Defensive.
 
 Definition natE :=
   (addSn, addnS, add0n, addn0, sub0n, subn0, subSS,

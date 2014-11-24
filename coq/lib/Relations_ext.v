@@ -4,7 +4,7 @@ Require Import
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-Import Prenex Implicits.
+Unset Printing Implicit Defensive.
 
 Notation inclusion R R' := (forall t1 t2, R t1 t2 -> R' t1 t2).
 Notation same_relation R R' := (forall t1 t2, R t1 t2 <-> R' t1 t2).

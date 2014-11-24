@@ -7,7 +7,7 @@ Require Import
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-Import Prenex Implicits.
+Unset Printing Implicit Defensive.
 
 Inductive typ := tyvar of nat | tyfun of typ & typ.
 Inductive term := var of nat | app of term & term | abs of typ & term.

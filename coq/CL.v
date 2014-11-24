@@ -5,7 +5,7 @@ Require Import
 
 Set Implicit Arguments.
 Unset Strict Implicit.
-Import Prenex Implicits.
+Unset Printing Implicit Defensive.
 
 (* Definition 2.1: Combinatory logic terms, or CL-terms *)
 
