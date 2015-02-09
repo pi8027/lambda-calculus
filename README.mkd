@@ -1,6 +1,6 @@
-# A Formalization of Typed and Untyped λ-Calculus in SSReflect-Coq and Agda2
+# A Formalization of Typed and Untyped λ-Calculi in SSReflect-Coq and Agda2
 
-By Kazuhiko Sakaguchi, Nov. 2011 - Nov. 2014.
+By Kazuhiko Sakaguchi, Nov. 2011 - Feb. 2015.
 
 This is a formalization of the λ-calculus written in SSReflect-Coq and Agda2, and it contains the following definitions and theorems:
 

@@ -86,10 +86,31 @@ Proof.
   exact (H1 (H x y H0 H2)).
 Qed.
 
+Lemma Acc_ind' (A : Type) (R : relation A) (P : A -> Prop) :
+  (forall x, (forall y, R y x -> P y) -> P x) -> forall x, Acc R x -> P x.
+Proof.
+  move => H x H0; move: x H0 H.
+  refine (Acc_ind _ _) => x _ IH H.
+  by apply H => y H0; apply IH.
+Qed.
+
 Lemma acc_preservation A B (RA : relation A) (RB : relation B) (f : A -> B) a :
   (forall x y, RA x y -> RB (f x) (f y)) -> Acc RB (f a) -> Acc RA a.
 Proof.
   move => H H0; move: {1 2}(f a) H0 (erefl (f a)) => b H0; move: b H0 a.
-  refine (Acc_ind _ _) => b _ H0 a H1; subst b.
+  refine (Acc_ind' _) => b H0 a H1; subst b.
   by constructor => a' H1; apply (fun x => H0 _ x _ erefl), H.
+Qed.
+
+Lemma Acc_ind2
+  (A B : Type) (RA : relation A) (RB : relation B) (P : A -> B -> Prop) :
+  (forall x y, (forall x', RA x' x -> P x' y) ->
+               (forall y', RB y' y -> P x y') -> P x y) ->
+  forall x y, Acc RA x -> Acc RB y -> P x y.
+Proof.
+  move => H x y H0 H1; move: x H0 y H1.
+  refine (Acc_ind _ _) => x H0 IHx; refine (Acc_ind _ _) => y H1 IHy.
+  apply H => [x' | y'] H2.
+  - by apply IHx.
+  - by apply IHy.
 Qed.

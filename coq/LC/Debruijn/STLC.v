@@ -137,8 +137,6 @@ Notation SN := (Acc (fun x y => betared1 y x)).
 
 Definition neutral t := if t is abs _ _ then false else true.
 
-Ltac congruence' := move => /=; try (move: addSn addnS; congruence).
-
 Lemma shiftzero n t : shift 0 n t = t.
 Proof. by elim: t n; congruence' => m n; rewrite addn0 if_same. Qed.
 
@@ -287,8 +285,7 @@ Module strong_normalization_proof_typefree.
 Fixpoint reducible (ty : typ) (t : term) : Prop :=
   match ty with
     | tyvar n => SN t
-    | tyl :->: tyr =>
-      forall t', reducible tyl t' -> reducible tyr (t @ t')
+    | tyl :->: tyr => forall t', reducible tyl t' -> reducible tyr (t @ t')
   end.
 
 Lemma CR2 t t' ty : t ->b1 t' -> reducible ty t -> reducible ty t'.
@@ -308,12 +305,11 @@ Proof.
   elim: ty; first by [].
   move => /= tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2];
     split => [t H | tl H H0 tr H1].
-  - suff: SN ([fun t => t @ 0] t) by
-      apply acc_preservation; constructor.
+  - suff: SN ([fun t => t @ 0] t) by apply acc_preservation; constructor.
     apply IHtyr1, IHtyr2 => // t' H0.
     apply (CR2 H0), H, IHtyl2 => // t'' H1; inversion H1.
   - move: (IHtyl1 tr H1) => H2.
-    move: tr H2 H1; refine (Acc_ind _ _) => tr _ IH H1.
+    move: tr H2 H1; refine (Acc_ind' _) => tr IH H1.
     apply IHtyr2 => // t' H2.
     move: H; inversion H2; subst => // _; eauto.
 Qed.
@@ -326,13 +322,11 @@ Lemma abstraction_lemma t tyl tyr :
   reducible (tyl :->: tyr) (abs tyl t).
 Proof.
   move => /= H t' H0.
-  move: t' {H0} (CR1 H0) (H0); refine (Acc_ind _ _) => t' _ H0 H1.
-  have H2: SN t by
-    move: (CR1 (H t' H1)); apply acc_preservation => x y; apply subst_betared1.
-  move: t H2 H H0; refine (Acc_ind _ _) => t _ H H0 H2.
-  apply CR3 => //= t'' H3.
-  inversion H3; subst => {H3}; eauto; inversion H7; subst => {H7}; eauto.
-  by apply H; eauto => t'' H3; apply (CR2 (subst_betared1 0 [:: t''] H6)), H0.
+  have H1: SN t by
+    move: (CR1 (H t' H0)); apply acc_preservation => x y; apply subst_betared1.
+  move: t t' H1 {H0} (CR1 H0) H (H0); refine (Acc_ind2 _) => t t' IHt IHt' H H0.
+  apply CR3 => // t'' H1; inversion H1; subst; eauto; inversion H5; subst.
+  by apply IHt; auto => t'' H2; apply (CR2 (subst_betared1 0 [:: t''] H6)), H.
 Qed.
 
 Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
@@ -413,7 +407,7 @@ Proof.
     apply (CR2 H3), H0 => //=.
     apply IHtyl2 => // x H4; inversion H4.
   - have H5: SN tr by apply IHtyl1 with ctx'.
-    move: tr H5 H2 H3 H4; refine (Acc_ind _ _) => tr _ IH H2 H3 H4.
+    move: tr H5 H2 H3 H4; refine (Acc_ind' _) => tr IH H2 H3 H4.
     have H5: ctx' \|- tl @ tr \: tyr by apply/typing_appP; exists tyl; eauto.
     apply IHtyr2 => // t' H6.
     move: H0; inversion H6; subst => // _; eauto.
@@ -429,21 +423,20 @@ Lemma abstraction_lemma ctx t tyl tyr :
   reducible ctx (tyl :->: tyr) (abs tyl t).
 Proof.
   move => /= H H0 t' ctx' H1 H2 H3.
-  move: t' {H2 H3} (CR1 H2 H3) (H2) (H3); refine (Acc_ind _ _) => t' _ H2 H3 H4.
-  have H5: ctx' \|- substitute 0 [:: t'] t \: tyr by
-    apply (subject_subst0 [:: (t', tyl)]); rewrite /= ?H3 // -typing_absE;
+  have H4: ctx' \|- substitute 0 [:: t'] t \: tyr by
+    apply (subject_subst0 [:: (t', tyl)]); rewrite /= ?H2 // -typing_absE;
       move: H; apply ctxleq_preserves_typing.
-  have {H5} H5: SN t by
-    move: (CR1 H5 (H0 t' ctx' H1 H3 H4));
+  have {H4} H4: SN t by
+    move: (CR1 H4 (H0 t' ctx' H1 H2 H3));
       apply acc_preservation => x y; apply subst_betared1.
-  move: t H5 H H0 H2; refine (Acc_ind _ _) => t _ H H0 H2 H5; apply CR3 => //=.
-  - apply/typing_appP; exists tyl; last apply H3.
-    by move: H0; apply ctxleq_preserves_typing.
-  - move => t'' H6.
-    inversion H6; subst => {H6}; eauto.
-    inversion H10; subst => {H10}; eauto.
-    apply H => //; eauto => t'' ctx'' H6 H7 H8.
-    by apply (CR2 (subst_betared1 0 [:: t''] H9)), H2.
+  move: t t' {H2 H3} H4 (CR1 H2 H3) H H0 H1 (H2) (H3);
+    refine (Acc_ind2 _) => t t' IHt IHt' H H0 H1 H2 H3; apply CR3 => //.
+  - apply/typing_appP; exists tyl; last apply H2.
+    by move: H; apply ctxleq_preserves_typing.
+  - move => t'' H4.
+    inversion H4; subst => {H4}; eauto; inversion H8; subst => {H8}.
+    apply IHt => //; eauto => t'' ctx'' H4 H5 H6.
+    by apply (CR2 (subst_betared1 0 [:: t''] H7)), H0.
 Qed.
 
 Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :
@@ -564,7 +557,7 @@ Proof.
       apply (CR2 H5); apply H3 => //; apply IHtyl2 => // y H6; inversion H6.
   - case/andP => _; rewrite all_cat; case/andP => H H0 H1 H2 H3 tr H4 H5.
     have H6: SN tr by apply (IHtyl1 ctx).
-    move: tr H6 H4 H5; refine (Acc_ind _ _) => tr _ IH H4 H5.
+    move: tr H6 H4 H5; refine (Acc_ind' _) => tr IH H4 H5.
     have H6: ctx \|- tl @ tr \: tyr by apply/typing_appP; exists tyl.
     apply IHtyr2 => // t' H7; move: H2; inversion H7; subst => // _; eauto.
 Qed.
@@ -580,21 +573,18 @@ Lemma abstraction_lemma (ctx : context typ) t tyl tyr :
   reducible ctx (tyl :->: tyr) (abs tyl t).
 Proof.
   move => /= /andP [] H; rewrite all_cat; case/andP => H0 H1 H2 H3 t' H4 H5.
-  move: t' {H4 H5} (CR1 H0 H4 H5) (H4) (H5);
-    refine (Acc_ind _ _) => t' _ H4 H5 H6.
-  have H7: ctx \|- substitute 0 [:: t'] t \: tyr by
-    apply (subject_subst0 [:: (t', tyl)]); rewrite /= ?H5 // -typing_absE.
-  have {H7} H7: SN t by
-    move: (CR1 H1 H7 (H3 t' H5 H6));
+  have H6: ctx \|- substitute 0 [:: t'] t \: tyr by
+    apply (subject_subst0 [:: (t', tyl)]); rewrite /= ?H4 // -typing_absE.
+  have {H6} H6: SN t by
+    move: (CR1 H1 H6 (H3 t' H4 H5));
       apply acc_preservation => x y; apply subst_betared1.
-  move: t H7 H2 H3 H4; refine (Acc_ind _ _) => t _ H2 H3 H4 H7;
-    apply CR3 => //=.
+  move: t t' {H4 H5} H6 (CR1 H0 H4 H5) H2 H3 (H4) (H5);
+    refine (Acc_ind2 _) => t t' IHt IHt' H2 H3 H4 H5; apply CR3 => //.
   - by apply/typing_appP; exists tyl.
-  - move => t'' H8.
-    inversion H8; subst => {H8}; eauto.
-    inversion H12; subst => {H12}; eauto.
-    apply H2 => //; eauto => t'' ctx'' H8.
-    by apply (CR2 (subst_betared1 0 [:: t''] H11)), H4.
+  - move => t'' H6.
+    inversion H6; subst => {H6}; eauto; inversion H10; subst => {H10}.
+    apply IHt => //; eauto => t'' ctx'' H6.
+    by apply (CR2 (subst_betared1 0 [:: t''] H9)), H3.
 Qed.
 
 Lemma reduce_lemma ctx (ctx' : seq (term * typ)) t ty :

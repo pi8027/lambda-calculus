@@ -40,7 +40,7 @@ Fixpoint shift d c t : term :=
   end.
 
 Notation substitutev ts m n :=
-  (shift n 0 (nth (var (m - n - size ts)) ts (m - n))).
+  (shift n 0 (nth (var (m - n - size ts)) ts (m - n))) (only parsing).
 
 Fixpoint substitute n ts t : term :=
   match t with
@@ -63,8 +63,6 @@ Infix "->b" := betared (at level 70, no associativity).
 
 Hint Constructors betared1.
 
-Ltac congruence' := move => /=; try (move: addSn addnS; congruence).
-
 Lemma shiftzero n t : shift 0 n t = t.
 Proof. by elim: t n; congruence' => v n; rewrite addn0 if_same. Qed.
 
@@ -79,8 +77,8 @@ Proof. elimleq; elim: t c'; congruence' => *; elimif_omega. Qed.
 Lemma shift_subst_distr n d c ts t :
   c <= n -> shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
 Proof.
-  by elimleq; elim: t c; congruence' => v c;
-    elimif_omega; rewrite shift_add //= add0n leq_addr.
+  by elimleq; elim: t c; congruence' => v c; elimif;
+    rewrite shift_add //= add0n leq_addr.
 Qed.
 
 Lemma subst_shift_distr n d c ts t :
@@ -88,18 +86,25 @@ Lemma subst_shift_distr n d c ts t :
   shift d c (substitute n ts t) =
   substitute n (map (shift d (c - n)) ts) (shift d (size ts + c) t).
 Proof.
-  elimleq; elim: t n; congruence' => v n; elimif_omega.
+  elimleq; elim: t n; congruence' => v n; elimif.
   - rewrite !nth_default ?size_map /=; elimif_omega.
   - rewrite -shift_shift_distr // nth_map' /=;
       congr shift; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
+
+(*
+Lemma subst_shift_distr' n d c ts t :
+  shift d (n + c) (substitute n ts t) =
+  substitute n [seq shift d c i | i <- ts] (shift d (size ts + (n + c)) t).
+Proof. by rewrite subst_shift_distr ?addKn // leq_addr. Qed.
+*)
 
 Lemma subst_shift_cancel n d c ts t :
   c <= n -> size ts + n <= d + c ->
   substitute n ts (shift d c t) = shift (d - size ts) c t.
 Proof.
   do 2 elimleq; elim: t c; congruence' => v c;
-    elimif_omega; rewrite nth_default /=; elimif_omega.
+    elimif; rewrite nth_default /=; elimif_omega.
 Qed.
 
 Lemma subst_subst_distr n m xs ys t :
@@ -107,7 +112,7 @@ Lemma subst_subst_distr n m xs ys t :
   substitute n xs (substitute m ys t) =
   substitute m (map (substitute (n - m) xs) ys) (substitute (size ys + n) xs t).
 Proof.
-  elimleq; elim: t m; congruence' => v m; elimif_omega.
+  elimleq; elim: t m; congruence' => v m; elimif.
   - rewrite nth_default ?(@subst_shift_cancel m) // ?size_map /=; elimif_omega.
   - rewrite -shift_subst_distr // nth_map' /=;
       congr shift; apply nth_equal; rewrite size_map; elimif_omega.
@@ -129,6 +134,15 @@ Proof.
   move => H; move: t t' H n.
   refine (betared1_ind _ _ _ _) => /=; auto => t t' n.
   by rewrite subst_subst_distr //= add1n subn0.
+Qed.
+
+(* small example for PPL2015 paper *)
+Lemma shift_betared t t' d c : t ->b1 t' -> shift d c t ->b1 shift d c t'.
+Proof.
+  move => H; move: t t' H d c.
+  refine (betared1_ind _ _ _ _) => //=; auto => t1 t2 d c.
+(* rewrite -{3}(add0n c) subst_shift_distr' /= add1n add0n; auto. *)
+  rewrite subst_shift_distr //= add1n subn0; auto.
 Qed.
 
 Module confluence_proof.

@@ -1,6 +1,6 @@
 Require Import
   Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
-  Ssreflect.ssrnat Ssreflect.seq Omega LCAC.lib.seq_ext_base.
+  Ssreflect.ssrnat Ssreflect.seq Omega Psatz LCAC.lib.seq_ext_base.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -150,16 +150,14 @@ Ltac simpl_natarith :=
 (* elimleq *)
 
 Tactic Notation "elimleq" :=
-  match goal with
-    | |- is_true (_ <= _ _) -> _ => fail
-    | |- is_true (?m <= ?n) -> _ =>
-      (let H := fresh "H" in move/subnKC => H; rewrite <- H in *; clear H);
-      (let rec tac :=
-        lazymatch reverse goal with
-          | H : context [n] |- _ => move: H; tac => H
-          | _ => move: {n} (n - m) => n; rewrite ?(addKn, addnK)
-        end in tac);
-      simpl_natarith
+  match goal with |- is_true (?n <= ?m) -> _ =>
+    is_var m;
+    (let H := fresh "H" in move/subnKC => H; rewrite <- H in *; clear H);
+    let rec tac :=
+      lazymatch reverse goal with
+        | H : context [m] |- _ => move: H; tac => H
+        | _ => move: {m} (m - n) => m; rewrite ?(addKn, addnK)
+      end in tac; simpl_natarith
   end.
 
 Tactic Notation "elimleq" constr(H) := move: H; elimleq.
@@ -221,7 +219,8 @@ Ltac ssromega :=
   do ?unfold addn, subn, muln, addn_rec, subn_rec, muln_rec in *;
   do ?arith_hypo_ssrnat2coqnat;
   do ?arith_goal_ssrnat2coqnat;
-  omega.
+  simpl Equality.sort in *;
+  lia.
 
 Ltac elimif' :=
   (match goal with
@@ -239,11 +238,14 @@ Ltac elimif :=
 Ltac elimif_omega :=
   elimif;
   try (repeat match goal with
-    | |- _ + _ = _ => idtac
-    | |- _ - _ = _ => idtac
+    | |- @eq nat _ _ => idtac
     | |- nth _ _ _ = nth _ _ _ => apply nth_equal
     | |- _ => f_equal
   end; ssromega).
+
+(* congruence' *)
+
+Ltac congruence' := simpl; try (move: addSn addnS; congruence).
 
 (* test code for ssromega *)
 
