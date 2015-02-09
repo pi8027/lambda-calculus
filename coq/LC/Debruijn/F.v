@@ -1020,16 +1020,15 @@ Proof.
   have H1: SN t by
     move: (rc_cr1 HQ (H _ H0));
       apply acc_preservation => x y; apply subst_reduction1.
-  move: t H1 t' {H H0} (rc_cr1 HP H0) (H0) (H _ H0).
-  refine (Acc_ind _ _) => t1 _ H; refine (Acc_ind _ _) => t2 _ H0 H1 H2.
-  apply rc_cr3 => // t' H3; inversion H3; subst => //.
-  - inversion H7; subst; apply H; auto.
-    + apply (rc_cr1 HP H1).
-    + by apply (rc_cr2 HQ (subst_reduction1 0 0 [:: t2] H8)).
-  - apply H0 => //; first by apply (rc_cr2 HP H7).
-    move: H2; apply (CR2' HQ).
-    apply (@subst_reduction t1 0 0 [:: (t2, t2')]) => //=; split => //.
-    by apply rtc_step.
+  move: t t' {H H0} H1 (rc_cr1 HP H0) (H0) (H _ H0);
+    refine (Acc_ind2 _) => t t' IHt IHt' H H0.
+  apply rc_cr3 => // t'' H1; inversion H1; subst => //.
+  - by inversion H5; subst; apply IHt => //;
+      apply (rc_cr2 HQ (subst_reduction1 0 0 [:: t'] H6)).
+  - apply IHt' => //; first by apply (rc_cr2 HP H5).
+    move: H0; apply (CR2' HQ).
+    by apply (@subst_reduction t 0 0 [:: (t', t2')]) => /=;
+      intuition apply rtc_step.
 Qed.
 
 Lemma uabs_reducibility t ty preds :
@@ -1288,24 +1287,21 @@ Proof.
   have H3: SN t by
     move: (rc_cr1 HQ (subject_subst0' H H1) (H0 t' H1 H2));
       apply acc_preservation => x y; apply subst_reduction1.
-  move: t H3 t' {H0 H1 H2} (rc_cr1 HP H1 H2) H (H1) (H2) (H0 _ H1 H2).
-  refine (Acc_ind _ _) => t1 _ IHt1;
-    refine (Acc_ind _ _) => t2 _ IHt2 H H0 H1 H2.
-  apply (rc_cr3 HQ) => //=.
+  move: t t' H3 {H0 H1 H2} (rc_cr1 HP H1 H2) H (H1) (H2) (H0 _ H1 H2).
+  refine (Acc_ind2 _) => t t' IHt IHt' H H0 H1 H2; apply (rc_cr3 HQ) => //=.
   - by apply/typing_appP;
       exists (subst_typ 0 (unzip1 preds) tyl) => //; rewrite typing_absE.
-  - move => t' H3; inversion H3; subst => //.
-    + inversion H7; subst; apply IHt1; auto.
-      * apply (rc_cr1 HP H0 H1).
+  - move => t'' H3; inversion H3; subst => //.
+    + inversion H7; subst; apply IHt => //.
       * by move: H; apply subject_reduction.
-      * by apply (@rc_cr2 _ _ _ HQ (subst_term 0 0 [:: t2] t1)) => //;
+      * by apply (@rc_cr2 _ _ _ HQ (subst_term 0 0 [:: t'] t)) => //;
           [apply (subject_subst0' H) | apply subst_reduction1].
-    + apply IHt2 => //.
+    + apply IHt' => //.
       * by apply (subject_reduction H7).
       * by apply (rc_cr2 HP H0 H7).
       * move: H2; apply (CR2' HQ); first by apply (subject_subst0' H).
-        apply (@subst_reduction t1 0 0 [:: (t2, t2')]) => //=; split => //.
-        by apply rtc_step.
+        by apply (@subst_reduction t 0 0 [:: (t', t2')]) => /=;
+          intuition apply rtc_step.
 Qed.
 
 Lemma uabs_reducibility ty preds ctx t :
@@ -1452,7 +1448,7 @@ Proof.
       -/unzip1 -/unzip2 unzip1_zip ?unzip2_zip ?size_map ?size_iota // => H;
       rewrite (nth_map 0 t var) ?size_iota // nth_iota // add0n.
     suff: #[seq Some i | i <- ctx] \|- n \: subst_typ 0 [::] (nth ty ctx n) by
-      split => //; apply (CR4' (@reducibility_isrc _ (nth ty ctx n) [::] I)).
+      intuition apply (CR4' (@reducibility_isrc _ (nth ty ctx n) [::] I)).
     by rewrite /typing /= subst_nil_ty nth_rcons size_map H (nth_map ty).
   move/(_ H0) => {H0} /(rc_cr1 (reducibility_isrc _ _)) /= /(_ I).
   have ->: typemap (subst_typ^~ [::]) 0 t = t by
@@ -1507,7 +1503,7 @@ Lemma snorm_isrc ty : RC ty (SN' ty).
 Proof.
   (constructor; move => /=) =>
     [ctx t [] // | ctx ctx' t H [H0 H1] | ctx t [] // |
-     ctx t t' H [H0 [H1]] | ctx t ]; split; auto.
+     ctx t t' H [H0 [H1]] | ctx t ]; intuition.
   - by apply (ctxleq_preserves_typing H).
   - by apply (subject_reduction H).
   - by constructor => t' /H1 [].
@@ -1651,21 +1647,19 @@ Proof.
   have H3: SN t by
     move: (rc_cr1 HQ (H0 _ _ H1 H2));
       apply acc_preservation => x y; apply subst_reduction1.
-  move: t H3 t' {H0 H2} (rc_cr1 HP H2) H H1 (H2) (H0 _ _ H1 H2).
-  refine (Acc_ind _ _) => t1 _ H; refine (Acc_ind _ _) => t2 _ H0 H1 H2 H3 H4.
-  apply (rc_cr3 HQ) => //=;
+  move: t t' H3 {H0 H2} (rc_cr1 HP H2) H H1 (H2) (H0 _ _ H1 H2).
+  refine (Acc_ind2 _) => t t' IHt IHt' H H0 H1 H2; apply (rc_cr3 HQ) => //=;
     first (apply/typing_appP; exists (subst_typ 0 (unzip1 preds) tyl)).
-  - by move: H1; apply ctxleq_preserves_typing.
+  - by move: H; apply ctxleq_preserves_typing.
   - by apply (rc_typed HP).
-  - move => t' H5; inversion H5; subst => //.
-    + inversion H9; subst; apply H; auto.
-      * apply (rc_cr1 HP H3).
-      * by move: H1; apply subject_reduction.
-      * by apply (rc_cr2 HQ (subst_reduction1 0 0 [:: t2] H10)).
-    + apply H0 => //; first by apply (rc_cr2 HP H9).
-      move: H4; apply (CR2' HQ).
-      apply (@subst_reduction t1 0 0 [:: (t2, t2')]) => //=; split => //.
-      by apply rtc_step.
+  - move => t'' H3; inversion H3; subst => //.
+    + inversion H7; subst; apply IHt; auto.
+      * by move: H; apply subject_reduction.
+      * by apply (rc_cr2 HQ (subst_reduction1 0 0 [:: t'] H8)).
+    + apply IHt' => //; first by apply (rc_cr2 HP H7).
+      move: H2; apply (CR2' HQ).
+      by apply (@subst_reduction t 0 0 [:: (t', t2')]) => /=;
+        intuition apply rtc_step.
 Qed.
 
 Lemma uabs_reducibility ty preds ctx t :

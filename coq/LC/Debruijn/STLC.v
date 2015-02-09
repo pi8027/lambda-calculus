@@ -317,7 +317,7 @@ Qed.
 Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
 Definition CR3 t ty := proj2 (CR1_and_CR3 ty) t.
 
-Lemma abstraction_lemma t tyl tyr :
+Lemma abs_reducibility t tyl tyr :
   (forall t', reducible tyl t' -> reducible tyr (substitute 0 [:: t'] t)) ->
   reducible (tyl :->: tyr) (abs tyl t).
 Proof.
@@ -346,7 +346,7 @@ Proof.
     by move: (IHtl (tyl :->: tyr) ctx ctx') => /=;
       apply => //; apply IHtr with ctx.
   - move => tyl t IHt ty ctx ctx' /typing_absP [tyr -> H] H0.
-    simpl substitute; apply abstraction_lemma => t' H1.
+    simpl substitute; apply abs_reducibility => t' H1.
     by rewrite subst_app /=; apply (IHt tyr ctx ((t', tyl) :: ctx')).
 Qed.
 
@@ -396,8 +396,8 @@ Lemma CR1_and_CR3 ty :
    (forall t', t ->b1 t' -> reducible ctx ty t') -> reducible ctx ty t).
 Proof.
   elim: ty; first by [].
-  move => /= tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2].
-  split => [ctx t H H0 | ctx tl H H0 H1 tr ctx' H2 H3 H4].
+  move => /= tyl [IHtyl1 IHtyl2] tyr [IHtyr1 IHtyr2];
+    split => [ctx t H H0 | ctx tl H H0 H1 tr ctx' H2 H3 H4].
   - set H1 := ctxindex_last ctx tyl.
     have H2: ctx ++ [:: Some tyl] \|- t @ size ctx \: tyr by
       apply/typing_appP; exists tyl; eauto.
@@ -416,7 +416,7 @@ Qed.
 Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
 Definition CR3 t ty := proj2 (CR1_and_CR3 ty) t.
 
-Lemma abstraction_lemma ctx t tyl tyr :
+Lemma abs_reducibility ctx t tyl tyr :
   ctx \|- abs tyl t \: tyl :->: tyr ->
   (forall t' ctx', ctx <=c ctx' -> ctx' \|- t' \: tyl ->
    reducible ctx' tyl t' -> reducible ctx' tyr (substitute 0 [:: t'] t)) ->
@@ -457,7 +457,7 @@ Proof.
     move: (IHtl (tyl :->: tyr) ctx ctx') => /=; apply; auto.
     by apply subject_subst0.
   - move => tyl t IHt ty ctx ctx' /typing_absP [tyr -> H] H0 H1.
-    simpl substitute; apply abstraction_lemma;
+    simpl substitute; apply abs_reducibility;
       first by apply (@subject_subst0 (abs tyl t)) => //; rewrite typing_absE.
     move => /= t2 ctx2 H2 H3 H4.
     rewrite subst_app /=.
@@ -465,7 +465,7 @@ Proof.
     + by move: H; rewrite -!typing_absE;
         apply ctxleq_preserves_typing; rewrite ctxleq_appl.
     + rewrite H3 /=; move: H0; apply sub_all => p; eauto.
-    + split => //; move: H1; apply Forall_impl; eauto.
+    + intuition; move: H1; apply Forall_impl; eauto.
 Qed.
 
 Theorem typed_term_is_sn ctx t ty : ctx \|- t \: ty -> SN t.
@@ -565,7 +565,7 @@ Qed.
 Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
 Definition CR3 t ty := proj2 (CR1_and_CR3 ty) t.
 
-Lemma abstraction_lemma (ctx : context typ) t tyl tyr :
+Lemma abs_reducibility (ctx : context typ) t tyl tyr :
   all (fun ty => Some ty \in ctx) (list_hyp (tyl :->: tyr)) ->
   ctx \|- abs tyl t \: tyl :->: tyr ->
   (forall t', ctx \|- t' \: tyl ->
@@ -611,7 +611,7 @@ Proof.
   - move => /= tyl t IHt ty ctx ctx' H.
     rewrite -(eqP H) /=; case/typing_absP: H => tyr -> H.
     rewrite all_cat; case/andP => H0 H1 H2 H3.
-    simpl substitute; apply abstraction_lemma => //;
+    simpl substitute; apply abs_reducibility => //;
       first by apply (@subject_subst0 (abs tyl t)) => //; rewrite typing_absE.
     move => /= t2 H4 H5.
     rewrite subst_app /=.
