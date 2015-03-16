@@ -50,8 +50,9 @@ Proof.
   - apply clos_rt1n_step.
 Qed.
 
-Lemma rtc_semi_confluent A (R R' : relation A) :
-  (forall t1 t2 t3, R t1 t2 -> R' t1 t3 -> exists t4, R' t2 t4 /\ R t3 t4) ->
+Lemma rtc_semi_confluent' A (R R' : relation A) :
+  (forall t1 t2 t3, R t1 t2 -> R' t1 t3 ->
+    exists t4, R' t2 t4 /\ [* R] t3 t4) ->
   (forall t1 t2 t3, [* R] t1 t2 -> R' t1 t3 ->
     exists t4, R' t2 t4 /\ [* R] t3 t4).
 Proof.
@@ -61,7 +62,17 @@ Proof.
   - move => t1 t1' t2 H0 H1 IH t3 H2.
     case: (H t1 t1' t3 H0 H2) => t3'; case => {H H0 H2} H H0.
     case: (IH t3' H) => {IH H} t4; case => H H2; exists t4; split => //.
-    by apply rt1n_trans with t3'.
+    by apply rtc_trans' with t3'.
+Qed.
+
+Lemma rtc_semi_confluent A (R R' : relation A) :
+  (forall t1 t2 t3, R t1 t2 -> R' t1 t3 -> exists t4, R' t2 t4 /\ R t3 t4) ->
+  (forall t1 t2 t3, [* R] t1 t2 -> R' t1 t3 ->
+    exists t4, R' t2 t4 /\ [* R] t3 t4).
+Proof.
+  move => H; apply rtc_semi_confluent' => t1 t2 t3 H0 H1.
+  by case: (H _ _ _ H0 H1) => t4 [H2 H3];
+    exists t4; split => //; apply rtc_step.
 Qed.
 
 Lemma rtc_confluent A (R : relation A) : confluent R -> confluent [* R].
@@ -77,6 +88,29 @@ Proof.
   case: (rtc_confluent H1 (rtc_map H H2) (rtc_map H H3)) => t4 [H4 H5].
   by exists t4; split; apply rtc_nest_elim; apply (rtc_map H0).
 Qed.
+
+Section Z.
+
+Variable (A : Type) (R : relation A) (comp : A -> A).
+Variable (Z : forall x y, R x y -> [* R] y (comp x) /\ [* R] (comp x) (comp y)).
+
+Lemma Z_confluent : confluent [* R].
+Proof.
+  have Z1 x y : R x y -> [* R] y (comp x) by firstorder.
+  have Z2 x y : R x y -> [* R] (comp x) (comp y) by firstorder.
+  apply rtc_semi_confluent' => t1 t2 t3 H H0; exists (comp t3).
+  split.
+  - apply rtc_trans' with (comp t1); first apply Z1 => //.
+    apply rtc_nest_elim; move: t1 t3 H0 {H}; apply rtc_map', Z2.
+  - case: H0.
+    + by apply rt1n_trans with t2 => //; apply Z1.
+    + move => {t3} t1' t3 H0 H1; move: t1' t3 H1 t1 H0 {H}.
+      refine (clos_refl_trans_1n_ind A R _ _ _); eauto.
+      move => t1' t1 H.
+      by apply rtc_trans' with (comp t1); [apply Z1 | apply Z2].
+Qed.
+
+End Z.
 
 Lemma rtc_preservation A (P : A -> Prop) (R : relation A) :
   (forall x y, R x y -> P x -> P y) -> forall x y, [* R] x y -> P x -> P y.
