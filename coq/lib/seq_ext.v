@@ -178,3 +178,13 @@ Proof.
   - by case/andP => -> /IH.
   - by case => ->.
 Qed.
+
+(* zip *)
+
+Fixpoint zipwith (A B C : Type) (f : A -> B -> C) xd yd
+         (xs : seq A) (ys : seq B) : seq C :=
+  match xs, ys with
+    | [::], ys => map (f xd) ys
+    | xs, [::] => map (f^~ yd) xs
+    | x :: xs', y :: ys' => f x y :: zipwith f xd yd xs' ys'
+  end.
