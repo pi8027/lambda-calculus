@@ -1,6 +1,6 @@
-Require Import
-  Relations.Relations
-  Ssreflect.ssreflect Ssreflect.ssrnat LCAC.lib.Relations_ext.
+From Coq Require Import Relations.
+From mathcomp Require Import ssreflect ssrnat.
+From LCAC Require Import Relations_ext.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

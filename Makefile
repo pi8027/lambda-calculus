@@ -13,7 +13,7 @@ clean:
 	rm -f .deps ${VOFILES} ${GLOBFILES}
 
 .deps: ${VFILES}
-	coqdep -c -w -slash ${COQLIBS} ${VFILES} > .deps
+	coqdep -c -w ${COQLIBS} ${VFILES} > .deps
 
 %.vo %.glob: %.v
 	coqc -q ${COQLIBS} $*

@@ -1,6 +1,5 @@
-Require Import
-  Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
-  Ssreflect.ssrnat Ssreflect.seq LCAC.lib.seq_ext_base LCAC.lib.ssrnat_ext.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
+From LCAC Require Import seq_ext_base ssrnat_ext.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

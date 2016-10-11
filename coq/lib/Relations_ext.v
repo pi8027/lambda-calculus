@@ -1,6 +1,5 @@
-Require Import
-  Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
-  Ssreflect.ssrnat Coq.Relations.Relations Coq.Relations.Relation_Operators.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat.
+From Coq Require Import Relations Relation_Operators.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

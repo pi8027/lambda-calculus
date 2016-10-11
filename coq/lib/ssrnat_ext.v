@@ -1,6 +1,6 @@
-Require Import
-  Ssreflect.ssreflect Ssreflect.ssrfun Ssreflect.ssrbool Ssreflect.eqtype
-  Ssreflect.ssrnat Ssreflect.seq Omega Psatz LCAC.lib.seq_ext_base.
+Require Import Omega Psatz.
+From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
+From LCAC Require Import seq_ext_base.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -200,6 +200,7 @@ Ltac arith_hypo_ssrnat2coqnat :=
     | H : is_true (_ <  _) |- _ => move/ltP in H
     | H : is_true (_ <= _) |- _ => move/leP in H
     | H : is_true (_ == _) |- _ => move/eqP in H
+    | H : is_true (_ != _) |- _ => move/eqP in H
   end.
 
 Ltac arith_goal_ssrnat2coqnat :=
@@ -209,18 +210,23 @@ Ltac arith_goal_ssrnat2coqnat :=
     | |- is_true (_ <  _) => apply/ltP
     | |- is_true (_ <= _) => apply/leP
     | |- is_true (_ == _) => apply/eqP
+    | |- is_true (_ != _) => apply/eqP
   end.
 
 Ltac ssromega :=
-  repeat (let x := fresh "x" in move => x);
+  repeat (let x := fresh "x" in move => /= x);
   do ?replace_minn_maxn;
   try done;
   repeat match goal with H : is_true (?m <= ?n) |- _ => elimleq H end;
+  repeat (rewrite <- leqNgt in * || rewrite <- ltnNge in * );
   do ?unfold addn, subn, muln, addn_rec, subn_rec, muln_rec in *;
   do ?arith_hypo_ssrnat2coqnat;
   do ?arith_goal_ssrnat2coqnat;
   simpl Equality.sort in *;
   lia.
+(*
+  omega.
+*)
 
 Ltac elimif' :=
   (match goal with
