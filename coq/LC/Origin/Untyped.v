@@ -15,9 +15,7 @@ Inductive lcterm : Set :=
   | lcapp of lcterm & lcterm.
 
 Lemma eq_lcterm_dec (t1 t2 : lcterm) : {t1 = t2}+{t1 <> t2}.
-Proof.
-  do !decide equality.
-Qed.
+Proof. do !decide equality. Qed.
 
 Infix "@" := lcapp (at level 20, left associativity).
 

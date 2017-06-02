@@ -81,11 +81,11 @@ Fixpoint substitute_seq
 Lemma substitute_seq_nil V n (t : term' (n + 0) V) :
   substitute_seq n [::] t = t.
 Proof.
-  move: n t; fix IH 2 => n; case => //=.
-  - elim: n => // {IH} n IH //=; case => // v.
-    by rewrite (IH v).
-  - move => tl tr; f_equal; apply IH.
-  - move => t; f_equal; apply IH.
+move: n t; fix IH 2 => n; case => //=.
+- elim: n => // {IH} n IH //=; case => // v.
+  by rewrite (IH v).
+- move => tl tr; f_equal; apply IH.
+- move => t; f_equal; apply IH.
 Qed.
 
 Reserved Notation "t ->1b t'" (at level 70, no associativity).

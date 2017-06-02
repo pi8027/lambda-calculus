@@ -25,12 +25,12 @@ Lemma leqP' m n : leq_xor_gtn' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-  case: (leqP m n) => H; rewrite (maxnC n) (minnC n).
-  - rewrite (maxn_idPr H) (minn_idPl H).
-    by move: (H); rewrite -subn_eq0 => /eqP ->; constructor.
-  - rewrite (ltnW H) ltnNge leq_eqVlt H orbT
-            (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
-    by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
+case: (leqP m n) => H; rewrite (maxnC n) (minnC n).
+- rewrite (maxn_idPr H) (minn_idPl H).
+  by move: (H); rewrite -subn_eq0 => /eqP ->; constructor.
+- rewrite (ltnW H) ltnNge leq_eqVlt H orbT
+          (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
+  by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
 
 CoInductive compare_nat' m n :
@@ -48,13 +48,13 @@ Lemma ltngtP' m n : compare_nat' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-  (case: (ltngtP m n) => H;
-    last by rewrite -H leqnn maxnn minnn subnn; constructor);
-    rewrite (maxnC n) (minnC n) ?(ltnW H) leqNgt H /=.
-  - rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)).
-    by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
-  - rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
-    by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
+(case: (ltngtP m n) => H;
+  last by rewrite -H leqnn maxnn minnn subnn; constructor);
+  rewrite (maxnC n) (minnC n) ?(ltnW H) leqNgt H /=.
+- rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)).
+  by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
+- rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
+  by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
 
 (* simpl_natarith *)

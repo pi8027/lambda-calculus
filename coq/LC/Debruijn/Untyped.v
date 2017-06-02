@@ -20,10 +20,10 @@ Fixpoint eqterm t1 t2 :=
 
 Lemma eqtermP : Equality.axiom eqterm.
 Proof.
-  move => t1 t2; apply: (iffP idP) => [| <-].
-  - by elim: t1 t2 => [n | t1l IH t1r IH' | t1 IH]
-      [// m /eqP -> | //= t2l t2r /andP [] /IH -> /IH' -> | // t2 /IH ->].
-  - by elim: t1 => //= t1l ->.
+move => t1 t2; apply: (iffP idP) => [| <-].
+- by elim: t1 t2 => [n | t1l IH t1r IH' | t1 IH]
+    [// m /eqP -> | //= t2l t2r /andP [] /IH -> /IH' -> | // t2 /IH ->].
+- by elim: t1 => //= t1l ->.
 Defined.
 
 Canonical term_eqMixin := EqMixin eqtermP.
@@ -74,8 +74,8 @@ Proof. elimleq; elim: t c'; congruence' => *; elimif_omega. Qed.
 Lemma shift_subst_distr n d c ts t :
   c <= n -> shift d c (substitute n ts t) = substitute (d + n) ts (shift d c t).
 Proof.
-  by elimleq; elim: t c; congruence' => v c; elimif;
-    rewrite shift_add //= add0n leq_addr.
+by elimleq; elim: t c; congruence' => v c; elimif;
+  rewrite shift_add //= add0n leq_addr.
 Qed.
 
 Lemma subst_shift_distr n d c ts t :
@@ -83,10 +83,10 @@ Lemma subst_shift_distr n d c ts t :
   shift d c (substitute n ts t) =
   substitute n (map (shift d (c - n)) ts) (shift d (size ts + c) t).
 Proof.
-  elimleq; elim: t n; congruence' => v n; elimif.
-  - rewrite !nth_default ?size_map /=; elimif_omega.
-  - rewrite -shift_shift_distr // nth_map' /=;
-      congr shift; apply nth_equal; rewrite size_map; elimif_omega.
+elimleq; elim: t n; congruence' => v n; elimif.
+- rewrite !nth_default ?size_map /=; elimif_omega.
+- rewrite -shift_shift_distr // nth_map' /=;
+    congr shift; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 (*
@@ -100,8 +100,8 @@ Lemma subst_shift_cancel n d c ts t :
   c <= n -> size ts + n <= d + c ->
   substitute n ts (shift d c t) = shift (d - size ts) c t.
 Proof.
-  do 2 elimleq; elim: t c; congruence' => v c;
-    elimif; rewrite nth_default /=; elimif_omega.
+do 2 elimleq; elim: t c; congruence' => v c;
+  elimif; rewrite nth_default /=; elimif_omega.
 Qed.
 
 Lemma subst_subst_distr n m xs ys t :
@@ -109,17 +109,17 @@ Lemma subst_subst_distr n m xs ys t :
   substitute n xs (substitute m ys t) =
   substitute m (map (substitute (n - m) xs) ys) (substitute (size ys + n) xs t).
 Proof.
-  elimleq; elim: t m; congruence' => v m; elimif.
-  - rewrite nth_default ?(@subst_shift_cancel m) // ?size_map /=; elimif_omega.
-  - rewrite -shift_subst_distr // nth_map' /=;
-      congr shift; apply nth_equal; rewrite size_map; elimif_omega.
+elimleq; elim: t m; congruence' => v m; elimif.
+- rewrite nth_default ?(@subst_shift_cancel m) // ?size_map /=; elimif_omega.
+- rewrite -shift_subst_distr // nth_map' /=;
+    congr shift; apply nth_equal; rewrite size_map; elimif_omega.
 Qed.
 
 Lemma subst_app n xs ys t :
   substitute n xs (substitute (size xs + n) ys t) = substitute n (xs ++ ys) t.
 Proof.
-  elim: t n; congruence' => v n; rewrite nth_cat size_cat;
-    elimif_omega; rewrite subst_shift_cancel; elimif_omega.
+elim: t n; congruence' => v n; rewrite nth_cat size_cat;
+  elimif_omega; rewrite subst_shift_cancel; elimif_omega.
 Qed.
 
 Lemma subst_nil n t : substitute n [::] t = t.
@@ -128,18 +128,18 @@ Proof. elim: t n; congruence' => m n; rewrite nth_nil /=; elimif_omega. Qed.
 Lemma subst_betared1 n ts t t' :
   t ->b1 t' -> substitute n ts t ->b1 substitute n ts t'.
 Proof.
-  move => H; move: t t' H n.
-  refine (betared1_ind _ _ _ _) => /=; auto => t t' n.
-  by rewrite subst_subst_distr //= add1n subn0.
+move => H; move: t t' H n.
+refine (betared1_ind _ _ _ _) => /=; auto => t t' n.
+by rewrite subst_subst_distr //= add1n subn0.
 Qed.
 
 (* small example for PPL2015 paper *)
 Lemma shift_betared t t' d c : t ->b1 t' -> shift d c t ->b1 shift d c t'.
 Proof.
-  move => H; move: t t' H d c.
-  refine (betared1_ind _ _ _ _) => //=; auto => t1 t2 d c.
+move => H; move: t t' H d c.
+refine (betared1_ind _ _ _ _) => //=; auto => t1 t2 d c.
 (* rewrite -{3}(add0n c) subst_shift_distr' /= add1n add0n; auto. *)
-  rewrite subst_shift_distr //= add1n subn0; auto.
+rewrite subst_shift_distr //= add1n subn0; auto.
 Qed.
 
 Module confluence_proof.
@@ -185,18 +185,18 @@ Proof. apply betared1_ind; auto. Qed.
 
 Lemma parred_in_betared : inclusion parred betared.
 Proof.
-  apply parred_ind; auto => t1 t1' t2 t2' H H0 H1 H2.
-  - apply rtc_trans' with (app t1' t2); auto.
-  - apply rtc_trans' with (app (abs t1') t2); auto.
-    apply rtc_trans' with (app (abs t1') t2'); auto.
-    by apply rtc_step.
+apply parred_ind; auto => t1 t1' t2 t2' H H0 H1 H2.
+- apply rtc_trans' with (app t1' t2); auto.
+- apply rtc_trans' with (app (abs t1') t2); auto.
+  apply rtc_trans' with (app (abs t1') t2'); auto.
+  by apply rtc_step.
 Qed.
 
 Lemma shift_parred t t' d c : t ->bp t' -> shift d c t ->bp shift d c t'.
 Proof.
-  move => H; move: t t' H d c.
-  refine (parred_ind _ _ _ _) => //=; auto => t1 t1' t2 t2' H H0 H1 H2 d c.
-  rewrite subst_shift_distr //= add1n subn0; auto.
+move => H; move: t t' H d c.
+refine (parred_ind _ _ _ _) => //=; auto => t1 t1' t2 t2' H H0 H1 H2 d c.
+rewrite subst_shift_distr //= add1n subn0; auto.
 Qed.
 
 Lemma subst_parred n ps t t' :
@@ -204,35 +204,35 @@ Lemma subst_parred n ps t t' :
   substitute n [seq fst p | p <- ps] t ->bp
   substitute n [seq snd p | p <- ps] t'.
 Proof.
-  move => H H0; move: t t' H0 n.
-  refine (parred_ind _ _ _ _) => /=; auto.
-  - move => v n; elimif; rewrite !size_map; apply shift_parred.
-    elim: ps v H => //= [[t t']] ps IH [| v] [] //= H H0.
-    by rewrite subSS; apply IH.
-  - move => t1 t1' t2 t2' H0 H1 H2 H3 n.
-    by rewrite subst_subst_distr //= add1n subn0; auto.
+move => H H0; move: t t' H0 n.
+refine (parred_ind _ _ _ _) => /=; auto.
+- move => v n; elimif; rewrite !size_map; apply shift_parred.
+  elim: ps v H => //= [[t t']] ps IH [| v] [] //= H H0.
+  by rewrite subSS; apply IH.
+- move => t1 t1' t2 t2' H0 H1 H2 H3 n.
+  by rewrite subst_subst_distr //= add1n subn0; auto.
 Qed.
 
 Lemma parred_all_lemma t t' : t ->bp t' -> t' ->bp reduce_all_redex t.
 Proof with auto.
-  elim/reduce_all_redex_ind: {t}_ t'.
-  - by move => t n H t' H0; inversion H0; subst.
-  - move => _ t1 t2 _ H H0 t' H1; inversion H1; subst.
-    + inversion H4; subst...
-    + apply (@subst_parred 0 [:: (t2', reduce_all_redex t2)]) => /=...
-  - move => _ t1 t2 _ H H0 H1 t' H2; inversion H2; subst => //...
-  - move => _ t1 _ H t2 H0; inversion H0; subst...
+elim/reduce_all_redex_ind: {t}_ t'.
+- by move => t n H t' H0; inversion H0; subst.
+- move => _ t1 t2 _ H H0 t' H1; inversion H1; subst.
+  + inversion H4; subst...
+  + apply (@subst_parred 0 [:: (t2', reduce_all_redex t2)]) => /=...
+- move => _ t1 t2 _ H H0 H1 t' H2; inversion H2; subst => //...
+- move => _ t1 _ H t2 H0; inversion H0; subst...
 Qed.
 
 Lemma parred_confluent : confluent parred.
 Proof.
-  by move => t1 t2 t3 H H0;
-    exists (reduce_all_redex t1); split; apply parred_all_lemma.
+by move => t1 t2 t3 H H0;
+  exists (reduce_all_redex t1); split; apply parred_all_lemma.
 Qed.
 
 Theorem betared_confluent : confluent betared.
 Proof.
-  apply (rtc_confluent' betared1_in_parred parred_in_betared parred_confluent).
+apply (rtc_confluent' betared1_in_parred parred_in_betared parred_confluent).
 Qed.
 
 End confluence_proof.
