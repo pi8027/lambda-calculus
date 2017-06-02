@@ -83,22 +83,26 @@ Proof. by rewrite subn0. Qed.
 Lemma lem4_1 m n m' n' : m - n = m' - n' -> (m <= n) = (m' <= n').
 Proof. by rewrite -!subn_eq0 => ->. Qed.
 End simpl_natarith.
-Import simpl_natarith.
 
 Ltac simpl_natarith1 m n :=
   match m with
     | n => constr: (esym (add0n n))
-    | ?ml + ?mr => let H := simpl_natarith1 ml n in constr: (lem1_1 mr H)
-    | ?ml + ?mr => let H := simpl_natarith1 mr n in constr: (lem1_2 ml H)
-    | ?m'.+1 => let H := simpl_natarith1 m' n in constr: (lem1_3 H)
+    | ?ml + ?mr => let H := simpl_natarith1 ml n in
+                   constr: (simpl_natarith.lem1_1 mr H)
+    | ?ml + ?mr => let H := simpl_natarith1 mr n in
+                   constr: (simpl_natarith.lem1_2 ml H)
+    | ?m'.+1 => let H := simpl_natarith1 m' n in
+                constr: (simpl_natarith.lem1_3 H)
     | ?m'.+1 => match n with 1 => constr: (esym (addn1 m')) end
   end.
 
 Ltac simpl_natarith2 m n :=
   match m with
-    | ?ml - ?mr => let H := simpl_natarith2 ml n in constr: (lem2_1 mr H)
-    | ?m'.-1 => let H := simpl_natarith2 m' n in constr: (lem2_2 H)
-    | _ => let H := simpl_natarith1 m n in constr: (lem2_3 H)
+    | ?ml - ?mr => let H := simpl_natarith2 ml n in
+                   constr: (simpl_natarith.lem2_1 mr H)
+    | ?m'.-1 => let H := simpl_natarith2 m' n in
+                constr: (simpl_natarith.lem2_2 H)
+    | _ => let H := simpl_natarith1 m n in constr: (simpl_natarith.lem2_3 H)
   end.
 
 Ltac simpl_natarith3 m n :=
@@ -107,16 +111,16 @@ Ltac simpl_natarith3 m n :=
       simpl_natarith3 m nl;
       match goal with |- _ = ?m1 -> _ =>
         let H := fresh "H" in
-        move => H; simpl_natarith3 m1 nr; move/(lem3_1 H) => {H}
+        move => H; simpl_natarith3 m1 nr; move/(simpl_natarith.lem3_1 H) => {H}
       end
     | _ =>
       match n with
         | ?n'.+1 =>
           lazymatch n' with
             | 0 => fail
-            | _ => simpl_natarith3 m (n' + 1); move/lem3_2
+            | _ => simpl_natarith3 m (n' + 1); move/simpl_natarith.lem3_2
           end
-        | _ => let H := simpl_natarith2 m n in move: (lem3_3 H)
+        | _ => let H := simpl_natarith2 m n in move: (simpl_natarith.lem3_3 H)
         | _ => move: (erefl (m - n))
       end
   end.
@@ -136,10 +140,11 @@ Ltac simpl_natarith :=
      end ||
      match goal with
        H : context [?m <= ?n] |- _ =>
-       move: H; simpl_natarith3 m n; move/lem4_1; tac 0 => H
+       move: H; simpl_natarith3 m n; move/simpl_natarith.lem4_1; tac 0 => H
      end ||
      match goal with
-       |- context [?m <= ?n] => simpl_natarith3 m n; move/lem4_1; tac 0
+       |- context [?m <= ?n] =>
+         simpl_natarith3 m n; move/simpl_natarith.lem4_1; tac 0
      end);
   try done;
   repeat match goal with
