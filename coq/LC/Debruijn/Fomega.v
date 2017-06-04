@@ -54,13 +54,13 @@ Fixpoint eqtyp t1 t2 :=
 
 Lemma eqtypP : Equality.axiom eqtyp.
 Proof.
-move => t1 t2; apply: (iffP idP) => [| <-].
-- by elim: t1 t2 =>
-    [n | t1l IHl t1r IHr | o1 t1 IH | t1l IHl t1r IHr | o1 t1 IH]
-    [//= m /eqP -> | //= t2l t2r /andP [] /IHl -> /IHr -> |
-     //= o2 t2 /andP [] /eqP -> /IH -> | //= t2l t2r /andP [] /IHl -> /IHr -> |
-     //= o2 t2 /andP [] /eqP -> /IH ->].
-- by elim: t1 => //= [t -> | o t -> | t -> | o t ->] //; rewrite andbT.
+move => t1 t2; apply: (iffP idP) => [| <-];
+  last by elim: t1 => //= [t -> | o t -> | t -> | o t ->] //; rewrite andbT.
+by elim: t1 t2 =>
+  [n | t1l IHl t1r IHr | o1 t1 IH | t1l IHl t1r IHr | o1 t1 IH]
+  [//= m /eqP -> | //= t2l t2r /andP [] /IHl -> /IHr -> |
+   //= o2 t2 /andP [] /eqP -> /IH -> | //= t2l t2r /andP [] /IHl -> /IHr -> |
+   //= o2 t2 /andP [] /eqP -> /IH ->].
 Defined.
 
 Canonical typ_eqMixin := EqMixin eqtypP.
@@ -263,8 +263,7 @@ Proof. elim: ty n; congruence' => v n; rewrite nth_nil /=; elimif_omega. Qed.
 Lemma subst_reduction1_ty n tys ty ty' :
   ty ~>ty1 ty' -> subst_ty n tys ty ~>ty1 subst_ty n tys ty'.
 Proof.
-move => H; move: ty ty' H n.
-refine (reduction1_ty_ind _ _ _ _ _ _ _) => /=; auto => t t' ty n.
+move => H; elim/reduction1_ty_ind: ty ty' / H n => /=; auto => t t' ty n.
 by rewrite subst_subst_distr_ty //= add1n subn0.
 Qed.
 
@@ -298,10 +297,8 @@ move => /= ol [IHl1 IHl2] or [IHr1 IHr2]; split => [ty H | tyl H H0 tyr H1].
 - suff: SN_ty ([fun ty => ty @' 0] ty) by apply acc_preservation; constructor.
   apply IHr1, IHr2 => // t' H0.
   apply (CR2 H0), H, IHl2 => // t'' H1; inversion H1.
-- move: (IHl1 tyr H1) => H2.
-  move: tyr H2 H1; refine (Acc_ind' _) => tyr IH H1.
-  apply IHr2 => // ty' H2.
-  move: H; inversion H2; subst => // _; eauto.
+- move: (IHl1 tyr H1) => H2; elim/Acc_ind': tyr / H2 H1 => tyr IH H1.
+  by apply IHr2 => // ty' H2; move: H; inversion H2; subst => // _; eauto.
 Qed.
 
 Definition CR1 o ty := proj1 (CR1_and_CR3 ty) o.
@@ -349,8 +346,7 @@ elim: ty o ctx ctx'.
   rewrite -/([:: _] ++ _) -subst_app_ty /= addn0.
   move: (subst_ty 1 _ _) {IH H H0} => ty'.
   move: {1 3}(subst_ty _ _ _) (erefl (subst_ty 0 [:: tyvar 0] ty')) => ty'' H H0.
-  move: ty'' H0 ty' H.
-  refine (Acc_ind' _) => ty' H ty'' H0; subst ty'.
+  elim/Acc_ind': ty'' / H0 ty' H => ty' H ty'' H0; subst ty'.
   constructor => ty''' H0; inversion H0; subst.
   by apply (H (subst_ty 0 [:: tyvar 0] t')) => //; apply subst_reduction1_ty.
 - move => tyl IHl tyr IHr or ctx ctx' /ordering_appP [ol H H0] H1.

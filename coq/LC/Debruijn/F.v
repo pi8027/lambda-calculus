@@ -32,11 +32,9 @@ Fixpoint eqtyp t1 t2 :=
 
 Lemma eqtypP : Equality.axiom eqtyp.
 Proof.
-move => t1 t2; apply: (iffP idP) => [| <-].
-- by elim: t1 t2 => [n | t1l IHt1l t1r IHt1r | t1 IHt1]
-    [// m /eqP -> | //= t2l t2r /andP [] /IHt1l -> /IHt1r -> |
-     // t2 /IHt1 ->].
-- by elim: t1 => //= t ->.
+move => t1 t2; apply: (iffP idP) => [| <-]; last by elim: t1 => //= t ->.
+by elim: t1 t2 => [n | t1l IHt1l t1r IHt1r | t1 IHt1]
+  [// m /eqP -> | //= t2l t2r /andP [] /IHt1l -> /IHt1r -> | // t2 /IHt1 ->].
 Defined.
 
 Canonical typ_eqMixin := EqMixin eqtypP.
@@ -54,13 +52,13 @@ Fixpoint eqterm t1 t2 :=
 
 Lemma eqtermP : Equality.axiom eqterm.
 Proof.
-move => t1 t2; apply: (iffP idP) => [| <-].
-- by elim: t1 t2 =>
-    [n | t1l IHt1l t1r IHt1r | ty1 t1 IHt1 | t1 IHt1 ty1 | t1 IHt1]
-    [// m /eqP -> | //= t2l t2r /andP [] /IHt1l -> /IHt1r -> |
-     //= ty2 t2 /andP [] /eqP -> /IHt1 -> |
-     //= t2 ty2 /andP [] /IHt1 -> /eqP -> | //= t2 /IHt1 ->].
-- by elim: t1 => //= [t -> t' -> | ty t -> | t ->] *; rewrite ?eqxx.
+move => t1 t2; apply: (iffP idP) => [| <-];
+  last by elim: t1 => //= [t -> t' -> | ty t -> | t ->] *; rewrite ?eqxx.
+by elim: t1 t2 =>
+  [n | t1l IHt1l t1r IHt1r | ty1 t1 IHt1 | t1 IHt1 ty1 | t1 IHt1]
+  [// m /eqP -> | //= t2l t2r /andP [] /IHt1l -> /IHt1r -> |
+   //= ty2 t2 /andP [] /eqP -> /IHt1 -> | //= t2 ty2 /andP [] /IHt1 -> /eqP -> |
+   //= t2 /IHt1 ->].
 Defined.
 
 Canonical term_eqMixin := EqMixin eqtermP.
@@ -573,8 +571,7 @@ Hint Resolve redappl redappr redapp redabs reduapp reduabs.
 Lemma shifttyp_reduction1 t t' d c :
   t ->r1 t' -> typemap (shift_typ d) c t ->r1 typemap (shift_typ d) c t'.
 Proof.
-move => H; move: t t' H d c.
-refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
+move => H; elim/reduction1_ind: t t' / H d c => /=; try by constructor.
 - by move => ty t1 t2 d c; rewrite shifttyp_subst_distr //= subn0.
 - by move => t ty d c; rewrite substtyp_shifttyp_distr //= subn0.
 Qed.
@@ -582,8 +579,7 @@ Qed.
 Lemma shift_reduction1 t t' d c :
   t ->r1 t' -> shift_term d c t ->r1 shift_term d c t'.
 Proof.
-move => H; move: t t' H d c.
-refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
+move => H; elim/reduction1_ind: t t' / H d c => /=; try by constructor.
 - by move => ty t1 t2 d c; rewrite subst_shift_distr //= subn0.
 - by move => t ty d c; rewrite shift_typemap_distr.
 Qed.
@@ -592,8 +588,7 @@ Lemma substtyp_reduction1 t t' tys n :
   t ->r1 t' ->
   typemap (subst_typ^~ tys) n t ->r1 typemap (subst_typ^~ tys) n t'.
 Proof.
-move => H; move: t t' H tys n.
-refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
+move => H; elim/reduction1_ind: t t' / H tys n => /=; try by constructor.
 - by move => ty t1 t2 tys n;
     rewrite substtyp_subst_distr // subn0; constructor.
 - by move => t ty tys n; rewrite substtyp_substtyp_distr //= subn0.
@@ -602,8 +597,7 @@ Qed.
 Lemma subst_reduction1 t t' n m ts :
   t ->r1 t' -> subst_term n m ts t ->r1 subst_term n m ts t'.
 Proof.
-move => H; move: t t' H n m ts.
-refine (reduction1_ind _ _ _ _ _ _ _) => /=; try by constructor.
+move => H; elim/reduction1_ind: t t' / H n m ts => /=; try by constructor.
 - by move => ty t1 t2 n m ts; rewrite subst_subst_distr //= !subn0.
 - by move => t ty n m ts; rewrite subst_substtyp_distr.
 Qed.
@@ -676,8 +670,7 @@ Qed.
 Lemma shift_parred t t' d c :
   t ->rp t' -> shift_term d c t ->rp shift_term d c t'.
 Proof.
-move => H; move: t t' H d c.
-refine (parred_ind _ _ _ _ _ _ _) => //=; try by constructor.
+move => H; elim/parred_ind: t t' / H d c => //=; auto.
 - by move => t1 t1' t2 t2' ty H H0 H1 H2 d c;
     rewrite subst_shift_distr //= subn0; auto.
 - by move => t t' ty H H0 d c; rewrite shift_typemap_distr; auto.
@@ -686,8 +679,7 @@ Qed.
 Lemma shifttyp_parred t t' d c :
   t ->rp t' -> typemap (shift_typ d) c t ->rp typemap (shift_typ d) c t'.
 Proof.
-move => H; move: t t' H d c.
-refine (parred_ind _ _ _ _ _ _ _) => /=; auto.
+move => H; elim/parred_ind: t t' / H d c => /=; auto.
 - by move => t1 t1' t2 t2' ty H H0 H1 H2 d c;
     rewrite shifttyp_subst_distr //= subn0; auto.
 - by move => t t' ty H H0 n m;
@@ -698,8 +690,7 @@ Lemma substtyp_parred n tys t t' :
   t ->rp t' ->
   typemap (subst_typ^~ tys) n t ->rp typemap (subst_typ^~ tys) n t'.
 Proof.
-move => H; move: t t' H n.
-refine (parred_ind _ _ _ _ _ _ _) => /=; auto.
+move => H; elim/parred_ind: t t' / H n => /=; auto.
 - by move => t1 t1' t2 t2' ty H H0 H1 H2 n;
     rewrite substtyp_subst_distr //= subn0; auto.
 - by move => t t' ty H H0 n;
@@ -710,8 +701,7 @@ Lemma subst_parred n m ps t t' :
   Forall (prod_curry parred) ps -> t ->rp t' ->
   subst_term n m (unzip1 ps) t ->rp subst_term n m (unzip2 ps) t'.
 Proof.
-move => H H0; move: t t' H0 n m.
-refine (parred_ind _ _ _ _ _ _ _) => /=; auto.
+move => H H0; elim/parred_ind: t t' / H0 n m => /=; auto.
 - by move => tl tl' tr tr' ty H0 H1 H2 H3 n m;
     rewrite subst_subst_distr //= !subn0; auto.
 - by move => t t' ty H0 H1 n m; rewrite subst_substtyp_distr //=; auto.
@@ -875,7 +865,7 @@ Qed.
 Theorem subject_reduction ctx t t' ty :
   t ->r1 t' -> ctx \|- t \: ty -> ctx \|- t' \: ty.
 Proof.
-move => H; move: t t' H ctx ty; refine (reduction1_ind _ _ _ _ _ _ _) => /=.
+move => H; elim/reduction1_ind: t t' / H ctx ty => /=.
 - by move => tyl t1 t2 ctx ty
     /typing_appP [tyl']; rewrite typing_absE' => /andP [] /eqP <- H H0;
     apply (subject_subst0' H).
@@ -912,9 +902,8 @@ End CRs.
 
 Lemma CR2' P t t' : RC P -> t ->r t' -> P t -> P t'.
 Proof.
-move => H; move: t t'.
-refine (clos_refl_trans_1n_ind _ _ _ _ _) => //= x y z H0 H1 H2 H3.
-by apply H2, (rc_cr2 H H0).
+move => H; elim/clos_refl_trans_1n_ind: t t' / => //= x y z H0 _ H1 H2.
+by apply H1, (rc_cr2 H H0).
 Qed.
 
 Lemma CR4 P t : RC P -> neutral t -> (forall t', ~ t ->r1 t') -> P t.
@@ -937,8 +926,8 @@ move => H H0; constructor; move => /=.
 - by move => t /(_ 0 (CR4' _ H)) /(rc_cr1 H0);
     apply (acc_preservation (f := app^~_)); constructor.
 - by move => t t' H1 H2 v /H2; apply (rc_cr2 H0); constructor.
-- move => t1 H1 H2 t2 H3; move: t2 {H3} (rc_cr1 H H3) (H3).
-  refine (Acc_ind _ _) => t2 _ H3 H4.
+- move => t1 H1 H2 t2 H3.
+  elim/Acc_ind': t2 / {H3} (rc_cr1 H H3) (H3) => t2 H3 H4.
   apply (rc_cr3 H0) => //= t3 H5; move: H1; inversion H5;
     subst => //= _; auto; apply H3 => //; apply (rc_cr2 H H8 H4).
 Qed.
@@ -1036,9 +1025,8 @@ move => /= H H0 ty' P H1.
 move: (reducible _ _) (@reducibility_isrc ty (P :: preds))
   (H0 ty' P H1) => P' /= /(_ (conj H1 H)) {H H0 H1} H H0.
 have H1: SN t by
-  move: (rc_cr1 H H0);
-    apply acc_preservation => x y; apply substtyp_reduction1.
-move: t H1 H0; refine (Acc_ind _ _) => t _ H0 H1.
+  move: (rc_cr1 H H0); apply acc_preservation => x y; apply substtyp_reduction1.
+elim/Acc_ind': t / H1 H0 => t H0 H1.
 apply (rc_cr3 H) => //= t' H2; inversion H2; subst => //.
 inversion H6; subst; apply H0 => //.
 apply (rc_cr2 H (substtyp_reduction1 _ _ H4) H1).
@@ -1134,8 +1122,8 @@ End CRs.
 Lemma CR2' ctx ty P t t' :
   RC ctx ty P -> #ctx \|- t \: ty -> t ->r t' -> P t -> P t'.
 Proof.
-move => H H0 H1; move: t t' H1 H0.
-refine (clos_refl_trans_1n_ind _ _ _ _ _) => //= x y z H0 H1 H2 H3 H4.
+move => H H0 H1.
+elim/clos_refl_trans_1n_ind: t t' / H1 H0 => //= x y z H0 H1 H2 H3 H4.
 by apply H2; [apply (subject_reduction H0) | apply (rc_cr2 H H3)].
 Qed.
 
@@ -1172,8 +1160,7 @@ move => HP HQ; constructor; move => /=.
   + by apply/typing_appP; exists tyl.
   + by constructor.
 - move => t H H0 H1 v H2 H3.
-  move: v {H2 H3} (rc_cr1 HP H2 H3) (H2) (H3).
-  refine (Acc_ind _ _) => v _ IH H2 H3.
+  elim/Acc_ind': v / {H2 H3} (rc_cr1 HP H2 H3) (H2) (H3) => v IH H2 H3.
   apply (rc_cr3 HQ) => //=; first by apply/typing_appP; exists tyl.
   move => t'' H4; move: H0; inversion H4; subst => //= _.
   + by apply (H1 _ H7).
@@ -1318,13 +1305,11 @@ rewrite -typing_uabsE -/(subst_typ 0 _ (tyabs _)) in H.
 rewrite subst_app_ty /= => H0 H1 H2.
 have H3: SN t by
   move: (rc_cr1 H0 H1 H2);
-    apply acc_preservation => x y; apply substtyp_reduction1.
-move: t H3 H H1 H2; refine (Acc_ind _ _) => t _ IH H H1 H2.
-apply (rc_cr3 H0) => //=.
+  apply acc_preservation => x y; apply substtyp_reduction1.
+elim/Acc_ind': t / H3 H H1 H2 => t IH H H1 H2; apply (rc_cr3 H0) => //=.
 - by apply/typing_uappP;
     exists (subst_typ 1 (unzip1 preds) ty) => //; rewrite subst_app_ty.
-- move => t' H4; inversion H4; subst => //.
-  inversion H7; subst; apply IH => //.
+- move => t' H4; inversion H4; subst => //; inversion H7; subst; apply IH => //.
   + by apply (subject_reduction H7).
   + by move: H1; apply subject_reduction, substtyp_reduction1.
   + by apply (rc_cr2 H0 H1 (substtyp_reduction1 _ _ H5) H2).
@@ -1336,10 +1321,8 @@ Lemma uapp_reducibility ty ty' preds ctx t :
   reducible ctx (subst_typ 0 [:: ty'] ty) preds
     (t @' subst_typ 0 (unzip1 preds) ty').
 Proof.
-move => /= H H0.
-apply subst_reducibility => //=.
-rewrite /insert take0 sub0n !drop0 /=.
-by apply H0, reducibility_isrc.
+move => /= H H0; apply subst_reducibility => //=.
+by rewrite /insert take0 sub0n !drop0 /=; apply H0, reducibility_isrc.
 Qed.
 
 Lemma reduce_lemma ctx ctx' preds t ty :
@@ -1480,8 +1463,7 @@ End CRs.
 
 Lemma CR2' ty P ctx t t' : RC ty P -> t ->r t' -> P ctx t -> P ctx t'.
 Proof.
-move => H; move: t t'.
-refine (clos_refl_trans_1n_ind _ _ _ _ _) => //= x y z H0 H1 H2 H3.
+move => H; elim/clos_refl_trans_1n_ind: t t' / => //= x y z H0 H1 H2 H3.
 by apply H2, (rc_cr2 H H0).
 Qed.
 
@@ -1522,8 +1504,7 @@ move => HP HQ; rewrite /rcfun; constructor; move => /=; first tauto.
   + by apply (subject_reduction H).
   + by move => /H1 {H1} H1 /H1 {H1}; apply (rc_cr2 HQ); constructor.
 - move => ctx t H H0 H1; split => // ctx' t' H2 H3.
-  move: t' {H3} (rc_cr1 HP H3) (H3).
-  refine (Acc_ind _ _) => t' _ IH H3.
+  elim/Acc_ind: t' / {H3} (rc_cr1 HP H3) (H3) => t' _ IH H3.
   apply (rc_cr3 HQ) => //=; first (apply/typing_appP; exists tyl).
   + by apply (ctxleq_preserves_typing H2).
   + by apply (rc_typed HP).
@@ -1670,12 +1651,10 @@ move: (reducible _ _) (@reducibility_isrc ty ((ty', P) :: preds))
 have H2: SN t by
   move: (rc_cr1 H0 H1);
     apply acc_preservation => x y; apply substtyp_reduction1.
-move: t H2 H H1; refine (Acc_ind _ _) => t _ H1 H H2.
-apply (rc_cr3 H0) => //=.
+elim/Acc_ind': t / H2 H H1 => t H1 H H2; apply (rc_cr3 H0) => //=.
 - by apply/typing_uappP;
     exists (subst_typ 1 (unzip1 preds) ty) => //; rewrite subst_app_ty.
-- move => t' H3; inversion H3; subst => //.
-  inversion H7; subst; apply H1 => //.
+- move => t' H3; inversion H3; subst => //; inversion H7; subst; apply H1 => //.
   + by apply (subject_reduction H7).
   + apply (rc_cr2 H0 (substtyp_reduction1 _ _ H5) H2).
 Qed.

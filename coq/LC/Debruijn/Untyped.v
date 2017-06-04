@@ -20,10 +20,9 @@ Fixpoint eqterm t1 t2 :=
 
 Lemma eqtermP : Equality.axiom eqterm.
 Proof.
-move => t1 t2; apply: (iffP idP) => [| <-].
-- by elim: t1 t2 => [n | t1l IH t1r IH' | t1 IH]
-    [// m /eqP -> | //= t2l t2r /andP [] /IH -> /IH' -> | // t2 /IH ->].
-- by elim: t1 => //= t1l ->.
+move => t1 t2; apply: (iffP idP) => [| <-]; last by elim: t1 => //= t1l ->.
+by elim: t1 t2 => [n | t1l IH t1r IH' | t1 IH]
+  [// m /eqP -> | //= t2l t2r /andP [] /IH -> /IH' -> | // t2 /IH ->].
 Defined.
 
 Canonical term_eqMixin := EqMixin eqtermP.
@@ -128,17 +127,14 @@ Proof. elim: t n; congruence' => m n; rewrite nth_nil /=; elimif_omega. Qed.
 Lemma subst_betared1 n ts t t' :
   t ->b1 t' -> substitute n ts t ->b1 substitute n ts t'.
 Proof.
-move => H; move: t t' H n.
-refine (betared1_ind _ _ _ _) => /=; auto => t t' n.
+move => H; elim/betared1_ind: t t' / H n => /=; auto => t t' n.
 by rewrite subst_subst_distr //= add1n subn0.
 Qed.
 
 (* small example for PPL2015 paper *)
 Lemma shift_betared t t' d c : t ->b1 t' -> shift d c t ->b1 shift d c t'.
 Proof.
-move => H; move: t t' H d c.
-refine (betared1_ind _ _ _ _) => //=; auto => t1 t2 d c.
-(* rewrite -{3}(add0n c) subst_shift_distr' /= add1n add0n; auto. *)
+move => H; elim/betared1_ind: t t' / H d c => /=; auto => t1 t2 d c.
 rewrite subst_shift_distr //= add1n subn0; auto.
 Qed.
 
@@ -194,8 +190,8 @@ Qed.
 
 Lemma shift_parred t t' d c : t ->bp t' -> shift d c t ->bp shift d c t'.
 Proof.
-move => H; move: t t' H d c.
-refine (parred_ind _ _ _ _) => //=; auto => t1 t1' t2 t2' H H0 H1 H2 d c.
+move => H; elim/parred_ind: t t' / H d c => //=;
+  auto => t1 t1' t2 t2' H H0 H1 H2 d c.
 rewrite subst_shift_distr //= add1n subn0; auto.
 Qed.
 
@@ -204,8 +200,7 @@ Lemma subst_parred n ps t t' :
   substitute n [seq fst p | p <- ps] t ->bp
   substitute n [seq snd p | p <- ps] t'.
 Proof.
-move => H H0; move: t t' H0 n.
-refine (parred_ind _ _ _ _) => /=; auto.
+move => H H0; elim/parred_ind: t t' / H0 n => /=; auto.
 - move => v n; elimif; rewrite !size_map; apply shift_parred.
   elim: ps v H => //= [[t t']] ps IH [| v] [] //= H H0.
   by rewrite subSS; apply IH.

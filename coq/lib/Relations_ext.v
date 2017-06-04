@@ -23,8 +23,7 @@ Proof. by move => x y H; apply rt1n_trans with y. Qed.
 
 Lemma rtc_map A (R R' : relation A) : inclusion R R' -> inclusion [* R] [* R'].
 Proof.
-move => H.
-refine (clos_refl_trans_1n_ind A R _ _ _) => // t1 t2 t3 H0 H1 H2.
+move => H t t'; elim/clos_refl_trans_1n_ind: t t' / => // t1 t2 T3 H0 H1 H2.
 apply rt1n_trans with t2; auto.
 Qed.
 
@@ -32,16 +31,15 @@ Lemma rtc_map' A B (R : relation A) (R' : relation B) (f : A -> B) :
   inclusion R (fun x y => R' (f x) (f y)) ->
   inclusion [* R] (fun x y => [* R'] (f x) (f y)).
 Proof.
-move => H.
-refine (clos_refl_trans_1n_ind A R _ _ _) => //= x y z H0 H1 H2.
+move => H t t'; elim/clos_refl_trans_1n_ind: t t' / => //= x y z H0 H1 H2.
 apply rt1n_trans with (f y); auto.
 Qed.
 
 Lemma rtc_nest_elim A (R : relation A) : same_relation [* [* R]] [* R].
 Proof.
 move => t1 t2; split.
-- move: t1 t2; refine (clos_refl_trans_1n_ind A _ _ _ _) => //.
-  by move => t1 t2 t3 H _ H0; apply rtc_trans' with t2.
+- by elim/clos_refl_trans_1n_ind: t1 t2 / => // t1 t2 t3 H _ H0;
+     apply rtc_trans' with t2.
 - apply clos_rt1n_step.
 Qed.
 
@@ -51,8 +49,7 @@ Lemma rtc_semi_confluent' A (R R' : relation A) :
   (forall t1 t2 t3, [* R] t1 t2 -> R' t1 t3 ->
     exists t4, R' t2 t4 /\ [* R] t3 t4).
 Proof.
-move => H t1 t2 t3 H0; move: t1 t2 H0 t3.
-refine (clos_refl_trans_1n_ind A R _ _ _).
+move => H t1 t2 t3 H0; elim/clos_refl_trans_1n_ind: t1 t2 / H0 t3.
 - by move => t1 t3 H0; exists t3.
 - move => t1 t1' t2 H0 H1 IH t3 H2.
   case: (H t1 t1' t3 H0 H2) => t3'; case => {H H0 H2} H H0.
@@ -99,9 +96,8 @@ split.
   apply rtc_nest_elim; move: t1 t3 H0 {H}; apply rtc_map', Z2.
 - case: H0.
   + by apply rt1n_trans with t2 => //; apply Z1.
-  + move => {t3} t1' t3 H0 H1; move: t1' t3 H1 t1 H0 {H}.
-    refine (clos_refl_trans_1n_ind A R _ _ _); eauto.
-    move => t1' t1 H.
+  + move => {t3} t1' t3 H0 H1;
+      elim/clos_refl_trans_1n_ind: t1' t3 / H1 t1 H0 {H}; eauto => t1' t1 H.
     by apply rtc_trans' with (comp t1); [apply Z1 | apply Z2].
 Qed.
 
@@ -110,24 +106,19 @@ End Z.
 Lemma rtc_preservation A (P : A -> Prop) (R : relation A) :
   (forall x y, R x y -> P x -> P y) -> forall x y, [* R] x y -> P x -> P y.
 Proof.
-move => H.
-refine (clos_refl_trans_1n_ind A R _ _ _) => //= x y z H0 _ H1 H2.
+move => H x y; elim/clos_refl_trans_1n_ind: x y / => //= x y z H0 _ H1 H2.
 exact (H1 (H x y H0 H2)).
 Qed.
 
 Lemma Acc_ind' (A : Type) (R : relation A) (P : A -> Prop) :
   (forall x, (forall y, R y x -> P y) -> P x) -> forall x, Acc R x -> P x.
-Proof.
-move => H x H0; move: x H0 H.
-refine (Acc_ind _ _) => x _ IH H.
-by apply H => y H0; apply IH.
-Qed.
+Proof. move => H x H0; elim/Acc_ind: x / H0 H => x _ IH H; apply H; auto. Qed.
 
 Lemma acc_preservation A B (RA : relation A) (RB : relation B) (f : A -> B) a :
   (forall x y, RA x y -> RB (f x) (f y)) -> Acc RB (f a) -> Acc RA a.
 Proof.
-move => H H0; move: {1 2}(f a) H0 (erefl (f a)) => b H0; move: b H0 a.
-refine (Acc_ind' _) => b H0 a H1; subst b.
+move => H H0; move: {1 2}(f a) H0 (erefl (f a)) => b H0.
+elim/Acc_ind': b / H0 a => b H0 a H1; subst b.
 by constructor => a' H1; apply (fun x => H0 _ x _ erefl), H.
 Qed.
 
@@ -137,9 +128,7 @@ Lemma Acc_ind2
                (forall y', RB y' y -> P x y') -> P x y) ->
   forall x y, Acc RA x -> Acc RB y -> P x y.
 Proof.
-move => H x y H0 H1; move: x H0 y H1.
-refine (Acc_ind _ _) => x H0 IHx; refine (Acc_ind _ _) => y H1 IHy.
-apply H => [x' | y'] H2.
-- by apply IHx.
-- by apply IHy.
+move => H x y Hx Hy;
+  elim/Acc_ind: x / Hx y Hy => x Hx IHx y Hy; elim/Acc_ind: y / Hy => y Hy IHy.
+apply H => [x' | y'] H2; by [apply IHx | apply IHy].
 Qed.

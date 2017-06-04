@@ -24,10 +24,9 @@ Fixpoint eqtyp t1 t2 :=
 
 Lemma eqtypP : Equality.axiom eqtyp.
 Proof.
-move => t1 t2; apply: (iffP idP) => [| <-].
-- by elim: t1 t2 => [n | t1l IHl t1r IHr]
-    [// m /eqP -> | //= t2l t2r /andP [] /IHl -> /IHr ->].
-- by elim: t1 => //= t1l ->.
+move => t1 t2; apply: (iffP idP) => [| <-]; last by elim: t1 => //= t1l ->.
+by elim: t1 t2 => [n | t1l IHl t1r IHr]
+  [// m /eqP -> | //= t2l t2r /andP [] /IHl -> /IHr ->].
 Defined.
 
 Canonical typ_eqMixin := EqMixin eqtypP.
@@ -43,11 +42,11 @@ Fixpoint eqterm t1 t2 :=
 
 Lemma eqtermP : Equality.axiom eqterm.
 Proof.
-move => t1 t2; apply: (iffP idP) => [| <-].
-- by elim: t1 t2 => [n | t1l IHl t1r IHr | ty1 t1 IH]
-    [// m /eqP -> | //= t2l t2r /andP [] /IHl -> /IHr -> |
-     //= ty2 t2 /andP [] /eqP -> /IH ->].
-- by elim: t1 => //= [t1l -> | ty1 t1 ->] //; rewrite andbT.
+move => t1 t2; apply: (iffP idP) => [| <-];
+  last by elim: t1 => //= [t1l -> | ty1 t1 ->] //; rewrite andbT.
+by elim: t1 t2 => [n | t1l IHl t1r IHr | ty1 t1 IH]
+  [// m /eqP -> | //= t2l t2r /andP [] /IHl -> /IHr -> |
+   //= ty2 t2 /andP [] /eqP -> /IH ->].
 Defined.
 
 Canonical term_eqMixin := EqMixin eqtermP.
@@ -195,8 +194,7 @@ Proof. elim: t n; congruence' => v n; rewrite nth_nil /=; elimif_omega. Qed.
 Lemma subst_betared1 n ts t t' :
   t ->b1 t' -> substitute n ts t ->b1 substitute n ts t'.
 Proof.
-move => H; move: t t' H n.
-refine (betared1_ind _ _ _ _) => /=; auto => t t' ty n.
+move => H; elim/betared1_ind: t t' / H n => /=; auto => t t' ty n.
 by rewrite subst_subst_distr //= add1n subn0.
 Qed.
 
@@ -259,7 +257,7 @@ Arguments subject_subst0 [t ty ctx] _ _ _.
 Theorem subject_reduction ctx t1 t2 ty :
   t1 ->b1 t2 -> ctx \|- t1 \: ty -> ctx \|- t2 \: ty.
 Proof.
-move => H; move: t1 t2 H ctx ty; refine (betared1_ind _ _ _ _) => /=.
+move => H; elim/betared1_ind: t1 t2 / H ctx ty => /=.
 - move => ty t1 t2 ctx ty2 /typing_appP [tyl] /typing_absP [tyr [-> ->]] H H0.
   by apply (subject_subst0 [:: (t2, ty)]) => //=; rewrite H0.
 - by move => t1 t1' t2 H H0 ctx ty /typing_appP [tyl H1 H2];
@@ -305,10 +303,8 @@ move => /= tyl [IHl1 IHl2] tyr [IHr1 IHr2];
 - suff: SN ([fun t => t @ 0] t) by apply acc_preservation; constructor.
   apply IHr1, IHr2 => // t' H0.
   apply (CR2 H0), H, IHl2 => // t'' H1; inversion H1.
-- move: (IHl1 tr H1) => H2.
-  move: tr H2 H1; refine (Acc_ind' _) => tr IH H1.
-  apply IHr2 => // t' H2.
-  move: H; inversion H2; subst => // _; eauto.
+- elim/Acc_ind': tr / {H1} (IHl1 tr H1) (H1) => tr IH H1.
+  apply IHr2 => // t' H2; move: H; inversion H2; subst => // _; eauto.
 Qed.
 
 Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
@@ -404,10 +400,9 @@ move => /= tyl [IHl1 IHl2] tyr [IHr1 IHr2];
   apply (CR2 H3), H0 => //=.
   apply IHl2 => // x H4; inversion H4.
 - have H5: SN tr by apply IHl1 with ctx'.
-  move: tr H5 H2 H3 H4; refine (Acc_ind' _) => tr IH H2 H3 H4.
+  elim/Acc_ind': tr / H5 H2 H3 H4 => tr IH H2 H3 H4.
   have H5: ctx' \|- tl @ tr \: tyr by apply/typing_appP; exists tyl; eauto.
-  apply IHr2 => // t' H6.
-  move: H0; inversion H6; subst => // _; eauto.
+  apply IHr2 => // t' H6; move: H0; inversion H6; subst => // _; eauto.
 Qed.
 
 Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
@@ -554,7 +549,7 @@ move => /= tyl [IHl1 IHl2] tyr [IHr1 IHr2]; split => ctx tl.
     apply (CR2 H5); apply H3 => //; apply IHl2 => // y H6; inversion H6.
 - case/andP => _; rewrite all_cat; case/andP => H H0 H1 H2 H3 tr H4 H5.
   have H6: SN tr by apply (IHl1 ctx).
-  move: tr H6 H4 H5; refine (Acc_ind' _) => tr IH H4 H5.
+  elim/Acc_ind': tr / H6 H4 H5 => tr IH H4 H5.
   have H6: ctx \|- tl @ tr \: tyr by apply/typing_appP; exists tyl.
   apply IHr2 => // t' H7; move: H2; inversion H7; subst => // _; eauto.
 Qed.
