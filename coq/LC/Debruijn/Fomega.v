@@ -90,14 +90,14 @@ Fixpoint subst_ty n ts t :=
 Reserved Notation "t ~>ty1 t'" (at level 70, no associativity).
 
 Inductive reduction1_ty : relation typ :=
-  | tyred1fst o t1 t2    : tyabs o t1 @' t2 ~>ty1 subst_ty 0 [:: t2] t1
-  | tyred1funl t1 t1' t2 : t1 ~>ty1 t1' -> t1 ->t t2 ~>ty1 t1' ->t t2
-  | tyred1funr t1 t2 t2' : t2 ~>ty1 t2' -> t1 ->t t2 ~>ty1 t1 ->t t2'
-  | tyred1all o t t'     : t ~>ty1 t' -> tyall o t ~>ty1 tyall o t'
-  | tyred1appl t1 t1' t2 : t1 ~>ty1 t1' -> t1 @' t2 ~>ty1 t1' @' t2
-  | tyred1appr t1 t2 t2' : t2 ~>ty1 t2' -> t1 @' t2 ~>ty1 t1 @' t2'
-  | tyred1abs o t t'     : t ~>ty1 t' -> tyabs o t ~>ty1 tyabs o t'
-where "t ~>ty1 t'" := (reduction1_ty t t').
+  | tyred1fst o ty1 ty2     : tyabs o ty1 @' ty2 ~>ty1 subst_ty 0 [:: ty2] ty1
+  | tyred1funl ty1 ty1' ty2 : ty1 ~>ty1 ty1' -> ty1 ->t ty2 ~>ty1 ty1' ->t ty2
+  | tyred1funr ty1 ty2 ty2' : ty2 ~>ty1 ty2' -> ty1 ->t ty2 ~>ty1 ty1 ->t ty2'
+  | tyred1all o ty ty'      : ty ~>ty1 ty' -> tyall o ty ~>ty1 tyall o ty'
+  | tyred1appl ty1 ty1' ty2 : ty1 ~>ty1 ty1' -> ty1 @' ty2 ~>ty1 ty1' @' ty2
+  | tyred1appr ty1 ty2 ty2' : ty2 ~>ty1 ty2' -> ty1 @' ty2 ~>ty1 ty1 @' ty2'
+  | tyred1abs o ty ty'      : ty ~>ty1 ty' -> tyabs o ty ~>ty1 tyabs o ty'
+where "ty ~>ty1 ty'" := (reduction1_ty ty ty').
 
 Notation reduction_ty := [* reduction1_ty].
 Infix "~>ty" := reduction_ty (at level 70, no associativity).
@@ -182,6 +182,28 @@ by rewrite /ordering /=;
 Qed.
 
 Notation SN_ty := (Acc (fun x y => reduction1_ty y x)).
+
+Lemma SN_ty_fun tyl tyr : SN_ty tyl /\ SN_ty tyr <-> SN_ty (tyl ->t tyr).
+Proof.
+split => [[] |]; last split.
+- by move: tyl tyr; refine (Acc_ind2 _) => tyl tyr H H0;
+    constructor => ty H1; inversion H1; subst; [apply H | apply H0].
+- move: {2 3}(_ ->t _) (erefl (tyl ->t tyr)) H => ty H H0.
+  by elim/Acc_ind': ty / H0 tyl H => ty IH tyl H; subst ty;
+    constructor => tyl' H; apply (IH (tyl' ->t tyr)) => //; constructor.
+- move: {2 3}(_ ->t _) (erefl (tyl ->t tyr)) H => ty H H0.
+  by elim/Acc_ind': ty / H0 tyr H => ty IH tyr H; subst ty;
+    constructor => tyr' H; apply (IH (tyl ->t tyr')) => //; constructor.
+Qed.
+
+Lemma SN_ty_all o ty : SN_ty ty <-> SN_ty (tyall o ty).
+Proof.
+split; first by elim/Acc_ind': ty / => ty IH;
+                constructor => ty' H; inversion H; subst; apply IH.
+move: {2 3}(tyall _ _) (erefl (tyall o ty)) => ty' H H0.
+by elim/Acc_ind': ty' / H0 ty H => ty'' IH ty H; subst ty'';
+  constructor => ty' H; apply (IH (tyall o ty')) => //; constructor.
+Qed.
 
 Definition neutral (ty : typ) : bool :=
   match ty with tyabs _ _ => false | _ => true end.
@@ -333,22 +355,15 @@ elim: ty o ctx ctx'.
   + case/eqP => ->; tauto.
   + by move => n H [_ H0]; apply IH.
 - move => tyl IHl tyr IHr o ctx ctx' /=.
-  rewrite ordering_funE => /and3P [H H0] /eqP -> {o} H1.
-  move: {tyl tyr} (subst_ty _ _ tyl) (subst_ty _ _ tyr)
-        {IHl IHr H H0 H1} (IHl _ _ _ H H1) (IHr _ _ _ H0 H1) => /=.
-  by refine (Acc_ind2 _) => tyl tyr IHl IHr; constructor => ty H;
-    inversion H; subst; auto.
+  rewrite ordering_funE => /and3P [H H0] /eqP -> {o} H1 /=.
+  by apply SN_ty_fun; split; [apply (IHl _ _ _ H H1) | apply (IHr _ _ _ H0 H1)].
 - move => o ty IH o' ctx ctx'.
-  rewrite ordering_allE => /andP [] H /eqP -> {o'} H0 /=.
+  rewrite ordering_allE => /andP [] H /eqP -> {o'} H0 /=; apply SN_ty_all.
   have/(IH data ctx ((tyvar 0, o) :: ctx') H) /=:
     Forall (fun p => reducible p.2 p.1) ((tyvar 0, o) :: ctx')
     by split => //=; apply CR3 => // ty' H1; inversion H1.
-  rewrite -/([:: _] ++ _) -subst_app_ty /= addn0.
-  move: (subst_ty 1 _ _) {IH H H0} => ty'.
-  move: {1 3}(subst_ty _ _ _) (erefl (subst_ty 0 [:: tyvar 0] ty')) => ty'' H H0.
-  elim/Acc_ind': ty'' / H0 ty' H => ty' H ty'' H0; subst ty'.
-  constructor => ty''' H0; inversion H0; subst.
-  by apply (H (subst_ty 0 [:: tyvar 0] t')) => //; apply subst_reduction1_ty.
+  rewrite -(subst_app_ty _ [:: _]) /= addn0; move: (subst_ty 1 _ _) => ty'.
+  by apply acc_preservation => x y H1; apply subst_reduction1_ty.
 - move => tyl IHl tyr IHr or ctx ctx' /ordering_appP [ol H H0] H1.
   by move: (IHl (ol ->o or) ctx ctx') => /=; apply => //; apply IHr with ctx.
 - move => ol ty IH o ctx ctx' /ordering_absP [or -> H] H0.

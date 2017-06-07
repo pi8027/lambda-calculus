@@ -130,5 +130,5 @@ Lemma Acc_ind2
 Proof.
 move => H x y Hx Hy;
   elim/Acc_ind: x / Hx y Hy => x Hx IHx y Hy; elim/Acc_ind: y / Hy => y Hy IHy.
-apply H => [x' | y'] H2; by [apply IHx | apply IHy].
+by apply H => [x' | y'] H2; [apply IHx | apply IHy].
 Qed.
