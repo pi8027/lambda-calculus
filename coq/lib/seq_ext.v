@@ -52,7 +52,8 @@ End Insert.
 
 Definition context A := (seq (option A)).
 
-Notation ctxindex xs n x := (Some x == nth None xs n).
+Notation ctxnth := (nth None).
+Notation ctxindex xs n x := (Some x == ctxnth xs n).
 Notation ctxmap f xs := (map (omap f) xs).
 Notation ctxinsert xs ys n := (insert xs ys None n).
 
@@ -126,20 +127,24 @@ End Context1.
 
 Infix "<=c" := ctxleq (at level 70, no associativity).
 
+Lemma ctxnth_map A B (f : A -> B) xs n :
+  ctxnth (ctxmap f xs) n = omap f (ctxnth xs n).
+Proof. by elim: xs n => [| x xs IH] []. Defined.
+
 Section Context2.
 
 Variable (A B : eqType).
 
 Lemma ctxindex_map (f : A -> B) xs n x :
   ctxindex xs n x -> ctxindex (ctxmap f xs) n (f x).
-Proof. by elim: xs n x => [| x xs IH] [] //= x' /eqP <-. Qed.
+Proof. by rewrite ctxnth_map => /eqP <-. Qed.
 
 Lemma ctxleq_map (f : A -> B) xs ys :
   xs <=c ys -> ctxmap f xs <=c ctxmap f ys.
 Proof.
 move/ctxleqP => H; apply/ctxleqP => n a.
 move: (H n); rewrite -!(nth_map' (omap f) None).
-by case: (nth None xs n) => //= a' /(_ a' (eqxx _)) /eqP => <-.
+by case: (ctxnth xs n) => //= a' /(_ a' (eqxx _)) /eqP => <-.
 Qed.
 
 End Context2.

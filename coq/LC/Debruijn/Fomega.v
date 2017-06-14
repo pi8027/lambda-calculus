@@ -6,7 +6,9 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 Unset Printing Implicit Defensive.
 
-(* Orders *)
+(*******************************************************************************
+ Orders
+*******************************************************************************)
 
 Inductive ord := data | ofun of ord & ord.
 
@@ -40,14 +42,14 @@ Inductive typ
 Coercion tyvar : nat >-> typ.
 
 Notation "ty ->t ty'" := (tyfun ty ty') (at level 50, no associativity).
-Notation "ty @' ty'" := (tyapp ty ty') (at level 60, no associativity).
+Notation "ty @t ty'" := (tyapp ty ty') (at level 60, no associativity).
 
 Fixpoint eqtyp t1 t2 :=
   match t1, t2 with
     | tyvar n, tyvar m => n == m
     | t1l ->t t1r, t2l ->t t2r => eqtyp t1l t2l && eqtyp t1r t2r
     | tyall o1 t1, tyall o2 t2 => (o1 == o2) && eqtyp t1 t2
-    | t1l @' t1r, t2l @' t2r => eqtyp t1l t2l && eqtyp t1r t2r
+    | t1l @t t1r, t2l @t t2r => eqtyp t1l t2l && eqtyp t1r t2r
     | tyabs o1 t1, tyabs o2 t2 => (o1 == o2) && eqtyp t1 t2
     | _, _ => false
   end.
@@ -71,7 +73,7 @@ Fixpoint shift_ty d c t :=
     | tyvar n => tyvar (if c <= n then n + d else n)
     | tl ->t tr => shift_ty d c tl ->t shift_ty d c tr
     | tyall o t => tyall o (shift_ty d c.+1 t)
-    | tl @' tr => shift_ty d c tl @' shift_ty d c tr
+    | tl @t tr => shift_ty d c tl @t shift_ty d c tr
     | tyabs o t => tyabs o (shift_ty d c.+1 t)
   end.
 
@@ -83,19 +85,19 @@ Fixpoint subst_ty n ts t :=
     | tyvar m => if n <= m then subst_tyv ts m n else m
     | tl ->t tr => subst_ty n ts tl ->t subst_ty n ts tr
     | tyall o t => tyall o (subst_ty n.+1 ts t)
-    | tl @' tr => subst_ty n ts tl @' subst_ty n ts tr
+    | tl @t tr => subst_ty n ts tl @t subst_ty n ts tr
     | tyabs o t => tyabs o (subst_ty n.+1 ts t)
   end.
 
 Reserved Notation "t ~>ty1 t'" (at level 70, no associativity).
 
 Inductive reduction1_ty : relation typ :=
-  | tyred1fst o ty1 ty2     : tyabs o ty1 @' ty2 ~>ty1 subst_ty 0 [:: ty2] ty1
+  | tyred1fst o ty1 ty2     : tyabs o ty1 @t ty2 ~>ty1 subst_ty 0 [:: ty2] ty1
   | tyred1funl ty1 ty1' ty2 : ty1 ~>ty1 ty1' -> ty1 ->t ty2 ~>ty1 ty1' ->t ty2
   | tyred1funr ty1 ty2 ty2' : ty2 ~>ty1 ty2' -> ty1 ->t ty2 ~>ty1 ty1 ->t ty2'
   | tyred1all o ty ty'      : ty ~>ty1 ty' -> tyall o ty ~>ty1 tyall o ty'
-  | tyred1appl ty1 ty1' ty2 : ty1 ~>ty1 ty1' -> ty1 @' ty2 ~>ty1 ty1' @' ty2
-  | tyred1appr ty1 ty2 ty2' : ty2 ~>ty1 ty2' -> ty1 @' ty2 ~>ty1 ty1 @' ty2'
+  | tyred1appl ty1 ty1' ty2 : ty1 ~>ty1 ty1' -> ty1 @t ty2 ~>ty1 ty1' @t ty2
+  | tyred1appr ty1 ty2 ty2' : ty2 ~>ty1 ty2' -> ty1 @t ty2 ~>ty1 ty1 @t ty2'
   | tyred1abs o ty ty'      : ty ~>ty1 ty' -> tyabs o ty ~>ty1 tyabs o ty'
 where "ty ~>ty1 ty'" := (reduction1_ty ty ty').
 
@@ -104,23 +106,23 @@ Infix "~>ty" := reduction_ty (at level 70, no associativity).
 
 Hint Constructors reduction1_ty.
 
-Fixpoint ordering_rec (ctx : context ord) (t : typ) : option ord :=
+Fixpoint ordering' (ctx : context ord) (t : typ) : option ord :=
   match t with
     | tyvar n => nth None ctx n
-    | tyfun tl tr =>
-      if (ordering_rec ctx tl == Some data) &&
-         (ordering_rec ctx tr == Some data)
+    | tl ->t tr =>
+      if (Some data == ordering' ctx tl) &&
+         (Some data == ordering' ctx tr)
       then Some data else None
     | tyall o t =>
-      if ordering_rec (Some o :: ctx) t == Some data then Some data else None
-    | tyabs o t => omap (ofun o) (ordering_rec (Some o :: ctx) t)
-    | tyapp tl tr =>
-      if ordering_rec ctx tl is Some (ol ->o or)
-      then (if ordering_rec ctx tr == Some ol then Some or else None)
+      if Some data == ordering' (Some o :: ctx) t then Some data else None
+    | tl @t tr =>
+      if ordering' ctx tl is Some (ol ->o or)
+      then (if Some ol == ordering' ctx tr then Some or else None)
       else None
+    | tyabs o t => omap (ofun o) (ordering' (Some o :: ctx) t)
   end.
 
-Definition ordering := nosimpl ordering_rec.
+Definition ordering := nosimpl ordering'.
 
 Notation "ctx \|-o ty \: o" := (Some o == ordering ctx ty)
   (at level 69, no associativity).
@@ -135,8 +137,7 @@ Lemma ordering_funE ctx tyl tyr o :
   ctx \|-o tyl ->t tyr \: o =
   [&& ctx \|-o tyl \: data, ctx \|-o tyr \: data & o == data].
 Proof.
-by rewrite /ordering /= !(eq_sym _ (Some data));
-  do 2 case: (Some _ =P ordering_rec _ _).
+by rewrite /ordering /=; do 2 case: (Some _ =P ordering' _ _).
 Qed.
 
 Lemma ordering_funE' ctx tyl tyr :
@@ -147,8 +148,7 @@ Proof. by rewrite ordering_funE eqxx andbT. Qed.
 Lemma ordering_allE ctx o t o' :
   ctx \|-o tyall o t \: o' = (Some o :: ctx \|-o t \: data) && (o' == data).
 Proof.
-by rewrite /ordering /= !(eq_sym _ (Some data));
-  case: (Some _ =P ordering_rec _ _).
+by rewrite /ordering /=; case: (Some _ =P ordering _ _).
 Qed.
 
 Lemma ordering_allE' ctx o t :
@@ -157,11 +157,11 @@ Proof. by rewrite ordering_allE eqxx andbT. Qed.
 
 Lemma ordering_appP ctx tyl tyr o :
   reflect (exists2 ol, ctx \|-o tyl \: ol ->o o & ctx \|-o tyr \: ol)
-          (ctx \|-o tyl @' tyr \: o).
+          (ctx \|-o tyl @t tyr \: o).
 Proof.
 apply: (iffP idP); rewrite /ordering /=.
-- by move: (ordering_rec ctx tyl) => [] // [] // ol or;
-    case: ifP => // /eqP -> /eqP [] ->; exists ol.
+- by case: (ordering' ctx tyl) => // -[] // ol or;
+    case: ifP => // /eqP <- /eqP [] ->; exists ol.
 - by case => ol /eqP <- /eqP <-; rewrite eqxx.
 Qed.
 
@@ -170,20 +170,57 @@ Lemma ordering_absP ctx ol ty o :
           (ctx \|-o tyabs ol ty \: o).
 Proof.
 apply: (iffP idP); rewrite /ordering /=.
-- by case: ordering_rec => //= or /eqP [] ->; exists or.
-- by case => or ->; case: ordering_rec => // or' /eqP [] <-.
+- by case: ordering' => //= or /eqP [] ->; exists or.
+- by case => or ->; case: ordering' => // or' /eqP [] <-.
 Qed.
 
 Lemma ordering_absE ctx ol or ty :
   ctx \|-o tyabs ol ty \: ol ->o or = Some ol :: ctx \|-o ty \: or.
 Proof.
 by rewrite /ordering /=;
-  case: (ordering_rec _ _) => //= o; apply/eqP/eqP; do!case => ->.
+  case: (ordering' _ _) => //= o; apply/eqP/eqP; do!case => ->.
 Qed.
+
+Lemma ordering_rect
+  (P : context ord -> typ -> ord -> Type)
+  (H1 : forall ctx n o, ctxindex ctx n o -> P ctx (tyvar n) o)
+  (H2 : forall ctx tl tr,
+      ctx \|-o tl \: data -> P ctx tl data ->
+      ctx \|-o tr \: data -> P ctx tr data ->
+      P ctx (tl ->t tr) data)
+  (H3 : forall ctx t o,
+      Some o :: ctx \|-o t \: data -> P (Some o :: ctx) t data ->
+      P ctx (tyall o t) data)
+  (H4 : forall ctx tl tr ol or,
+      ctx \|-o tl \: ol ->o or -> P ctx tl (ol ->o or) ->
+      ctx \|-o tr \: ol -> P ctx tr ol -> P ctx (tl @t tr) or)
+  (H5 : forall ctx t ol or,
+      Some ol :: ctx \|-o t \: or -> P (Some ol :: ctx) t or ->
+      P ctx (tyabs ol t) (ol ->o or)) :
+  forall ctx (t : typ) (o : ord), ctx \|-o t \: o -> P ctx t o.
+Proof.
+have eqelim (o1 o2 : ord) : Some o1 == Some o2 -> o1 = o2 by
+  compute; rewrite -/eqord; elim: o1 o2 => [| o1l IHl o1r IHr] [| o2l o2r] //=;
+  case_eq (eqord o1l o2l) => //= /IHl -> /IHr ->.
+unfold ordering in * => ctx t; elim: t ctx => //=.
+- by move => n ctx o /H1.
+- by move => tl IHl tr IHr ctx o;
+    case_eq (Some data == ordering' ctx tr);
+    case_eq (Some data == ordering' ctx tl) => //= Hl Hr;
+    case: o => // _; apply H2; auto.
+- by move => o t IH ctx o'; set b := _ == ordering' _ _;
+    case_eq b; subst b => //= H; case: o' => // _; apply H3; auto.
+- move => tl IHl tr IHr ctx o; case_eq (ordering' ctx tl) => // -[] //= ol or;
+    set b := _ == ordering' _ _; case_eq b; subst b => //= H H' /eqelim -> {o};
+    apply (H4 _ _ _ ol) => //=;
+    by [ rewrite H' | apply IHl; rewrite H' | apply IHr ].
+- by move => ol t IH ctx o; case_eq (ordering' (Some ol :: ctx) t)
+    => //= or H /eqelim -> {o}; apply H5; last apply IH; rewrite H.
+Defined.
 
 Notation SN_ty := (Acc (fun x y => reduction1_ty y x)).
 
-Lemma SN_ty_fun tyl tyr : SN_ty tyl /\ SN_ty tyr <-> SN_ty (tyl ->t tyr).
+Lemma SN_ty_fun tyl tyr : SN_ty tyl * SN_ty tyr <-> SN_ty (tyl ->t tyr).
 Proof.
 split => [[] |]; last split.
 - by move: tyl tyr; refine (Acc_ind2 _) => tyl tyr H H0;
@@ -200,9 +237,18 @@ Lemma SN_ty_all o ty : SN_ty ty <-> SN_ty (tyall o ty).
 Proof.
 split; first by elim/Acc_ind': ty / => ty IH;
                 constructor => ty' H; inversion H; subst; apply IH.
-move: {2 3}(tyall _ _) (erefl (tyall o ty)) => ty' H H0.
-by elim/Acc_ind': ty' / H0 ty H => ty'' IH ty H; subst ty'';
+by move: {2 3}(tyall _ _) (erefl (tyall o ty)) => ty' H H0;
+  elim/Acc_ind': ty' / H0 ty H => ty'' IH ty H; subst ty'';
   constructor => ty' H; apply (IH (tyall o ty')) => //; constructor.
+Qed.
+
+Lemma SN_ty_abs o ty : SN_ty ty <-> SN_ty (tyabs o ty).
+Proof.
+split; first by elim/Acc_ind': ty / => ty IH;
+                constructor => ty' H; inversion H; subst; apply IH.
+by move: {2 3}(tyabs _ _) (erefl (tyabs o ty)) => ty' H H0;
+  elim/Acc_ind': ty' / H0 ty H => ty'' IH ty H; subst ty'';
+  constructor => ty' H; apply (IH (tyabs o ty')) => //; constructor.
 Qed.
 
 Definition neutral (ty : typ) : bool :=
@@ -292,19 +338,20 @@ Qed.
 (*******************************************************************************
 Strong normalization proof for types with the order-free version of reducibility
 *******************************************************************************)
+
 Module typelevel_strong_normalization_proof_orderfree.
 
 Fixpoint reducible (o : ord) (ty : typ) : Prop :=
   match o with
     | data => SN_ty ty
-    | ol ->o or => forall ty', reducible ol ty' -> reducible or (ty @' ty')
+    | ol ->o or => forall ty', reducible ol ty' -> reducible or (ty @t ty')
   end.
 
 Lemma CR2 o ty ty' : ty ~>ty1 ty' -> reducible o ty -> reducible o ty'.
 Proof.
 elim: o ty ty' => /= [| ol IHl or IHr] ty ty' H.
 - by case; apply.
-- by move => H0 ty'' H1; apply IHr with (ty @' ty''); auto.
+- by move => H0 ty'' H1; apply IHr with (ty @t ty''); auto.
 Qed.
 
 Hint Resolve CR2.
@@ -316,7 +363,7 @@ Lemma CR1_and_CR3 o :
 Proof.
 elim: o; first by [].
 move => /= ol [IHl1 IHl2] or [IHr1 IHr2]; split => [ty H | tyl H H0 tyr H1].
-- suff: SN_ty ([fun ty => ty @' 0] ty) by apply acc_preservation; constructor.
+- suff: SN_ty ([fun ty => ty @t 0] ty) by apply acc_preservation; constructor.
   apply IHr1, IHr2 => // t' H0.
   apply (CR2 H0), H, IHl2 => // t'' H1; inversion H1.
 - move: (IHl1 tyr H1) => H2; elim/Acc_ind': tyr / H2 H1 => tyr IH H1.
@@ -371,9 +418,53 @@ elim: ty o ctx ctx'.
   by rewrite subst_app_ty /=; apply (IH or ctx ((ty', ol) :: ctx')).
 Qed.
 
-Theorem typed_term_is_sn ctx ty o : ctx \|-o ty \: o -> SN_ty ty.
+Theorem orderd_type_is_sn ctx ty o : ctx \|-o ty \: o -> SN_ty ty.
 Proof.
 by move/(@reduce_lemma ctx [::]) => /= /(_ I); rewrite subst_nil_ty; apply CR1.
 Qed.
 
 End typelevel_strong_normalization_proof_orderfree.
+
+(*******************************************************************************
+ Normalization by Evaluation for Types
+*******************************************************************************)
+
+Fixpoint semt (o : ord) :=
+  if o is ol ->o or then semt ol -> semt or else typ.
+
+Fixpoint reflect_ty (o : ord) (t : typ) : semt o :=
+  if o is ol ->o or
+  then fun t' : semt ol => reflect_ty or (tyapp t (@reify_ty ol t'))
+  else t
+with reify_ty (o : ord) : semt o -> typ :=
+  if o is ol ->o or
+  then fun f => tyabs ol (@reify_ty or (f (reflect_ty ol (tyvar 0))))
+  else fun t => t.
+
+Definition meaning (ctx : context {o : ord & semt o}) (t : typ) (o : ord) :
+  ctxmap (@projT1 _ _) ctx \|-o t \: o -> semt o.
+Proof.
+have eqelim (o1 o2 : ord) : Some o1 == Some o2 -> o1 = o2 by
+  compute; rewrite -/eqord; elim: o1 o2 => [| o1l IHl o1r IHr] [| o2l o2r] //=;
+  case_eq (eqord o1l o2l) => //= /IHl -> /IHr ->.
+move: {1 3}(map _ _) (erefl (ctxmap (@projT1 _ _) ctx)) => ctx' Hctx Hty.
+elim/ordering_rect: ctx' t o / Hty ctx Hctx => /=.
+- by move => ctx' n o H ctx Hctx'; subst ctx'; move: H;
+    rewrite ctxnth_map /=; case: (ctxnth ctx n) => //= -[] //= x t /eqelim ->.
+- move => ctx' tl tr _ IHl _ IHr ctx Hctx; exact (IHl _ Hctx ->t IHr _ Hctx).
+- move => ctx' t o _ IH ctx Hctx.
+  apply (tyall o), (IH (Some (existT _ o (reflect_ty o (tyvar 0))) :: ctx)).
+  by rewrite /= -Hctx.
+- by move => ctx' tl tr ol or _ IHl _ IHr ctx Hctx;
+    apply (IHl _ Hctx (IHr _ Hctx)).
+- by move => ctx' t ol or _ IH ctx Hctx st;
+    apply (IH (Some (existT _ ol st) :: ctx)); rewrite /= -Hctx.
+Defined.
+
+Definition NbE
+           (ctx : context {o : ord & semt o}) (t : typ) (o : ord)
+           (H : ctxmap (@projT1 _ _) ctx \|-o t \: o) :=
+  @reify_ty o (@meaning ctx t o H).
+
+Eval vm_compute in
+  (@NbE [::] ((tyabs data 0) @t (tyall data 0)) data (erefl _)).
