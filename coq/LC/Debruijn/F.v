@@ -553,7 +553,7 @@ Proof. apply (rtc_map' (fun x y => @red1appr t1 x y)). Qed.
 Lemma redapp t1 t1' t2 t2' :
   t1 ->r t1' -> t2 ->r t2' -> t1 @ t2 ->r t1' @ t2'.
 Proof.
-by move => H H0; eapply rtc_trans' with (t1' @ t2);
+by move => H H0; eapply rtc_trans with (t1' @ t2);
   [apply redappl | apply redappr].
 Qed.
 
@@ -659,11 +659,11 @@ Lemma parred_in_betared : inclusion parred reduction.
 Proof.
 apply parred_ind => //; auto.
 - move => ty t1 t1' t2 t2' H H0 H1 H2.
-  apply rtc_trans' with (abs ty t1' @ t2); auto.
-  apply rtc_trans' with (abs ty t1' @ t2'); auto.
+  apply rtc_trans with (abs ty t1' @ t2); auto.
+  apply rtc_trans with (abs ty t1' @ t2'); auto.
   by apply rtc_step.
 - move => t t' ty H H0.
-  apply rtc_trans' with (uabs t' @' ty); auto.
+  apply rtc_trans with (uabs t' @' ty); auto.
   by apply rtc_step.
 Qed.
 
@@ -722,8 +722,7 @@ Qed.
 
 Lemma parred_confluent : confluent parred.
 Proof.
-by move => t1 t2 t3 H H0;
-  exists (reduce_all_redex t1); split; apply parred_all_lemma.
+by move => t1 t2 t3 H H0; exists (reduce_all_redex t1); apply parred_all_lemma.
 Qed.
 
 Theorem betared_confluent : confluent reduction.

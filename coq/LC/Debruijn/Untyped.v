@@ -182,9 +182,9 @@ Proof. apply betared1_ind; auto. Qed.
 Lemma parred_in_betared : inclusion parred betared.
 Proof.
 apply parred_ind; auto => t1 t1' t2 t2' H H0 H1 H2.
-- apply rtc_trans' with (app t1' t2); auto.
-- apply rtc_trans' with (app (abs t1') t2); auto.
-  apply rtc_trans' with (app (abs t1') t2'); auto.
+- apply rtc_trans with (app t1' t2); auto.
+- apply rtc_trans with (app (abs t1') t2); auto.
+  apply rtc_trans with (app (abs t1') t2'); auto.
   by apply rtc_step.
 Qed.
 
@@ -221,8 +221,7 @@ Qed.
 
 Lemma parred_confluent : confluent parred.
 Proof.
-by move => t1 t2 t3 H H0;
-  exists (reduce_all_redex t1); split; apply parred_all_lemma.
+by move => t1 t2 t3 H H0; exists (reduce_all_redex t1); apply parred_all_lemma.
 Qed.
 
 Theorem betared_confluent : confluent betared.

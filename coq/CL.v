@@ -93,7 +93,7 @@ Hint Resolve weakred_rtc_left weakred_rtc_right.
 
 Lemma weakred_rtc_app t1 t1' t2 t2' :
   t1 ->w t1' -> t2 ->w t2' -> (t1 @ t2) ->w (t1' @ t2').
-Proof. move => H H0; apply rtc_trans' with (t1 @ t2'); auto. Qed.
+Proof. move => H H0; apply rtc_trans with (t1 @ t2'); auto. Qed.
 
 Hint Resolve weakred_rtc_app.
 
@@ -125,8 +125,8 @@ Example example_2_12 t1 t2 t3 : cl_comb_c @ t1 @ t2 @ t3 ->w t1 @ t3 @ t2.
 Proof.
 rewrite /cl_comb_c.
 eapply rt1n_trans; first apply weakred_left, weakred_left, weakred_s.
-eapply rtc_trans'; first (do 3 apply weakred_rtc_left; apply example_2_11).
-eapply rtc_trans'; first apply weakred_rtc_left, example_2_11.
+eapply rtc_trans; first (do 3 apply weakred_rtc_left; apply example_2_11).
+eapply rtc_trans; first apply weakred_rtc_left, example_2_11.
 eapply rt1n_trans; first apply weakred_s.
 apply weakred_rtc_right.
 eapply rt1n_trans; first apply weakred_left, weakred_left, weakred_k.
@@ -241,9 +241,7 @@ destruct t1; try by constructor.
 Qed.
 
 Theorem cl_parred_confluent : confluent cl_parred.
-Proof.
-by move => t1; exists (cl_parred_all t1); split; apply cl_parred_all_lemma.
-Qed.
+Proof. by move => t1; exists (cl_parred_all t1); apply cl_parred_all_lemma. Qed.
 
 Theorem cl_weakred_confluent : confluent cl_weakred_rtc.
 Proof.
@@ -257,7 +255,7 @@ Corollary cl_weaknf_uniqueness t1 t2 t3 :
   cl_weaknf_of t2 t1 -> cl_weaknf_of t3 t1 -> t2 = t3.
 Proof.
 case => H H0; case => H1 H2.
-case: (cl_weakred_confluent H H1) => [t4 [H3 H4]].
+case: (cl_weakred_confluent H H1) => [t4 H3 H4].
 inversion H3.
 - inversion H4.
   + auto.
