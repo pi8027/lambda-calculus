@@ -1,4 +1,3 @@
-From Coq Require Import Relations.
 From mathcomp Require Import ssreflect ssrnat.
 From LCAC Require Import Relations_ext.
 

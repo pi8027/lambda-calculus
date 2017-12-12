@@ -32,6 +32,10 @@ have ->: minn n (size ys) + (n - size ys) = n by ssromega.
 elimif_omega; rewrite nth_nseq H0 nth_default //; ssromega.
 Qed.
 
+Lemma cons_insert n y (xs ys : seq A) d :
+  y :: (insert xs ys d n) = insert xs (y :: ys) d n.+1.
+Proof. by rewrite /insert /= subSS. Qed.
+
 Lemma take_insert n (xs ys : seq A) d :
   take n (insert xs ys d n) = take n ys ++ nseq (n - size ys) d.
 Proof.
@@ -57,7 +61,7 @@ Notation ctxindex xs n x := (Some x == ctxnth xs n).
 Notation ctxmap f xs := (map (omap f) xs).
 Notation ctxinsert xs ys n := (insert xs ys None n).
 
-Section Context1.
+Section Context.
 
 Variable (A : eqType).
 
@@ -85,7 +89,7 @@ by case/boolP: (Some x == None) => // _; rewrite orbF.
 Qed.
 
 Lemma ctxleqP (xs ys : context A) :
-  reflect (forall n a, ctxindex xs n a -> ctxindex ys n a) (ctxleq xs ys).
+  reflect (forall n a, ctxindex xs n a -> ctxindex ys n a) (xs <=c ys).
 Proof.
 apply: (iffP idP); elim: xs ys => [| x xs IH].
 - by move => ys _ n a; rewrite nth_nil.
@@ -123,7 +127,14 @@ Proof. by rewrite -{1}(cats0 xs) ctxleq_appl. Qed.
 Lemma ctxindex_last ctx (x : A) : ctxindex (ctx ++ [:: Some x]) (size ctx) x.
 Proof. by rewrite nth_cat ltnn subnn. Qed.
 
-End Context1.
+Lemma ctxinsert_leq n (xs ys zs : context A) :
+  ctxinsert xs ys n <=c zs ->
+  exists xs' ys', [&& zs <=c ctxinsert xs' ys' n, ctxinsert xs' ys' n <=c zs,
+                      xs <=c xs' & ys <=c ys'].
+Proof.
+Abort.
+
+End Context.
 
 Infix "<=c" := ctxleq (at level 70, no associativity).
 
@@ -131,23 +142,17 @@ Lemma ctxnth_map A B (f : A -> B) xs n :
   ctxnth (ctxmap f xs) n = omap f (ctxnth xs n).
 Proof. by elim: xs n => [| x xs IH] []. Defined.
 
-Section Context2.
-
-Variable (A B : eqType).
-
-Lemma ctxindex_map (f : A -> B) xs n x :
+Lemma ctxindex_map (A B : eqType) (f : A -> B) xs n x :
   ctxindex xs n x -> ctxindex (ctxmap f xs) n (f x).
 Proof. by rewrite ctxnth_map => /eqP <-. Qed.
 
-Lemma ctxleq_map (f : A -> B) xs ys :
+Lemma ctxleq_map (A B : eqType) (f : A -> B) xs ys :
   xs <=c ys -> ctxmap f xs <=c ctxmap f ys.
 Proof.
 move/ctxleqP => H; apply/ctxleqP => n a.
 move: (H n); rewrite -!(nth_map' (omap f) None).
 by case: (ctxnth xs n) => //= a' /(_ a' (eqxx _)) /eqP => <-.
 Qed.
-
-End Context2.
 
 Hint Resolve ctxindex_map ctxleqxx ctxleq_trans ctxleq_app
              ctxleq_appl ctxleq_appr ctxleq_map.

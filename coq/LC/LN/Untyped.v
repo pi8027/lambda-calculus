@@ -1,5 +1,3 @@
-Require Import Program Omega.
-From Coq Require Import Relations Relation_Operators.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
 From LCAC Require Import Relations_ext.
 

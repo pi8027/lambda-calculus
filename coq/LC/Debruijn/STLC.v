@@ -1,4 +1,3 @@
-From Coq Require Import Relations Relation_Operators.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
 From LCAC Require Import Relations_ext seq_ext_base ssrnat_ext seq_ext.
 
@@ -12,21 +11,28 @@ Inductive term := var of nat | app of term & term | abs of typ & term.
 Coercion tyvar : nat >-> typ.
 Coercion var : nat >-> term.
 
-Notation "ty :->: ty'" := (tyfun ty ty') (at level 50, no associativity).
-Notation "t @ t'" := (app t t') (at level 60, no associativity).
+Notation "ty ->t ty'" := (tyfun ty ty') (at level 55, right associativity).
+Notation "t @ t'" := (app t t') (at level 65, left associativity).
 
 Fixpoint eqtyp t1 t2 :=
   match t1, t2 with
-    | tyvar n, tyvar m => n == m
-    | t1l :->: t1r, t2l :->: t2r => eqtyp t1l t2l && eqtyp t1r t2r
+    | tyvar n, tyvar m => eqn n m
+    | t1l ->t t1r, t2l ->t t2r => eqtyp t1l t2l && eqtyp t1r t2r
     | _, _ => false
   end.
 
+Lemma eqnP' : Equality.axiom eqn.
+Proof.
+elim => [| n IH] [| m] //=; try by constructor.
+by case: (IH m) => H; constructor; [f_equal | case].
+Defined.
+
 Lemma eqtypP : Equality.axiom eqtyp.
 Proof.
-move => t1 t2; apply: (iffP idP) => [| <-]; last by elim: t1 => //= t1l ->.
-by elim: t1 t2 => [n | t1l IHl t1r IHr]
-  [// m /eqP -> | //= t2l t2r /andP [] /IHl -> /IHr ->].
+elim => [n | t1l IHl t1r IHr] [m | t2l t2r] /=; try by constructor.
+- by case: eqnP'; constructor; [f_equal | case].
+- move: (IHl t2l) (IHr t2r) => [] Hl [] Hr;
+    constructor; by [f_equal | case].
 Defined.
 
 Canonical typ_eqMixin := EqMixin eqtypP.
@@ -69,17 +75,19 @@ Fixpoint substitute n ts t : term :=
     | abs ty t' => abs ty (substitute n.+1 ts t')
   end.
 
-Reserved Notation "t ->b1 t'" (at level 80, no associativity).
+Reserved Notation "t ~>b1 t'" (at level 70, no associativity).
 
 Inductive betared1 : relation term :=
-  | betared1beta ty t1 t2 : abs ty t1 @ t2 ->b1 substitute 0 [:: t2] t1
-  | betared1appl t1 t1' t2 : t1 ->b1 t1' -> t1 @ t2 ->b1 t1' @ t2
-  | betared1appr t1 t2 t2' : t2 ->b1 t2' -> t1 @ t2 ->b1 t1 @ t2'
-  | betared1abs ty t t' : t ->b1 t' -> abs ty t ->b1 abs ty t'
-  where "t ->b1 t'" := (betared1 t t').
+  | betared1beta ty t1 t2 : abs ty t1 @ t2 ~>b1 substitute 0 [:: t2] t1
+  | betared1appl t1 t1' t2 : t1 ~>b1 t1' -> t1 @ t2 ~>b1 t1' @ t2
+  | betared1appr t1 t2 t2' : t2 ~>b1 t2' -> t1 @ t2 ~>b1 t1 @ t2'
+  | betared1abs ty t t' : t ~>b1 t' -> abs ty t ~>b1 abs ty t'
+  where "t ~>b1 t'" := (betared1 t t').
 
 Notation betared := [* betared1].
-Infix "->b" := betared (at level 80, no associativity).
+Notation betaeq  := [= betared1].
+Infix "~>b"      := betared (at level 70, no associativity).
+Infix "==b"      := betaeq  (at level 70, no associativity).
 
 Hint Constructors betared1.
 
@@ -87,7 +95,7 @@ Fixpoint typing_rec (ctx : context typ) (t : term) : option typ :=
   match t with
     | var n => nth None ctx n
     | tl @ tr =>
-      if typing_rec ctx tl is Some (tyl :->: tyr)
+      if typing_rec ctx tl is Some (tyl ->t tyr)
         then (if typing_rec ctx tr == Some tyl then Some tyr else None)
         else None
     | abs ty t => omap (tyfun ty) (typing_rec (Some ty :: ctx) t)
@@ -104,7 +112,7 @@ Lemma typing_varE ctx (n : nat) ty : ctx \|- n \: ty = ctxindex ctx n ty.
 Proof. by rewrite /typing /=. Qed.
 
 Lemma typing_appP ctx t1 t2 ty :
-  reflect (exists2 tyl, ctx \|- t1 \: tyl :->: ty & ctx \|- t2 \: tyl)
+  reflect (exists2 tyl, ctx \|- t1 \: tyl ->t ty & ctx \|- t2 \: tyl)
           (ctx \|- t1 @ t2 \: ty).
 Proof.
 apply: (iffP idP); rewrite /typing /=.
@@ -114,7 +122,7 @@ apply: (iffP idP); rewrite /typing /=.
 Qed.
 
 Lemma typing_absP ctx t tyl ty :
-  reflect (exists2 tyr, ty = tyl :->: tyr & Some tyl :: ctx \|- t \: tyr)
+  reflect (exists2 tyr, ty = tyl ->t tyr & Some tyl :: ctx \|- t \: tyr)
           (ctx \|- abs tyl t \: ty).
 Proof.
 apply: (iffP idP); rewrite /typing /=.
@@ -123,7 +131,7 @@ apply: (iffP idP); rewrite /typing /=.
 Qed.
 
 Lemma typing_absE ctx t tyl tyr :
-  ctx \|- abs tyl t \: tyl :->: tyr = Some tyl :: ctx \|- t \: tyr.
+  ctx \|- abs tyl t \: tyl ->t tyr = Some tyl :: ctx \|- t \: tyr.
 Proof.
 by rewrite /typing /=; case: typing_rec => //= tyr';
   rewrite /eq_op /= /eq_op /= -/eq_op eqxx.
@@ -192,7 +200,7 @@ Lemma subst_nil n t : substitute n [::] t = t.
 Proof. elim: t n; congruence' => v n; rewrite nth_nil /=; elimif_omega. Qed.
 
 Lemma subst_betared1 n ts t t' :
-  t ->b1 t' -> substitute n ts t ->b1 substitute n ts t'.
+  t ~>b1 t' -> substitute n ts t ~>b1 substitute n ts t'.
 Proof.
 move => H; elim/betared1_ind: t t' / H n => /=; auto => t t' ty n.
 by rewrite subst_subst_distr //= add1n subn0.
@@ -255,7 +263,7 @@ Arguments subject_subst [t ty n ctx] _ _ _.
 Arguments subject_subst0 [t ty ctx] _ _ _.
 
 Theorem subject_reduction ctx t1 t2 ty :
-  t1 ->b1 t2 -> ctx \|- t1 \: ty -> ctx \|- t2 \: ty.
+  t1 ~>b1 t2 -> ctx \|- t1 \: ty -> ctx \|- t2 \: ty.
 Proof.
 move => H; elim/betared1_ind: t1 t2 / H ctx ty => /=.
 - move => ty t1 t2 ctx ty2 /typing_appP [tyl] /typing_absP [tyr [-> ->]] H H0.
@@ -275,15 +283,16 @@ End subject_reduction_proof.
 (*******************************************************************************
   Strong normalization proof with the type-free version of reducibility
 *******************************************************************************)
+
 Module strong_normalization_proof_typefree.
 
 Fixpoint reducible (ty : typ) (t : term) : Prop :=
   match ty with
     | tyvar n => SN t
-    | tyl :->: tyr => forall t', reducible tyl t' -> reducible tyr (t @ t')
+    | tyl ->t tyr => forall t', reducible tyl t' -> reducible tyr (t @ t')
   end.
 
-Lemma CR2 t t' ty : t ->b1 t' -> reducible ty t -> reducible ty t'.
+Lemma CR2 t t' ty : t ~>b1 t' -> reducible ty t -> reducible ty t'.
 Proof.
 elim: ty t t' => /= [_ | tyl IHl tyr IHr] t t' H.
 - by case; apply.
@@ -295,7 +304,7 @@ Hint Resolve CR2.
 Lemma CR1_and_CR3 ty :
   (forall t, reducible ty t -> SN t) /\
   (forall t, neutral t ->
-             (forall t', t ->b1 t' -> reducible ty t') -> reducible ty t).
+             (forall t', t ~>b1 t' -> reducible ty t') -> reducible ty t).
 Proof.
 elim: ty; first by [].
 move => /= tyl [IHl1 IHl2] tyr [IHr1 IHr2];
@@ -312,7 +321,7 @@ Definition CR3 t ty := proj2 (CR1_and_CR3 ty) t.
 
 Lemma abs_reducibility t tyl tyr :
   (forall t', reducible tyl t' -> reducible tyr (substitute 0 [:: t'] t)) ->
-  reducible (tyl :->: tyr) (abs tyl t).
+  reducible (tyl ->t tyr) (abs tyl t).
 Proof.
 move => /= H t' H0.
 have H1: SN t by
@@ -336,7 +345,7 @@ elim: t ty ctx ctx'.
   + case/eqP => ->; tauto.
   + by move => n H [_ H0]; apply IH.
 - move => tl IHl tr IHr tyr ctx ctx' /typing_appP [tyl H H0] H1.
-  by move: (IHl (tyl :->: tyr) ctx ctx') => /=;
+  by move: (IHl (tyl ->t tyr) ctx ctx') => /=;
     apply => //; apply IHr with ctx.
 - move => tyl t IH ty ctx ctx' /typing_absP [tyr -> H] H0.
   simpl substitute; apply abs_reducibility => t' H1.
@@ -353,6 +362,7 @@ End strong_normalization_proof_typefree.
 (*******************************************************************************
   Strong normalization proof with the Kripke-style reducibility
 *******************************************************************************)
+
 Module strong_normalization_proof_kripke.
 
 Import subject_reduction_proof.
@@ -360,7 +370,7 @@ Import subject_reduction_proof.
 Fixpoint reducible (ctx : context typ) (ty : typ) (t : term) : Prop :=
   match ty with
     | tyvar n => SN t
-    | tyl :->: tyr => forall t' ctx',
+    | tyl ->t tyr => forall t' ctx',
         ctx <=c ctx' -> ctx' \|- t' \: tyl -> reducible ctx' tyl t' ->
         reducible ctx' tyr (t @ t')
   end.
@@ -373,7 +383,7 @@ apply H0; move: H H1; apply ctxleq_trans.
 Qed.
 
 Lemma CR2 ctx t t' ty :
-  t ->b1 t' -> reducible ctx ty t -> reducible ctx ty t'.
+  t ~>b1 t' -> reducible ctx ty t -> reducible ctx ty t'.
 Proof.
 elim: ty ctx t t'.
 - by move => /= _ _ t t' H []; apply.
@@ -386,7 +396,7 @@ Hint Resolve ctxleq_preserves_reducibility CR2.
 Lemma CR1_and_CR3 ty :
   (forall ctx t, ctx \|- t \: ty -> reducible ctx ty t -> SN t) /\
   (forall ctx t, ctx \|- t \: ty -> neutral t ->
-   (forall t', t ->b1 t' -> reducible ctx ty t') -> reducible ctx ty t).
+   (forall t', t ~>b1 t' -> reducible ctx ty t') -> reducible ctx ty t).
 Proof.
 elim: ty; first by [].
 move => /= tyl [IHl1 IHl2] tyr [IHr1 IHr2];
@@ -409,10 +419,10 @@ Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
 Definition CR3 t ty := proj2 (CR1_and_CR3 ty) t.
 
 Lemma abs_reducibility ctx t tyl tyr :
-  ctx \|- abs tyl t \: tyl :->: tyr ->
+  ctx \|- abs tyl t \: tyl ->t tyr ->
   (forall t' ctx', ctx <=c ctx' -> ctx' \|- t' \: tyl ->
    reducible ctx' tyl t' -> reducible ctx' tyr (substitute 0 [:: t'] t)) ->
-  reducible ctx (tyl :->: tyr) (abs tyl t).
+  reducible ctx (tyl ->t tyr) (abs tyl t).
 Proof.
 move => /= H H0 t' ctx' H1 H2 H3.
 have H4: ctx' \|- substitute 0 [:: t'] t \: tyr by
@@ -446,7 +456,7 @@ elim: t ty ctx ctx'.
   + case/eqP => ->; tauto.
   + by move => n H /andP [_ H0] [_]; apply IH.
 - move => tl IHl tr IHr tyr ctx ctx' /typing_appP [tyl H H0] H1 H2.
-  move: (IHl (tyl :->: tyr) ctx ctx') => /=; apply; auto.
+  move: (IHl (tyl ->t tyr) ctx ctx') => /=; apply; auto.
   by apply subject_subst0.
 - move => tyl t IH ty ctx ctx' /typing_absP [tyr -> H] H0 H1.
   simpl substitute; apply abs_reducibility;
@@ -471,12 +481,13 @@ End strong_normalization_proof_kripke.
 (*******************************************************************************
   Strong normalization proof with the typed version of reducibility
 *******************************************************************************)
+
 Module strong_normalization_proof_typed.
 
 Import subject_reduction_proof.
 
 Fixpoint list_hyp ty : seq typ :=
-  if ty is tyl :->: tyr then tyl :: list_hyp tyl ++ list_hyp tyr else [::].
+  if ty is tyl ->t tyr then tyl :: list_hyp tyl ++ list_hyp tyr else [::].
 
 Fixpoint list_hyp' (ctx : context typ) t : seq typ :=
   oapp list_hyp [::] (typing ctx t) ++
@@ -505,7 +516,7 @@ elim: t ty ctx ctx' => //=.
 - move => tl IHl tr IHr tyr ctx ctx' H H0.
   rewrite -(eqP (ctxleq_preserves_typing H H0)) -(eqP H0) /=; congr cat.
   case/typing_appP: H0 => tyl H0 H1.
-  by rewrite (IHl (tyl :->: tyr) ctx ctx') // (IHr tyl ctx ctx').
+  by rewrite (IHl (tyl ->t tyr) ctx ctx') // (IHr tyl ctx ctx').
 - move => tyl t IH ty ctx ctx' H H0.
   rewrite -(eqP (ctxleq_preserves_typing H H0)) -(eqP H0) /=; congr cat.
   case/typing_absP: H0 => tyr _ H0.
@@ -515,12 +526,12 @@ Qed.
 Fixpoint reducible (ctx : context typ) (ty : typ) (t : term) : Prop :=
   match ty with
     | tyvar n => SN t
-    | tyl :->: tyr => forall t',
+    | tyl ->t tyr => forall t',
         ctx \|- t' \: tyl -> reducible ctx tyl t' -> reducible ctx tyr (t @ t')
   end.
 
 Lemma CR2 ctx t t' ty :
-  t ->b1 t' -> reducible ctx ty t -> reducible ctx ty t'.
+  t ~>b1 t' -> reducible ctx ty t -> reducible ctx ty t'.
 Proof.
 elim: ty ctx t t'.
 - by move => /= _ _ t t' H []; apply.
@@ -537,7 +548,7 @@ Lemma CR1_and_CR3 ty :
   (forall ctx t,
    all (fun ty => Some ty \in ctx) (list_hyp ty) ->
    ctx \|- t \: ty -> neutral t ->
-   (forall t', t ->b1 t' -> reducible ctx ty t') -> reducible ctx ty t).
+   (forall t', t ~>b1 t' -> reducible ctx ty t') -> reducible ctx ty t).
 Proof.
 elim: ty; first by [].
 move => /= tyl [IHl1 IHl2] tyr [IHr1 IHr2]; split => ctx tl.
@@ -558,11 +569,11 @@ Definition CR1 t ty := proj1 (CR1_and_CR3 ty) t.
 Definition CR3 t ty := proj2 (CR1_and_CR3 ty) t.
 
 Lemma abs_reducibility (ctx : context typ) t tyl tyr :
-  all (fun ty => Some ty \in ctx) (list_hyp (tyl :->: tyr)) ->
-  ctx \|- abs tyl t \: tyl :->: tyr ->
+  all (fun ty => Some ty \in ctx) (list_hyp (tyl ->t tyr)) ->
+  ctx \|- abs tyl t \: tyl ->t tyr ->
   (forall t', ctx \|- t' \: tyl ->
    reducible ctx tyl t' -> reducible ctx tyr (substitute 0 [:: t'] t)) ->
-  reducible ctx (tyl :->: tyr) (abs tyl t).
+  reducible ctx (tyl ->t tyr) (abs tyl t).
 Proof.
 move => /= /andP [] H; rewrite all_cat; case/andP => H0 H1 H2 H3 t' H4 H5.
 have H6: ctx \|- substitute 0 [:: t'] t \: tyr by
@@ -598,7 +609,7 @@ elim: t ty ctx ctx'.
 - move => /= tl IHl tr IHr tyr ctx ctx' H.
   rewrite -(eqP H) /=; case/typing_appP: H => tyl H H0.
   rewrite !all_cat; case/and3P => H1 H2 H3 H4 H5.
-  move: (IHl (tyl :->: tyr) ctx ctx') => /=; apply; auto.
+  move: (IHl (tyl ->t tyr) ctx ctx') => /=; apply; auto.
   by apply subject_subst0.
 - move => /= tyl t IH ty ctx ctx' H.
   rewrite -(eqP H) /=; case/typing_absP: H => tyr -> H.
@@ -625,3 +636,80 @@ by apply/allP => /= ty' H1; rewrite list_hyp'E mem_cat;
 Qed.
 
 End strong_normalization_proof_typed.
+
+(*******************************************************************************
+ Normal forms: beta normal form and long beta/eta normal form
+*******************************************************************************)
+
+Fixpoint beta_normal (nf : bool) (t : term) : bool :=
+  match t with
+    | var m => true
+    | tl @ tr => beta_normal false tl && beta_normal true tr
+    | abs _ t => nf && beta_normal true t
+  end.
+
+Lemma beta_normal_imply (nf nf' : bool) (t : term) :
+  nf ==> nf' -> beta_normal nf t -> beta_normal nf' t.
+Proof. by case: t nf nf' => //= _ t [] []. Qed.
+
+Lemma beta_normal_shift (d c : nat) (nf : bool) (t : term) :
+  beta_normal nf (shift d c t) = beta_normal nf t.
+Proof.
+by elim: t nf c => [| tl IHl tr IHr _ c | _ t IH []] //=; rewrite IHl IHr.
+Qed.
+
+Lemma beta_normalPn (nf : bool) (t : term) :
+  reflect
+    ((if t is abs _ _ then ~~ nf else false) \/ exists t', t ~>b1 t')
+    (~~ beta_normal nf t).
+Proof.
+apply/(iffP idP); elim: t nf => [n | tl IHl tr IHr | ty t IH] nf //=.
+- rewrite negb_and => /orP [/IHl | /IHr] {IHl IHr} [] H; right.
+  - by case: tl H => //= ty tl _; eexists; constructor.
+  - by case: H => tl' H; exists (tl' @ tr); constructor.
+  - by case: tr H.
+  - by case: H => tr' H; exists (tl @ tr'); constructor.
+- case: nf => //=; last by left.
+  case/IH; first by case t.
+  by case => t' H; right; exists (abs ty t'); constructor.
+- by case => // -[] t H; inversion H.
+- case => // -[] t H; rewrite negb_and; inversion H; subst => //=.
+  + by rewrite IHl //=; right; exists t1'.
+  + by rewrite IHr ?orbT //=; right; exists t2'.
+- by case: nf => //= -[] // [t' H];
+    inversion H; subst; apply IH; right; exists t'0.
+Qed.
+
+Lemma beta_normalP (nf : bool) (t : term) :
+  reflect
+    ((if t is abs _ _ then nf else true) /\ forall t', ~ t ~>b1 t')
+    (beta_normal nf t).
+Proof.
+apply/(iffP idP);
+  last by rewrite -(negbK (beta_normal _ _));
+    case => H H0; apply/beta_normalPn => -[];
+    [case: t nf H H0 => //= k t [] | case => t' /H0].
+rewrite -(negbK (beta_normal _ _)) => /beta_normalPn H; split.
+- by case: t nf H => //= k t [] //= []; left.
+- by move => t' H0; apply H; right; exists t'.
+Qed.
+
+Lemma beta_normal_equiv_rtc (t t' : term) :
+  beta_normal true t' -> t ==b t' -> t ~>b t'.
+Proof.
+Abort.
+
+Lemma beta_normal_uniqueness (t t' : term) (ty : typ) :
+  t ==b t' -> beta_normal true t -> beta_normal true t' -> t = t'.
+Proof.
+Abort.
+
+Lemma beta_normal_existence (t : term) :
+  SN t -> exists2 t', t ~>b t' & beta_normal true t'.
+Proof.
+elim/Acc_ind': t / => t IH.
+case: (boolP (beta_normal true t)); first by move => H; exists t.
+case/beta_normalPn; first by case t.
+by case => t' H; case: (IH _ H) => t'' H0 H1;
+   exists t'' => //;apply rt1n_trans with t'.
+Qed.

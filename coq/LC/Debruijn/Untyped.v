@@ -1,6 +1,6 @@
-From Coq Require Import Relations Relation_Operators.
 From mathcomp Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
 From LCAC Require Import Relations_ext seq_ext_base ssrnat_ext seq_ext.
+Require FunInd.
 
 Set Implicit Arguments.
 Unset Strict Implicit.

@@ -3,7 +3,6 @@
 export GREP_COLORS='ms=101:mc=01;31:sl=:cx=:fn=35:ln=32:bn=32:se=36'
 vfiles=(coq/CL.v
         coq/LC/Debruijn/Untyped.v coq/LC/Debruijn/STLC.v coq/LC/Debruijn/F.v
-        coq/LC/Debruijn/Fomega.v
         coq/LC/LN/Untyped.v coq/LC/Origin/Untyped.v
         coq/lib/Relations_ext.v coq/lib/seq_ext_base.v coq/lib/seq_ext.v
         coq/lib/ssrnat_ext.v)
