@@ -6,12 +6,12 @@
 
 * SKIコンビネータ計算: coq/CL.v
     * weak reduction の合流性
-* 型無しλ計算: coq/LC/Debruijn/Untyped.v, agda/Lambda/*.agda
+* 型無しλ計算: coq/deBruijn/Untyped.v, agda/Lambda/*.agda
     * beta reduction の合流性
-* 単純型付きλ計算: coq/LC/Debruijn/STLC.v
+* 単純型付きλ計算: coq/deBruijn/STLC.v
     * 主部簡約(型保存)定理
     * 強正規化定理(3通りの異なる方法で証明)
-* System F (二階型付きλ計算): coq/LC/Debruijn/F.v
+* System F (二階型付きλ計算): coq/deBruijn/F.v
     * 主部簡約(型保存)定理
     * 強正規化定理(3通りの異なる方法で証明)
 

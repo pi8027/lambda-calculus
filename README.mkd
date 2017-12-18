@@ -6,12 +6,12 @@ This is a formalization of the λ-calculus written in SSReflect-Coq and Agda2, a
 
 * SKI combinator calculus: coq/CL.v
     * Confluence of weak reduction
-* Untyped lambda calculus: coq/LC/Debruijn/Untyped.v, agda/Lambda/*.agda
+* Untyped lambda calculus: coq/deBruijn/Untyped.v, agda/Lambda/*.agda
     * Confluence of beta reduction
-* STLC (simply typed lambda calculus): coq/LC/Debruijn/STLC.v
+* STLC (simply typed lambda calculus): coq/deBruijn/STLC.v
     * Subject reduction (type preservation) theorem
     * Strong normalization theorem (three different proofs are available)
-* System F (second order typed lambda calculus): coq/LC/Debruijn/F.v
+* System F (second order typed lambda calculus): coq/deBruijn/F.v
     * Subject reduction (type preservation) theorem
     * Strong normalization theorem (three different proofs are available)
 
