@@ -12,7 +12,7 @@ Definition natE :=
 
 (* Extended comparison predicates. *)
 
-CoInductive leq_xor_gtn' m n :
+Variant leq_xor_gtn' m n :
     bool -> bool -> bool -> bool ->
     nat -> nat -> nat -> nat -> nat -> nat -> Set :=
   | LeqNotGtn' of m <= n :
@@ -25,7 +25,7 @@ Lemma leqP' m n : leq_xor_gtn' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-case: (leqP m n) => H; rewrite (maxnC n) (minnC n).
+rewrite (maxnC n) (minnC n); case: (leqP m n) => H.
 - rewrite (maxn_idPr H) (minn_idPl H).
   by move: (H); rewrite -subn_eq0 => /eqP ->; constructor.
 - rewrite (ltnW H) ltnNge leq_eqVlt H orbT
@@ -33,7 +33,7 @@ case: (leqP m n) => H; rewrite (maxnC n) (minnC n).
   by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
 
-CoInductive compare_nat' m n :
+Variant compare_nat' m n :
     bool -> bool -> bool -> bool -> bool ->
     nat -> nat -> nat -> nat -> nat -> nat -> Set :=
   | CompareNatLt' of m < n :
@@ -48,9 +48,8 @@ Lemma ltngtP' m n : compare_nat' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-(case: (ltngtP m n) => H;
-  last by rewrite -H leqnn maxnn minnn subnn; constructor);
-  rewrite (maxnC n) (minnC n) ?(ltnW H) leqNgt H /=.
+rewrite (maxnC n) (minnC n).
+case: (ltngtP m n) => H; last by rewrite -H maxnn minnn subnn; constructor.
 - rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)).
   by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 - rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
