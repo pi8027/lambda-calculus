@@ -1,19 +1,25 @@
-include ./.deps
+# KNOWNTARGETS will not be passed along to CoqMakefile
+KNOWNTARGETS := Makefile.coq
+# KNOWNFILES will not get implicit targets from the final rule, and so
+# depending on them won't invoke the submake
+# Warning: These files get declared as PHONY, so any targets depending
+# on them always get rebuilt
+KNOWNFILES   := Makefile _CoqProject
 
-COQLIBS=${COQLIBS}
-VOFILES=$(VFILES:.v=.vo)
-GLOBFILES=$(VFILES:.v=.glob)
+.DEFAULT_GOAL := invoke-coqmakefile
 
-.DEFAULT_GOAL := all
-.PHONY: all clean
+Makefile.coq: Makefile _CoqProject
+	$(COQBIN)coq_makefile -f _CoqProject -o Makefile.coq
 
-all: ${VOFILES}
+invoke-coqmakefile: Makefile.coq
+	$(MAKE) --no-print-directory -f Makefile.coq $(filter-out $(KNOWNTARGETS),$(MAKECMDGOALS))
 
-clean:
-	rm -f .deps ${VOFILES} ${GLOBFILES}
+.PHONY: invoke-coqmakefile $(KNOWNFILES)
 
-.deps: ${VFILES}
-	coqdep -c -w ${COQLIBS} ${VFILES} > .deps
+####################################################################
+##                      Your targets here                         ##
+####################################################################
 
-%.vo %.glob: %.v
-	coqc -q ${COQLIBS} $*
+# This should be the last rule, to handle any targets not declared above
+%: invoke-coqmakefile
+	@true

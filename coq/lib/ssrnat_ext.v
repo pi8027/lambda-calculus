@@ -25,11 +25,9 @@ Lemma leqP' m n : leq_xor_gtn' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-rewrite (maxnC n) (minnC n); case: (leqP m n) => H.
-- rewrite (maxn_idPr H) (minn_idPl H).
-  by move: (H); rewrite -subn_eq0 => /eqP ->; constructor.
-- rewrite (ltnW H) ltnNge leq_eqVlt H orbT
-          (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
+case: (leqP m n) => H.
+- by move: (H); rewrite -subn_eq0 => /eqP ->; constructor.
+- rewrite (ltnW H) leqNgt ltnS ltnW //.
   by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
 
@@ -48,12 +46,9 @@ Lemma ltngtP' m n : compare_nat' m n
   (maxn m n) (maxn n m) (minn m n) (minn n m)
   (m - n) (n - m).
 Proof.
-rewrite (maxnC n) (minnC n).
-case: (ltngtP m n) => H; last by rewrite -H maxnn minnn subnn; constructor.
-- rewrite (maxn_idPr (ltnW H)) (minn_idPl (ltnW H)).
-  by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
-- rewrite (maxn_idPl (ltnW H)) (minn_idPr (ltnW H)).
-  by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
+case: (ltngtP m n) => [H|H|->]; last by rewrite subnn; constructor.
+- by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
+- by move: (ltnW H); rewrite -subn_eq0 => /eqP ->; constructor.
 Qed.
 
 (* simpl_natarith *)

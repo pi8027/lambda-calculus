@@ -712,9 +712,9 @@ Qed.
 
 Lemma parred_all_lemma t t' : t ->rp t' -> t' ->rp reduce_all_redex t.
 Proof with auto.
-move: t t'; fix 3 => t t' H; inversion H; subst => {H} /=...
+move: t t'; fix IH 3 => t t' H; inversion H; subst => {H} /=...
 - apply (@subst_parred 0 0 [:: (t2', reduce_all_redex t2)]) => /=...
-- by apply substtyp_parred; apply parred_all_lemma.
+- exact/substtyp_parred/IH.
 - destruct t1; auto; inversion H0...
 - destruct t0; auto; inversion H0...
 Qed.
@@ -1062,7 +1062,7 @@ elim: t ty ctx preds => /=.
 - move => t IHt tyr ty ctx preds /typing_uappP [tyl -> H] H0 H1.
   by apply uapp_reducibility => //; apply IHt.
 - move => t IHt ty ctx preds /typing_uabsP [ty' ->];
-    rewrite -map_comp /funcomp /= => H H0 H1.
+    rewrite -map_comp /comp /= => H H0 H1.
   apply uabs_reducibility => // v P H2.
   rewrite -(subst_substtyp_distr 0 [:: v]) // typemap_compose /=.
   have /(typemap_eq 0 t) -> : forall i ty,
@@ -1416,14 +1416,14 @@ have ->: map some ctx =
 move/reduce_lemma => /(_ (map some ctx) [::] I).
 rewrite /= unzip1_zip ?size_map ?size_iota ?leqnn; last by [].
 have H0: Forall
-    (fun c => #[seq Some i | i <- ctx] \|- c.1 \: subst_typ 0 [::] c.2 /\
+    (fun c => # [seq Some i | i <- ctx] \|- c.1 \: subst_typ 0 [::] c.2 /\
               reducible (map some ctx) c.2 [::] c.1)
     (zip (map var (iota 0 (size ctx))) ctx).
   apply Forall_nth; case => {H t ty} t ty n; rewrite
     size_zip size_map size_iota minnn nth_map' (nth_map' (@fst _ _)) /=
     -/unzip1 -/unzip2 unzip1_zip ?unzip2_zip ?size_map ?size_iota // => H;
     rewrite (nth_map 0 t var) ?size_iota // nth_iota // add0n.
-  suff: #[seq Some i | i <- ctx] \|- n \: subst_typ 0 [::] (nth ty ctx n) by
+  suff: # [seq Some i | i <- ctx] \|- n \: subst_typ 0 [::] (nth ty ctx n) by
     intuition apply (CR4' (@reducibility_isrc _ (nth ty ctx n) [::] I)).
   by rewrite /typing /= subst_nil_ty nth_rcons size_map H (nth_map ty).
 move/(_ H0) => {H0} /(rc_cr1 (reducibility_isrc _ _)) /= /(_ I).

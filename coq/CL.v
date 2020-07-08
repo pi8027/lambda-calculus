@@ -198,10 +198,7 @@ Proof. by elim: t; constructor. Qed.
 Hint Resolve cl_parred_refl.
 
 Lemma cl_weakred_in_parred : inclusion cl_weakred cl_parred.
-Proof with auto.
-apply cl_weakred_ind; try by constructor...
-move => ? ? ?; apply parred_s...
-Qed.
+Proof. by apply cl_weakred_ind; constructor. Qed.
 
 Lemma cl_parred_in_weakred_rtc : inclusion cl_parred cl_weakred_rtc.
 Proof.

@@ -1,6 +1,10 @@
-*.vo
 *.glob
+*.vo
+*.vok
+*.vos
 .*.aux
-/coq/.lia.cache
+.lia.cache
+/coq/.Makefile.coq.d
 /coq/.deps
-/coq/_CoqProject
+/coq/Makefile.coq
+/coq/Makefile.coq.conf
